@@ -1,0 +1,198 @@
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
+
+import { Layout } from '../../components/layout/Layout';
+import { Button } from '../../components/common/Button/Button';
+import { useVideoCreation } from '../../context/VideoCreationContext';
+import { ScriptService } from '../../services/script.service';
+import { Script } from '../../mockdata/scripts';
+
+export default function ScriptPage() {
+  const router = useRouter();
+  const { state, setScript, setStep } = useVideoCreation();
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [scriptContent, setScriptContent] = useState('');
+  const [scriptTitle, setScriptTitle] = useState('');
+  const [generatedScript, setGeneratedScript] = useState<Script | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Check if we have a topic selected, if not redirect to first step
+  useEffect(() => {
+    if (!state.selectedTopic && !state.keyword) {
+      router.replace('/create');
+    }
+  }, [state.selectedTopic, state.keyword, router]);
+  
+  // Generate script on initial load
+  useEffect(() => {
+    const generateInitialScript = async () => {
+      if ((state.selectedTopic || state.keyword) && !state.script) {
+        await handleGenerateScript();
+      } else if (state.script) {
+        setGeneratedScript(state.script);
+        setScriptContent(state.script.content);
+        setScriptTitle(state.script.title);
+      }
+    };
+    
+    generateInitialScript();
+  }, [state.selectedTopic, state.keyword, state.script]);
+  
+  const handleGenerateScript = async () => {
+    setIsGenerating(true);
+    setError(null);
+    
+    try {
+      const topic = state.selectedTopic?.title || state.keyword;
+      const keywords = state.selectedTopic?.keywords || [];
+      
+      const script = await ScriptService.generateScript(topic, keywords);
+      
+      setGeneratedScript(script);
+      setScriptContent(script.content);
+      setScriptTitle(script.title);
+      setScript(script);
+      
+    } catch (err) {
+      setError('Failed to generate script. Please try again.');
+      console.error('Script generation error:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+  
+  const handleScriptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setScriptContent(e.target.value);
+    
+    // Update script in context
+    if (generatedScript) {
+      const updatedScript = {
+        ...generatedScript,
+        content: e.target.value
+      };
+      setGeneratedScript(updatedScript);
+      setScript(updatedScript);
+    }
+  };
+  
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setScriptTitle(e.target.value);
+    
+    // Update script title in context
+    if (generatedScript) {
+      const updatedScript = {
+        ...generatedScript,
+        title: e.target.value
+      };
+      setGeneratedScript(updatedScript);
+      setScript(updatedScript);
+    }
+  };
+  
+  const handleContinue = () => {
+    setStep('voice');
+    router.push('/create/voice');
+  };
+  
+  const handleBack = () => {
+    router.push('/create');
+  };
+  
+  if (isGenerating && !generatedScript) {
+    return (
+      <Layout>
+        <Head>
+          <title>Generate Script - VideoAI</title>
+        </Head>
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-lg shadow px-6 py-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Generating Your Script</h1>
+            
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
+              <p className="mt-4 text-gray-500">
+                Our AI is creating an engaging script based on your topic...
+              </p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  return (
+    <Layout>
+      <Head>
+        <title>Edit Script - VideoAI</title>
+        <meta name="description" content="Edit your AI-generated script" />
+      </Head>
+      
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow px-6 py-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Your Script</h1>
+          
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+          
+          <div className="mb-6">
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              Video Title
+            </label>
+            <input
+              type="text"
+              id="title"
+              value={scriptTitle}
+              onChange={handleTitleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter your video title"
+            />
+          </div>
+          
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-1">
+              <label htmlFor="script" className="block text-sm font-medium text-gray-700">
+                Script Content
+              </label>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleGenerateScript}
+                isLoading={isGenerating}
+              >
+                Regenerate
+              </Button>
+            </div>
+            <textarea
+              id="script"
+              value={scriptContent}
+              onChange={handleScriptChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={10}
+              placeholder="Enter your script content"
+            />
+            <p className="mt-2 text-sm text-gray-500">
+              Pro tip: Keep your script concise and to the point for better engagement.
+            </p>
+          </div>
+          
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={handleBack}>
+              Back
+            </Button>
+            <Button 
+              onClick={handleContinue}
+              disabled={!scriptContent.trim() || !scriptTitle.trim()}
+            >
+              Continue to Voice Selection
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}
