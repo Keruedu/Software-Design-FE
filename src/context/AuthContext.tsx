@@ -1,11 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
+import { authService } from '../services/authService';
+import { User } from '../types/auth';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -16,9 +11,9 @@ interface AuthState {
 
 export interface AuthContextType {
   auth: AuthState;
-  login: (email: string, password: string) => Promise<void>;
+  login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string) => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -30,79 +25,23 @@ const initialState: AuthState = {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock auth functions for demo
-const mockLogin = async (email: string, password: string): Promise<{user: User, token: string}> => {
-  // Simulate API request
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  if (email === 'demo@example.com' && password === 'password') {
-    return {
-      user: {
-        id: 'user1',
-        name: 'Demo User',
-        email: 'demo@example.com',
-        avatar: 'https://ui-avatars.com/api/?name=Demo+User'
-      },
-      token: 'mock-auth-token'
-    };
-  }
-  
-  throw new Error('Invalid credentials');
-};
-
-const mockRegister = async (name: string, email: string, password: string): Promise<{user: User, token: string}> => {
-  // Simulate API request
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  if (email === 'demo@example.com') {
-    throw new Error('Email already exists');
-  }
-  
-  return {
-    user: {
-      id: 'user2',
-      name,
-      email,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`
-    },
-    token: 'mock-auth-token'
-  };
-};
-
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState>(initialState);
   
+  // Check auth status on mount
   useEffect(() => {
-    // Check for saved token on initial load
-    const token = localStorage.getItem('auth_token');
-    const userJson = localStorage.getItem('auth_user');
-    
-    if (token && userJson) {
-      try {
-        const user = JSON.parse(userJson) as User;
-        setAuth({
-          isAuthenticated: true,
-          user,
-          token,
-          loading: false
-        });
-      } catch (error) {
-        console.error('Failed to parse saved user data');
-        setAuth({...initialState, loading: false});
-      }
-    } else {
-      setAuth({...initialState, loading: false});
-    }
+    checkAuthStatus();
   }, []);
-  
-  const login = async (email: string, password: string): Promise<void> => {
+
+  const checkAuthStatus = async () => {
     try {
-      const { user, token } = await mockLogin(email, password);
-      
-      // Save auth data
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('auth_user', JSON.stringify(user));
-      
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setAuth({ ...initialState, loading: false });
+        return;
+      }
+
+      const user = await authService.getCurrentUser();
       setAuth({
         isAuthenticated: true,
         user,
@@ -110,34 +49,51 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         loading: false
       });
     } catch (error) {
-      throw error;
+      localStorage.removeItem('access_token');
+      setAuth({ ...initialState, loading: false });
     }
   };
-  
-  const logout = (): void => {
-    // Clear saved auth data
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    
-    setAuth({...initialState, loading: false});
-  };
-  
-  const register = async (name: string, email: string, password: string): Promise<void> => {
+  const login = async (usernameOrEmail: string, password: string): Promise<void> => {
     try {
-      const { user, token } = await mockRegister(name, email, password);
+      // For now, always send as username field since backend expects it
+      // In future, backend should handle both email and username
+      const response = await authService.login({ username: usernameOrEmail, password });
+      localStorage.setItem('access_token', response.access_token);
       
-      // Save auth data
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('auth_user', JSON.stringify(user));
-      
+      const user = await authService.getCurrentUser();
       setAuth({
         isAuthenticated: true,
         user,
-        token,
+        token: response.access_token,
         loading: false
       });
     } catch (error) {
-      throw error;
+      throw new Error('Invalid email/username or password');
+    }
+  };
+
+  const register = async (username: string, email: string, password: string): Promise<void> => {
+    try {
+      await authService.register({ username, email, password });
+      // Auto login after register
+      await login(email, password);
+    } catch (error) {
+      throw new Error('Registration failed');
+    }
+  };
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('access_token');
+      setAuth({
+        isAuthenticated: false,
+        user: null,
+        token: null,
+        loading: false
+      });
     }
   };
   
