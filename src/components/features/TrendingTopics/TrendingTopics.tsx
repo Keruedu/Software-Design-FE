@@ -9,14 +9,14 @@ export const TrendingTopics: React.FC = () => {
   const [topics, setTopics] = useState<TrendingTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   
   const router = useRouter();
-
   useEffect(() => {
     const fetchTrends = async () => {
       try {
         setLoading(true);
-        const data = await TrendsService.getTrends();
+        const data = await TrendsService.getTrends(true); // Include internet trends
         setTopics(data);
         setError(null);
       } catch (err) {
@@ -29,6 +29,27 @@ export const TrendingTopics: React.FC = () => {
 
     fetchTrends();
   }, []);
+
+  const handleRefreshTrends = async () => {
+    try {
+      setRefreshing(true);
+      const result = await TrendsService.fetchInternetTrends();
+      
+      if (result.success) {
+        // Refresh the topics list
+        const data = await TrendsService.getTrends(true);
+        setTopics(data);
+        setError(null);
+      } else {
+        setError(`Failed to refresh trends: ${result.message}`);
+      }
+    } catch (err) {
+      setError('Failed to refresh trending topics. Please try again later.');
+      console.error('Error refreshing trending topics:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSelectTopic = (topic: TrendingTopic) => {
     router.push({
@@ -64,13 +85,33 @@ export const TrendingTopics: React.FC = () => {
     );
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+  return (    <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-medium text-gray-900">Trending Topics</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Create videos on these popular topics to maximize engagement.
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900">Trending Topics</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Real-time trending topics from across the internet to maximize engagement.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshTrends}
+            disabled={refreshing}
+            className="flex items-center gap-2"
+          >
+            <svg 
+              className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshing ? 'Refreshing...' : 'Refresh from Internet'}
+          </Button>
+        </div>
       </div>
 
       <ul className="divide-y divide-gray-200">

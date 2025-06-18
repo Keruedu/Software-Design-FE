@@ -8,6 +8,7 @@ import { Input } from '../../components/common/Input/Input';
 import { TrendsService } from '../../services/trends.service';
 import { TrendingTopic } from '../../mockdata/trendingTopics';
 import { useVideoCreation } from '../../context/VideoCreationContext';
+import { HotTrends } from '../../components/features/HotTrends/HotTrends';
 
 export default function CreatePage() {
   const router = useRouter();
@@ -81,33 +82,35 @@ export default function CreatePage() {
         <title>Create New Video - VideoAI</title>
         <meta name="description" content="Create a new AI-powered short video" />
       </Head>
-      
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow px-6 py-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Create a New Video</h1>
-          
-          <div className="mb-8">
-            <h2 className="text-lg font-medium text-gray-900 mb-2">Choose a Topic</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Search for a topic or enter your own to get started
-            </p>
-            
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Search topics (e.g., Sustainable Fashion, AI, Fitness)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyPress}
-                fullWidth
-              />
-              <Button
-                onClick={handleSearch}
-                isLoading={isSearching}
-              >
-                Search
-              </Button>
-            </div>
-          </div>
+        <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main content */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow px-6 py-8">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">Create a New Video</h1>
+              
+              <div className="mb-8">
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Choose a Topic</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Search for a topic or enter your own to get started
+                </p>
+                
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="Search topics (e.g., Sustainable Fashion, AI, Fitness)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    fullWidth
+                  />
+                  <Button
+                    onClick={handleSearch}
+                    isLoading={isSearching}
+                  >
+                    Search
+                  </Button>
+                </div>
+              </div>
           
           {/* Search Results */}
           {searchResults.length > 0 && (
@@ -175,14 +178,23 @@ export default function CreatePage() {
               </div>
             </div>
           )}
-          
-          <div className="flex justify-end">
+            <div className="flex justify-end">
             <Button
               disabled={!selectedTrend && !searchQuery}
               onClick={selectedTrend ? handleContinue : handleCustomTopic}
             >
               Continue
             </Button>
+          </div>
+            </div>
+          </div>
+          
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <HotTrends 
+              onSelectTrend={handleSelectTopic}
+              limit={8}
+            />
           </div>
         </div>
       </div>
