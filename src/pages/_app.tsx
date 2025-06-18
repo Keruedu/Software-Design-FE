@@ -1,6 +1,8 @@
 import React from 'react';
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Import global styles
 import '../styles/globals.css';
@@ -20,6 +22,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <AuthProvider>
         <VideoCreationProvider>
           <Component {...pageProps} />
+          <ToastContainer />
         </VideoCreationProvider>
       </AuthProvider>
     </>

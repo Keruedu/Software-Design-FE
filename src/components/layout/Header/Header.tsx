@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../../hooks/useAuth';
+import { useAuth } from '../../../context/AuthContext';
 import { Button } from '../../common/Button/Button';
 
 export const Header: React.FC = () => {
@@ -57,9 +57,8 @@ export const Header: React.FC = () => {
               <div className="flex items-center">
                 {/* User profile */}
                 <div className="relative ml-3">
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium text-gray-700 mr-3">
-                      {auth.user?.name}
+                  <div className="flex items-center">                    <span className="text-sm font-medium text-gray-700 mr-3">
+                      {auth.user?.username}
                     </span>
                     
                     <Button
@@ -144,11 +143,11 @@ export const Header: React.FC = () => {
               <div className="flex items-center px-4">
                 <div className="flex-shrink-0">
                   <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                    {auth.user?.name?.charAt(0) || 'U'}
+                    {auth.user?.username?.charAt(0) || 'U'}
                   </div>
                 </div>
                 <div className="ml-3">
-                  <div className="text-base font-medium text-gray-800">{auth.user?.name}</div>
+                  <div className="text-base font-medium text-gray-800">{auth.user?.username}</div>
                   <div className="text-sm font-medium text-gray-500">{auth.user?.email}</div>
                 </div>
                 <button

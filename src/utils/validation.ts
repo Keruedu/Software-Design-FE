@@ -7,6 +7,33 @@ export const isValidEmail = (email: string): boolean => {
 };
 
 /**
+ * Validate username format
+ * Requirements:
+ * - At least 3 characters
+ * - Contains only letters, numbers, and underscores
+ * - No spaces or special characters except underscore
+ */
+export const isValidUsername = (username: string): boolean => {
+  const usernameRegex = /^[a-zA-Z0-9_]{3,50}$/;
+  return usernameRegex.test(username);
+};
+
+/**
+ * Determine if input is email or username
+ */
+export const getInputType = (input: string): 'email' | 'username' => {
+  return input.includes('@') ? 'email' : 'username';
+};
+
+/**
+ * Validate input based on its type (email or username)
+ */
+export const isValidEmailOrUsername = (input: string): boolean => {
+  const inputType = getInputType(input);
+  return inputType === 'email' ? isValidEmail(input) : isValidUsername(input);
+};
+
+/**
  * Validate password strength
  * Requirements: 
  * - At least 8 characters

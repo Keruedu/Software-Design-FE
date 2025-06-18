@@ -3,16 +3,17 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import { FiMail, FiLock, FiUser, FiUserPlus } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
+import { ProtectedRoute } from '../../components/common/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-  
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,7 +21,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   
   const validateForm = () => {
-    if (!name || !email || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword) {
       setError('All fields are required');
       return false;
     }
@@ -49,22 +50,41 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      await register(name, email, password);
-      router.push('/dashboard');
-    } catch (err) {
+      await register(username, email, password);
+      toast.success('Account created successfully! Please log in.', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+      router.push({
+        pathname: '/auth/login',
+        query: { 
+          registered: 'success',
+          username: username 
+        }
+      });
+    } catch (err: any) {
       console.error('Registration error:', err);
-      setError('Registration failed. Email may already be in use.');
+      const errorMessage = 
+        err.response?.data?.detail || 
+        err.response?.data?.message || 
+        'Registration failed. Please try again.';
+    
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  return (
-    <>
-      <Head>
-        <title>Create Account - VideoAI</title>
-        <meta name="description" content="Create a new VideoAI account" />
-      </Head>
+    return (
+    <ProtectedRoute requireAuth={false}>
+      <>
+        <Head>
+          <title>Create Account - VideoAI</title>
+          <meta name="description" content="Create a new VideoAI account" />
+        </Head>
       
       <div className="flex min-h-screen bg-gray-50">
         {/* Left side - registration form */}
@@ -83,15 +103,12 @@ export default function RegisterPage() {
               </div>
             )}
             
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <Input
-                label="Full Name"
+            <form className="space-y-4" onSubmit={handleSubmit}>              <Input
+                label="Username"
                 type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                icon={<FiUser className="text-gray-400" />}
+                placeholder="johndoe"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}                required
               />
               
               <Input
@@ -99,9 +116,7 @@ export default function RegisterPage() {
                 type="email"
                 placeholder="your@email.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                icon={<FiMail className="text-gray-400" />}
+                onChange={(e) => setEmail(e.target.value)}                required
               />
               
               <Input
@@ -109,9 +124,7 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                icon={<FiLock className="text-gray-400" />}
+                onChange={(e) => setPassword(e.target.value)}                required
               />
               
               <Input
@@ -119,9 +132,7 @@ export default function RegisterPage() {
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                icon={<FiLock className="text-gray-400" />}
+                onChange={(e) => setConfirmPassword(e.target.value)}                required
               />
               
               <div className="mt-2">
@@ -147,9 +158,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 isLoading={isLoading}
-                disabled={!name || !email || !password || !confirmPassword}
-                className="w-full"
-                icon={<FiUserPlus />}
+                disabled={!username || !email || !password || !confirmPassword}                className="w-full"
               >
                 Create Account
               </Button>
@@ -209,9 +218,9 @@ export default function RegisterPage() {
                 <span className="font-semibold">New users get 5 free videos!</span>
               </div>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
-    </>
+      </>
+    </ProtectedRoute>
   );
 }
