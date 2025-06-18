@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import { FiMail, FiLock, FiUser, FiUserPlus } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
@@ -12,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-    const [username, setUsername] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,10 +51,29 @@ export default function RegisterPage() {
     
     try {
       await register(username, email, password);
-      router.push('/dashboard');
-    } catch (err) {
+      toast.success('Account created successfully! Please log in.', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+      router.push({
+        pathname: '/auth/login',
+        query: { 
+          registered: 'success',
+          username: username 
+        }
+      });
+    } catch (err: any) {
       console.error('Registration error:', err);
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const errorMessage = 
+        err.response?.data?.detail || 
+        err.response?.data?.message || 
+        'Registration failed. Please try again.';
+    
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
     } finally {
       setIsLoading(false);
     }

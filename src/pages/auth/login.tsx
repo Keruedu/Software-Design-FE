@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
@@ -9,15 +9,33 @@ import { Input } from '../../components/common/Input/Input';
 import { ProtectedRoute } from '../../components/common/ProtectedRoute';
 import { useAuth } from '../../context/AuthContext';
 import { getInputType, isValidEmailOrUsername } from '../../utils/validation';
+import { toast } from 'react-toastify';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-    const [usernameOrEmail, setUsernameOrEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
+  
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const { registered, username } = router.query;
+    
+    if (username) {
+      const usernameValue = Array.isArray(username) ? username[0] : username;
+      setUsernameOrEmail(usernameValue);
+    }
+    
+    if (registered === 'success') {
+      
+      router.replace('/auth/login', undefined, { shallow: true })
+        .catch(err => console.error('Error replacing URL:', err));
+    }
+  }, [router.isReady, router.query, router]);
 
   const handleUsernameOrEmailChange = (value: string) => {
     setUsernameOrEmail(value);
@@ -54,9 +72,19 @@ export default function LoginPage() {
       await login(usernameOrEmail, password);
       const returnUrl = router.query.returnUrl as string || '/dashboard';
       router.push(returnUrl);
+      
+      toast.success('Login successful!', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
+      
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');
+      toast.error(err instanceof Error ? err.message : 'Login failed. Please try again.', {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
     } finally {
       setIsLoading(false);
     }
