@@ -4,9 +4,11 @@ import { Script } from '../mockdata/scripts';
 import { Voice } from '../mockdata/voices';
 import { Background } from '../mockdata/backgrounds';
 import { VideoEditParams } from '../services/video.service';
+import { VoiceGenerationResult } from '../services/voice.service';
+import { SubtitleOptions } from '../types/subtitle';
 
 interface VideoCreationState {
-  step: 'topic' | 'script' | 'voice' | 'background' | 'edit' | 'export';
+  step: 'topic' | 'script' | 'voice' | 'background' | 'subtitle' | 'edit' | 'export';
   selectedTopic: TrendingTopic | null;
   keyword: string;
   script: Script | null;
@@ -15,7 +17,9 @@ interface VideoCreationState {
     speed: number; // 0.5 to 2.0
     pitch: number; // -10 to 10
   };
+  generatedAudio: VoiceGenerationResult | null;
   selectedBackground: Background | null;
+  subtitleOptions: SubtitleOptions | null;
   editSettings: VideoEditParams;
 }
 
@@ -26,8 +30,9 @@ interface VideoCreationContextType {
   setKeyword: (keyword: string) => void;
   setScript: (script: Script | null) => void;
   setSelectedVoice: (voice: Voice | null) => void;
-  setVoiceSettings: (settings: Partial<VideoCreationState['voiceSettings']>) => void;
+  setVoiceSettings: (settings: Partial<VideoCreationState['voiceSettings']>) => void;  setGeneratedAudio: (audio: VoiceGenerationResult | null) => void;
   setSelectedBackground: (background: Background | null) => void;
+  setSubtitleOptions: (options: SubtitleOptions | null) => void;
   setEditSettings: (settings: Partial<VideoEditParams>) => void;
   resetState: () => void;
 }
@@ -42,7 +47,9 @@ const initialState: VideoCreationState = {
     speed: 1.0,
     pitch: 0
   },
+  generatedAudio: null,
   selectedBackground: null,
+  subtitleOptions: null,
   editSettings: {
     textOverlays: [],
     backgroundMusic: undefined,
@@ -75,16 +82,22 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const setSelectedVoice = (voice: Voice | null) => {
     setState(prev => ({ ...prev, selectedVoice: voice }));
   };
-  
-  const setVoiceSettings = (settings: Partial<VideoCreationState['voiceSettings']>) => {
+    const setVoiceSettings = (settings: Partial<VideoCreationState['voiceSettings']>) => {
     setState(prev => ({
       ...prev,
       voiceSettings: { ...prev.voiceSettings, ...settings }
     }));
   };
   
-  const setSelectedBackground = (background: Background | null) => {
+  const setGeneratedAudio = (audio: VoiceGenerationResult | null) => {
+    setState(prev => ({ ...prev, generatedAudio: audio }));
+  };
+    const setSelectedBackground = (background: Background | null) => {
     setState(prev => ({ ...prev, selectedBackground: background }));
+  };
+  
+  const setSubtitleOptions = (options: SubtitleOptions | null) => {
+    setState(prev => ({ ...prev, subtitleOptions: options }));
   };
   
   const setEditSettings = (settings: Partial<VideoEditParams>) => {
@@ -97,8 +110,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const resetState = () => {
     setState(initialState);
   };
-  
-  const value = {
+    const value = {
     state,
     setStep,
     setSelectedTopic,
@@ -106,7 +118,9 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setScript,
     setSelectedVoice,
     setVoiceSettings,
+    setGeneratedAudio,
     setSelectedBackground,
+    setSubtitleOptions,
     setEditSettings,
     resetState
   };

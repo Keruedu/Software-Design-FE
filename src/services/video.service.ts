@@ -1,6 +1,8 @@
 import { Video, VideoWithDetails } from '../mockdata/videos';
 import { mockApiCall, mockBackgrounds, mockScripts, mockVideos, mockVoices, trendingTopics } from '../mockdata';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export interface VideoCreationParams {
   title: string;
   description: string;
@@ -8,6 +10,23 @@ export interface VideoCreationParams {
   voiceId: string;
   backgroundId: string;
   topics: string[];
+}
+
+export interface CompleteVideoCreationParams {
+  script_text: string;
+  voice_id: string;
+  background_image_id: string;
+  subtitle_enabled?: boolean;
+  subtitle_language?: string;
+  subtitle_style?: string;
+}
+
+export interface VideoFromComponentsParams {
+  audio_file_id: string;
+  background_image_id: string;
+  script_text?: string;
+  subtitle_enabled?: boolean;
+  subtitle_language?: string;
 }
 
 export interface VideoEditParams {
@@ -36,31 +55,121 @@ export interface VideoEditParams {
 /**
  * Service for video creation and management
  */
-export const VideoService = {  /**
-   * Get all videos
+export const VideoService = {
+  /**
+   * Create a complete video from script, voice, background, and subtitles
+   */  createCompleteVideo: async (params: CompleteVideoCreationParams): Promise<any> => {
+    let token = localStorage.getItem('access_token');
+    // For testing - use mock token if no real token found
+    if (!token) {
+      console.warn('No access token found, using mock token for testing');
+      token = 'mock-token-for-testing';
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/video/create-complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create video');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Create video from existing audio and background components
+   */  createVideoFromComponents: async (params: VideoFromComponentsParams): Promise<any> => {
+    let token = localStorage.getItem('access_token');
+    if (!token) {
+      console.warn('No access token found, using mock token for testing');
+      token = 'mock-token-for-testing';
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/video/create-from-components`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create video');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Get video preview URL
+   */  getVideoPreview: async (videoId: string): Promise<{video_url: string; title: string; duration?: number; created_at: string}> => {
+    let token = localStorage.getItem('access_token');
+    if (!token) {
+      console.warn('No access token found, using mock token for testing');
+      token = 'mock-token-for-testing';
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/video/preview/${videoId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to get video preview');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Download video file
+   */  downloadVideo: async (videoId: string): Promise<Blob> => {
+    let token = localStorage.getItem('access_token');
+    if (!token) {
+      console.warn('No access token found, using mock token for testing');
+      token = 'mock-token-for-testing';
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/video/download/${videoId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download video');
+    }
+
+    return response.blob();
+  },
+
+  /**
+   * Get all videos (mock - for backward compatibility)
    */
   getAllVideos: async (): Promise<Video[]> => {
     return mockApiCall(mockVideos);
   },
 
   /**
-   * Get videos for the current user (same as getAllVideos in mock)
+   * Get videos for the current user (mock - for backward compatibility)
    */
   getVideos: async (): Promise<Video[]> => {
     return mockApiCall(mockVideos);
   },
-  
-  /**
-   * Delete a video by ID
-   */
-  deleteVideo: async (id: string): Promise<boolean> => {
-    // In a real app, we would send a delete request to the server
-    await mockApiCall(true, 500); // Simulate API delay
-    return true;
-  },
 
   /**
-   * Get video by ID with detailed information
+   * Get video by ID with detailed information (mock - for backward compatibility)
    */
   getVideoById: async (id: string): Promise<VideoWithDetails | null> => {
     const video = mockVideos.find(v => v.id === id);
@@ -89,11 +198,11 @@ export const VideoService = {  /**
   },
 
   /**
-   * Create a new video
+   * Create a video from provided parameters (mock - for backward compatibility)
    */
   createVideo: async (params: VideoCreationParams): Promise<Video> => {
     const newVideo: Video = {
-      id: `video_${Date.now()}`,
+      id: `video-${Date.now()}`,
       title: params.title,
       description: params.description,
       scriptId: params.scriptId,
@@ -105,7 +214,10 @@ export const VideoService = {  /**
       status: 'processing',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      topics: params.topics
+      topics: params.topics,
+      tags: [],
+      views: 0,
+      url: ''
     };
     
     // Simulate video creation processing
@@ -113,7 +225,7 @@ export const VideoService = {  /**
   },
 
   /**
-   * Apply edits to a video
+   * Apply edits to a video (mock - for backward compatibility)
    */
   editVideo: async (id: string, editParams: VideoEditParams): Promise<Video> => {
     const video = mockVideos.find(v => v.id === id);
@@ -133,7 +245,7 @@ export const VideoService = {  /**
   },
 
   /**
-   * Export a video (simulate completion)
+   * Export a video (mock - for backward compatibility)
    */
   exportVideo: async (id: string): Promise<{url: string, downloadUrl: string}> => {
     const video = mockVideos.find(v => v.id === id);
@@ -156,9 +268,9 @@ export const VideoService = {  /**
   },
 
   /**
-   * Delete a video
+   * Delete a video (mock - for backward compatibility)
    */
-  deleteVideo: async (id: string): Promise<void> => {
+  deleteVideoMock: async (id: string): Promise<void> => {
     const videoIndex = mockVideos.findIndex(v => v.id === id);
     
     if (videoIndex === -1) {
