@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
@@ -15,14 +15,30 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const validateForm = () => {
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !email || !fullName || !password || !confirmPassword) {
       setError('All fields are required');
+      return false;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('Username must contain only letters, numbers, and underscores');
+      return false;
+    }
+
+    if (username.length < 3 || username.length > 50) {
+      setError('Username must be between 3 and 50 characters');
+      return false;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address');
       return false;
     }
     
@@ -50,7 +66,7 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      await register(username, email, password);
+      await register(username, email, fullName, password);
       toast.success('Account created successfully! Please log in.', {
         position: 'bottom-right',
         autoClose: 3000,
@@ -104,11 +120,21 @@ export default function RegisterPage() {
             )}
             
             <form className="space-y-4" onSubmit={handleSubmit}>              <Input
+                label="Fullname"
+                type="text"
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+              
+              <Input
                 label="Username"
                 type="text"
                 placeholder="johndoe"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}                required
+                onChange={(e) => setUsername(e.target.value)}
+                required
               />
               
               <Input

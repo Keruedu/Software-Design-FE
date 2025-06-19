@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  fullName: string;
   created_at: string;
   updated_at: string;
 }
@@ -14,6 +15,7 @@ export interface LoginResponse {
 
 export interface RegisterRequest {
   username: string;
+  fullName: string;
   email: string;
   password: string;
 }

@@ -14,6 +14,10 @@ export const authService = {
     });
     return response.data;
   },
+  async getGoogleAuthUrl(): Promise<{ auth_url: string }> {
+    const response = await api.get('/user/google/auth');
+    return response.data;
+  },
   async logout(): Promise<void> {
     await api.post('/user/logout');
   },
