@@ -11,6 +11,7 @@ interface AuthState {
 
 export interface AuthContextType {
   auth: AuthState;
+  setAuth: React.Dispatch<React.SetStateAction<AuthState>>;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
   register: (username: string, email: string, fullName: string, password: string) => Promise<void>;
@@ -133,6 +134,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   
   const value = {
     auth,
+    setAuth,
     login,
     logout,
     loginWithGoogle,

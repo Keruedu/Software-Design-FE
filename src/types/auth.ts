@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email: string;
   fullName: string;
+  avatar?: string;
   created_at: string;
   updated_at: string;
 }
