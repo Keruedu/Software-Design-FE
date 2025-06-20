@@ -4,16 +4,10 @@ import Head from 'next/head';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
+import { Input } from '../../components/common/Input/Input';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { Background } from '../../mockdata/backgrounds';
-import { VoiceGenerationResult, VoiceService } from '../../services/voice.service';
-
-// Mock function to get backgrounds
-const getBackgrounds = async (): Promise<Background[]> => {
-  // For demo purposes, let's import from mockdata
-  const { mockBackgrounds } = await import('../../mockdata/backgrounds');
-  return mockBackgrounds;
-};
+import { BackgroundService, BackgroundGenerationParams } from '../../services/background.service';
 
 export default function BackgroundPage() {
   const router = useRouter();
@@ -23,29 +17,52 @@ export default function BackgroundPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [generatingAudio, setGeneratingAudio] = useState(false);
-  const [audioPreview, setAudioPreview] = useState<VoiceGenerationResult | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCustomGenerator, setShowCustomGenerator] = useState(false);  const [customPrompt, setCustomPrompt] = useState('');
+  const [customStyle, setCustomStyle] = useState('realistic');
+  const [generatingCustom, setGeneratingCustom] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
-  // Check if we have voice selected, if not redirect
+  // Check if we have required data, if not redirect
   useEffect(() => {
     if (!state.script || !state.selectedVoice) {
       router.replace('/create/voice');
     }
   }, [state.script, state.selectedVoice, router]);
-  
-  // Load backgrounds on component mount
+    // Load backgrounds and categories on component mount
   useEffect(() => {
-    const fetchBackgrounds = async () => {
+    const fetchData = async () => {
+      // Only run once and if we have required data
+      if (hasInitialized || !state.script || !state.selectedVoice) {
+        return;
+      }
+      
       try {
         setLoading(true);
-        const data = await getBackgrounds();
-        setBackgrounds(data);
+        setHasInitialized(true);
+        
+        console.log('🎨 Fetching backgrounds for script:', state.script.content.substring(0, 50) + '...');
+        
+        // Get recommended backgrounds based on script content and image prompts
+        const recommendedBackgrounds = await BackgroundService.getRecommendedBackgrounds(
+          state.script?.content,
+          state.selectedVoice?.id,
+          state.script?.imagePrompts // Pass image prompts from script
+        );
+        
+        // Get all available categories
+        const availableCategories = await BackgroundService.getAvailableCategories();
+        
+        setBackgrounds(recommendedBackgrounds);
+        setCategories(availableCategories);
         
         // If we don't have a selected background yet and we have backgrounds, select the first one
-        if (!state.selectedBackground && data.length > 0) {
-          setSelectedBackground(data[0]);
+        if (!state.selectedBackground && recommendedBackgrounds.length > 0) {
+          setSelectedBackground(recommendedBackgrounds[0]);
         }
+        
+        setError(null);
       } catch (err) {
         setError('Failed to load backgrounds. Please try again.');
         console.error('Error fetching backgrounds:', err);
@@ -54,40 +71,122 @@ export default function BackgroundPage() {
       }
     };
 
-    fetchBackgrounds();
-  }, [setSelectedBackground, state.selectedBackground]);
+    fetchData();
+  }, [hasInitialized, state.script?.id, state.selectedVoice?.id]);
   
-  // Generate audio preview when voice and script are ready
-  useEffect(() => {
-    const generateAudioPreview = async () => {
-      if (state.script && state.selectedVoice && !audioPreview && !generatingAudio) {
-        setGeneratingAudio(true);
-        
-        try {
-          const result = await VoiceService.generateVoiceAudio({
-            scriptId: state.script.id,
-            voiceId: state.selectedVoice.id,
-            settings: state.voiceSettings
-          });
-          
-          setAudioPreview(result);
-        } catch (err) {
-          console.error('Failed to generate audio preview:', err);
-        } finally {
-          setGeneratingAudio(false);
-        }
-      }
-    };
+  // Handle category filter change
+  const handleCategoryFilter = async (category: string | null) => {
+    setSelectedFilter(category);
+    setLoading(true);
     
-    generateAudioPreview();
-  }, [state.script, state.selectedVoice, state.voiceSettings, audioPreview, generatingAudio]);
+    try {
+      let filteredBackgrounds;
+      if (category) {
+        filteredBackgrounds = await BackgroundService.getBackgroundsByCategory(category);      } else {
+        filteredBackgrounds = await BackgroundService.getRecommendedBackgrounds(
+          state.script?.content,
+          state.selectedVoice?.id,
+          state.script?.imagePrompts // Include image prompts
+        );
+      }
+      setBackgrounds(filteredBackgrounds);
+    } catch (err) {
+      setError('Failed to filter backgrounds.');
+      console.error('Error filtering backgrounds:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+    // Handle custom background generation
+  const handleGenerateCustomBackground = async () => {
+    if (!customPrompt.trim()) {
+      setError('Please enter a description for your custom background.');
+      return;
+    }
+    
+    setGeneratingCustom(true);
+    setError(null);
+    
+    try {
+      const params: BackgroundGenerationParams = {
+        prompt: customPrompt,
+        style: customStyle,
+        resolution: "1080x1920"
+      };
+      
+      const result = await BackgroundService.generateCustomBackground(params);
+      
+      // Create a Background object from the result
+      const newBackground: Background = {
+        id: result.id,
+        title: `Custom: ${customPrompt.slice(0, 30)}...`,
+        category: "Custom",
+        imageUrl: result.imageUrl,
+        tags: ["custom", "generated", result.style],
+        premium: false
+      };
+      
+      // Add to backgrounds list and select it
+      setBackgrounds(prev => [newBackground, ...prev]);
+      setSelectedBackground(newBackground);
+      setShowCustomGenerator(false);
+      setCustomPrompt('');
+      
+      console.log('✅ Custom background generated successfully:', result);
+      
+    } catch (err) {
+      setError('Failed to generate custom background. Please try again.');
+      console.error('Custom background generation error:', err);
+    } finally {
+      setGeneratingCustom(false);
+    }
+  };
+
+  // Handle script-based background generation
+  const handleGenerateFromScript = async () => {
+    if (!state.script?.content) {
+      setError('No script content available for background generation.');
+      return;
+    }
+    
+    setGeneratingCustom(true);
+    setError(null);
+    
+    try {
+      const result = await BackgroundService.generateBackgroundFromScript(
+        state.script.content,
+        customStyle,
+        "1080x1920"
+      );
+      
+      // Create a Background object from the result
+      const newBackground: Background = {
+        id: result.id,
+        title: `AI Generated: ${state.script.title}`,
+        category: "AI Generated",
+        imageUrl: result.imageUrl,
+        tags: ["ai-generated", "script-based", result.style],
+        premium: false
+      };
+      
+      // Add to backgrounds list and select it
+      setBackgrounds(prev => [newBackground, ...prev]);
+      setSelectedBackground(newBackground);
+      
+      console.log('✅ Script-based background generated successfully:', result);
+      console.log('📝 Generated from script:', state.script.title);
+      console.log('🎨 Generated prompt:', result.prompt);
+      
+    } catch (err) {
+      setError('Failed to generate background from script. Please try again.');
+      console.error('Script-based background generation error:', err);
+    } finally {
+      setGeneratingCustom(false);
+    }
+  };
   
   const handleSelectBackground = (background: Background) => {
     setSelectedBackground(background);
-  };
-  
-  const handleFilterChange = (category: string | null) => {
-    setSelectedFilter(category);
   };
   
   const filteredBackgrounds = selectedFilter 
@@ -95,42 +194,13 @@ export default function BackgroundPage() {
     : backgrounds;
   
   const uniqueCategories = [...new Set(backgrounds.map(bg => bg.category))];
-  
   const handleContinue = () => {
-    setStep('edit');
-    router.push('/create/edit');
+    setStep('subtitle');
+    router.push('/create/subtitle');
   };
   
   const handleBack = () => {
     router.push('/create/voice');
-  };
-  
-  const renderAudioPreview = () => {
-    if (generatingAudio) {
-      return (
-        <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg">
-          <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-          <span className="text-gray-600">Generating audio preview...</span>
-        </div>
-      );
-    }
-    
-    if (audioPreview) {
-      return (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-sm font-medium text-gray-700 mb-2">Audio Preview</p>
-          <audio 
-            controls 
-            className="w-full" 
-            src={audioPreview.audioUrl}
-          >
-            Your browser does not support the audio element.
-          </audio>
-        </div>
-      );
-    }
-    
-    return null;
   };
   
   if (loading) {
@@ -165,14 +235,21 @@ export default function BackgroundPage() {
           
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
+              {error}            </div>
           )}
           
-          {/* Audio preview */}
-          <div className="mb-8">
-            {renderAudioPreview()}
-          </div>
+          {/* Show script info if available */}
+          {state.script && (
+            <div className="mb-6 bg-blue-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-blue-900 mb-2">Script: {state.script.title}</h3>
+              <p className="text-sm text-blue-700">
+                {state.script.imagePrompts && state.script.imagePrompts.length > 0 
+                  ? `🎨 Using ${state.script.imagePrompts.length} AI-generated backgrounds from your script`
+                  : 'Showing recommended backgrounds based on your script content'
+                }
+              </p>
+            </div>
+          )}
           
           {/* Category filters */}
           <div className="mb-6">
@@ -185,12 +262,11 @@ export default function BackgroundPage() {
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                 }`}
-                onClick={() => handleFilterChange(null)}
+                onClick={() => handleCategoryFilter(null)}
               >
                 All
               </button>
-              
-              {uniqueCategories.map((category) => (
+                {categories.map((category) => (
                 <button
                   key={category}
                   className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
@@ -198,7 +274,7 @@ export default function BackgroundPage() {
                       ? 'bg-blue-100 text-blue-800'
                       : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                   }`}
-                  onClick={() => handleFilterChange(category)}
+                  onClick={() => handleCategoryFilter(category)}
                 >
                   {category}
                 </button>

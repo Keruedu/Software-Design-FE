@@ -74,10 +74,9 @@ export default function VoicePage() {
     setPitch(newPitch);
     setVoiceSettings({ pitch: newPitch });
   };
-  
-  const handleContinue = () => {
-    setStep('background');
-    router.push('/create/background');
+    const handleContinue = () => {
+    setStep('voice');
+    router.push('/create/generate-audio');
   };
   
   const handleBack = () => {
