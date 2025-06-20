@@ -1,12 +1,13 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { FiDownload, FiEdit, FiShare2, FiTrash2 } from 'react-icons/fi';
+import { FiDownload, FiEdit, FiShare2, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import ReactPlayer from 'react-player';
 import { Layout } from '../../../components/layout/Layout';
 import { Button } from '../../../components/common/Button/Button';
 import { VideoService } from '../../../services/video.service';
 import { Video, VideoWithDetails } from '../../../mockdata/videos';
 import { Modal } from '../../../components/common/Modal/Modal';
+import { toast } from 'react-toastify';
 
 const VideoDetailPage = () => {
   const router = useRouter();
@@ -42,9 +43,11 @@ const VideoDetailPage = () => {
     try {
       await VideoService.deleteVideo(id as string);
       setShowDeleteModal(false);
+      toast.success('Video deleted successfully');
       router.push('/dashboard');
     } catch (err) {
       console.error('Failed to delete video:', err);
+      toast.error('Failed to delete video');
       setError('Failed to delete video');
     }
   };
@@ -85,17 +88,26 @@ const VideoDetailPage = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
+        <Button
+          onClick={() => router.push('/dashboard')}
+          variant="outline"
+          icon={<FiArrowLeft />}
+          className="mb-4 flex items-center gap-2"
+        >
+          <span className="hidden sm:inline">Back to Dashboard</span>
+        </Button>
+        
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{video.title}</h1>
+          <h1 className="text-3xl font-bold mb-2 text-gray-800">{video.title}</h1>
           <p className="text-gray-600 mb-4">Created on {new Date(video.createdAt).toLocaleDateString()}</p>
           
           <div className="flex flex-wrap gap-2 mb-6">
-            {video.tags.map((tag, index) => (
-              <span 
-                key={index} 
-                className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded"
-              >
-                {tag}
+            {(video.tags && Array.isArray(video.tags) ? video.tags : []).map((tag, index) => (
+            <span 
+              key={index} 
+              className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded"
+            >
+              {tag}
               </span>
             ))}
           </div>
@@ -161,7 +173,7 @@ const VideoDetailPage = () => {
         title="Delete Video"
       >
         <div className="p-6">
-          <p className="mb-6">Are you sure you want to delete &quot;{video.title}&quot;? This action cannot be undone.</p>
+          <p className="mb-6 text-gray-800">Are you sure you want to delete &quot;{video.title}&quot;? This action cannot be undone.</p>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
               Cancel
