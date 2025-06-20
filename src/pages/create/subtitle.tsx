@@ -190,7 +190,7 @@ export default function SubtitlePage() {
 
     setSubtitleOptions(subtitleOptions);
     setStep('edit');
-    router.push('/create/edit');
+    router.push('/create/preview');
   };
 
   const handleSkip = () => {
@@ -201,7 +201,7 @@ export default function SubtitlePage() {
       autoGenerate: false
     });
     setStep('edit');
-    router.push('/create/edit');
+    router.push('/create/preview');
   };
 
   const handleBack = () => {
