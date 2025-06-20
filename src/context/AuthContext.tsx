@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { User } from '../types/auth';
+import { useRouter } from 'next/router';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -31,6 +32,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState>(initialState);
+  const router = useRouter();
   
   // Check auth status on mount
   useEffect(() => {
@@ -136,6 +138,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         token: null,
         loading: false
       });
+      router.push('/auth/login');
     }
   };
     const value = {
