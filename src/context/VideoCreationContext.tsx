@@ -16,9 +16,9 @@ interface VideoCreationState {
   voiceSettings: {
     speed: number; // 0.5 to 2.0
     pitch: number; // -10 to 10
-  };
-  generatedAudio: VoiceGenerationResult | null;
-  selectedBackground: Background | null;
+  };  generatedAudio: VoiceGenerationResult | null;
+  selectedBackground: Background | null; // Backward compatibility
+  selectedBackgrounds: Background[]; // New multi-selection
   subtitleOptions: SubtitleOptions | null;
   editSettings: VideoEditParams;
 }
@@ -32,6 +32,7 @@ interface VideoCreationContextType {
   setSelectedVoice: (voice: Voice | null) => void;
   setVoiceSettings: (settings: Partial<VideoCreationState['voiceSettings']>) => void;  setGeneratedAudio: (audio: VoiceGenerationResult | null) => void;
   setSelectedBackground: (background: Background | null) => void;
+  setSelectedBackgrounds: (backgrounds: Background[]) => void; // New method
   setSubtitleOptions: (options: SubtitleOptions | null) => void;
   setEditSettings: (settings: Partial<VideoEditParams>) => void;
   resetState: () => void;
@@ -46,9 +47,9 @@ const initialState: VideoCreationState = {
   voiceSettings: {
     speed: 1.0,
     pitch: 0
-  },
-  generatedAudio: null,
+  },  generatedAudio: null,
   selectedBackground: null,
+  selectedBackgrounds: [], // Initialize empty array
   subtitleOptions: null,
   editSettings: {
     textOverlays: [],
@@ -92,8 +93,16 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const setGeneratedAudio = (audio: VoiceGenerationResult | null) => {
     setState(prev => ({ ...prev, generatedAudio: audio }));
   };
-    const setSelectedBackground = (background: Background | null) => {
+  const setSelectedBackground = (background: Background | null) => {
     setState(prev => ({ ...prev, selectedBackground: background }));
+  };
+  
+  const setSelectedBackgrounds = (backgrounds: Background[]) => {
+    setState(prev => ({ 
+      ...prev, 
+      selectedBackgrounds: backgrounds,
+      selectedBackground: backgrounds.length > 0 ? backgrounds[0] : null // Sync with main selection
+    }));
   };
   
   const setSubtitleOptions = (options: SubtitleOptions | null) => {
@@ -110,7 +119,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const resetState = () => {
     setState(initialState);
   };
-    const value = {
+  const value = {
     state,
     setStep,
     setSelectedTopic,
@@ -120,6 +129,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setVoiceSettings,
     setGeneratedAudio,
     setSelectedBackground,
+    setSelectedBackgrounds, // Add new method
     setSubtitleOptions,
     setEditSettings,
     resetState

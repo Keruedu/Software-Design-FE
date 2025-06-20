@@ -8,6 +8,38 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const requestCache = new Map();
 const REQUEST_CACHE_DURATION = 10000; // 10 seconds for background requests
 
+// Available styles from backend text_to_image.py
+export const AVAILABLE_STYLES = [
+  { id: 'ghibli', name: 'Studio Ghibli', description: 'Anime, beautiful, detailed, magical, whimsical' },
+  { id: 'watercolor', name: 'Watercolor', description: 'Soft colors, artistic, painted with watercolors' },
+  { id: 'manga', name: 'Manga', description: 'Black and white, detailed lineart, Japanese comic' },
+  { id: 'pixar', name: 'Pixar', description: '3D rendered, colorful, cartoon, Disney style' },
+  { id: 'scifi', name: 'Sci-Fi', description: 'Futuristic, cyberpunk, neon colors, high-tech' },
+  { id: 'oilpainting', name: 'Oil Painting', description: 'Classical art, renaissance style, rich colors' },
+  { id: 'dark', name: 'Dark Art', description: 'Gothic, mysterious, dramatic lighting, shadows' },
+  { id: 'lego', name: 'LEGO', description: 'Made of LEGO bricks, blocky, colorful plastic' },
+  { id: 'realistic', name: 'Realistic', description: 'Photorealistic, highly detailed, 8k resolution' },
+  { id: 'cartoon', name: 'Cartoon', description: 'Colorful, fun, animated, simple shapes' },
+  { id: 'vintage', name: 'Vintage', description: 'Retro, old-fashioned, sepia tones, classic' },
+  { id: 'minimalist', name: 'Minimalist', description: 'Simple, clean lines, geometric, modern' },
+  { id: 'fantasy', name: 'Fantasy', description: 'Magical, mystical, dragons, medieval, epic' },
+  { id: 'popart', name: 'Pop Art', description: 'Bright colors, Andy Warhol inspired, bold graphics' },
+  { id: 'impressionist', name: 'Impressionist', description: 'Soft brushstrokes, light and color, Monet style' }
+];
+
+export interface StyleOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface GenerateBackgroundsRequest {
+  script_text?: string;
+  image_prompts?: string[];
+  style: string;
+  count?: number;
+}
+
 export interface BackgroundGenerationParams {
   prompt: string;
   style?: string;
@@ -26,6 +58,94 @@ export interface BackgroundGenerationResult {
  * Service for background management and generation
  */
 export const BackgroundService = {
+  /**
+   * Get available styles for background generation
+   */
+  getAvailableStyles: (): StyleOption[] => {
+    return AVAILABLE_STYLES;
+  },
+
+  /**
+   * Generate multiple backgrounds based on script and style
+   */
+  generateBackgroundsFromScript: async (params: GenerateBackgroundsRequest): Promise<Background[]> => {
+    try {
+      // Create cache key for deduplication
+      const cacheKey = `generate-backgrounds-${JSON.stringify(params)}`;
+      
+      // Check if this request is already in progress
+      if (requestCache.has(cacheKey)) {
+        const cachedRequest = requestCache.get(cacheKey);
+        if (Date.now() - cachedRequest.timestamp < REQUEST_CACHE_DURATION) {
+          console.log('⚡ Using cached background generation request');
+          return cachedRequest.promise;
+        }
+      }
+
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        throw new Error('No access token found. Please login again.');
+      }      console.log('🎨 Generating new backgrounds with style:', params.style);
+      const requestPromise = fetch(`${API_BASE_URL}/backgrounds/generate-multiple`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${token}`
+        },
+        body: new URLSearchParams({
+          script_text: params.script_text || (params.image_prompts && params.image_prompts.length > 0 ? params.image_prompts[0] : ''),
+          style: params.style,
+          count: (params.count || 4).toString(),
+          ...(params.image_prompts && params.image_prompts.length > 0 && {
+            image_prompts: params.image_prompts.join(',')
+          })
+        })
+      }).then(async (response) => {
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to generate backgrounds');
+        }
+        return response.json();
+      }).then((data) => {
+        console.log(`✅ Generated ${data.length} backgrounds with ${params.style} style`);
+        return data.map((bg: any) => ({
+          id: bg.id,
+          title: bg.title || `${params.style} Style Background`,
+          category: 'Generated',
+          imageUrl: bg.image_url || bg.url,
+          tags: [params.style, 'AI Generated'],
+          premium: false
+        }));
+      }).catch((error) => {
+        console.error('Error generating backgrounds:', error);
+        // Fallback to mock backgrounds with style
+        return mockBackgrounds.slice(0, params.count || 4).map((bg, index) => ({
+          ...bg,
+          id: `${params.style}_${Date.now()}_${index}`,
+          title: `${params.style} Style - ${bg.title}`,
+          category: 'Generated',
+          tags: [...bg.tags, params.style, 'AI Generated']
+        }));
+      }).finally(() => {
+        // Remove from cache after completion
+        setTimeout(() => {
+          requestCache.delete(cacheKey);
+        }, 5000);
+      });
+
+      // Cache the promise
+      requestCache.set(cacheKey, {
+        promise: requestPromise,
+        timestamp: Date.now()
+      });
+      
+      return requestPromise;
+    } catch (error) {
+      console.error('Error in generateBackgroundsFromScript:', error);
+      throw error;
+    }
+  },
+
   /**
    * Get all available backgrounds from backend API
    */
@@ -232,11 +352,10 @@ export const BackgroundService = {
       return mockApiCall(mockBackgrounds.slice(0, 8));
     }
   },
-
   /**
-   * Generate backgrounds specifically from script image prompts
+   * Generate backgrounds specifically from script image prompts (legacy)
    */
-  generateBackgroundsFromScript: async (scriptImages: string[], style: string = "realistic"): Promise<Background[]> => {
+  generateBackgroundsFromScriptImages: async (scriptImages: string[], style: string = "realistic"): Promise<Background[]> => {
     try {
       const params = new URLSearchParams();
       scriptImages.forEach(image => params.append('script_images', image));
@@ -451,5 +570,39 @@ export const BackgroundService = {
       const premiumBackgrounds = mockBackgrounds.filter(bg => bg.premium);
       return mockApiCall(premiumBackgrounds);
     }
+  },
+
+  /**
+   * Generate backgrounds for individual scenes from image_prompts
+   */
+  generateBackgroundsForScenes: async (imagePrompts: string[], style: string, countPerScene: number = 3): Promise<{ [sceneIndex: number]: Background[] }> => {
+    const results: { [sceneIndex: number]: Background[] } = {};
+    
+    // Generate backgrounds for each scene
+    for (let i = 0; i < imagePrompts.length; i++) {
+      const prompt = imagePrompts[i];
+      try {
+        console.log(`🎨 Generating backgrounds for scene ${i + 1}: "${prompt.substring(0, 50)}..."`);        const response = await BackgroundService.generateBackgroundsFromScript({
+          script_text: prompt,
+          style: style,
+          count: countPerScene
+        });
+        
+        results[i] = response;
+        console.log(`✅ Generated ${results[i].length} backgrounds for scene ${i + 1}`);
+      } catch (error) {
+        console.error(`❌ Failed to generate backgrounds for scene ${i + 1}:`, error);
+        // Fallback to mock backgrounds
+        results[i] = mockBackgrounds.slice(0, countPerScene).map((bg, index) => ({
+          ...bg,
+          id: `scene_${i}_${style}_${Date.now()}_${index}`,
+          title: `Scene ${i + 1} - ${style} Style`,
+          category: 'Generated',
+          tags: [...bg.tags, style, 'AI Generated', `Scene ${i + 1}`]
+        }));
+      }
+    }
+    
+    return results;
   }
 };
