@@ -18,6 +18,8 @@ export default function VoicePage() {
   const [previewPlaying, setPreviewPlaying] = useState<string | null>(null);
   const [speed, setSpeed] = useState(state.voiceSettings.speed);
   const [pitch, setPitch] = useState(state.voiceSettings.pitch);
+  const [generatingPreview, setGeneratingPreview] = useState<string | null>(null);
+  const [audioCache, setAudioCache] = useState<{[key: string]: string}>({});
   
   // Check if we have a script, if not redirect to script step
   useEffect(() => {
@@ -48,14 +50,67 @@ export default function VoicePage() {
 
     fetchVoices();
   }, [setSelectedVoice, state.selectedVoice]);
-  
-  const handlePlayPreview = (voiceId: string) => {
-    // In a real app, this would play an audio sample
-    // For now, we'll just toggle the playing state
-    if (previewPlaying === voiceId) {
-      setPreviewPlaying(null);
-    } else {
-      setPreviewPlaying(voiceId);
+    const handlePlayPreview = async (voiceId: string) => {
+    try {
+      // Stop any currently playing audio
+      if (previewPlaying) {
+        setPreviewPlaying(null);
+      }
+      
+      // If clicking on the same voice that's playing, just stop it
+      if (previewPlaying === voiceId) {
+        return;
+      }
+      
+      // Create cache key with current settings
+      const cacheKey = `${voiceId}_${speed}_${pitch}`;
+      
+      // Check if we have cached audio
+      if (audioCache[cacheKey]) {
+        const audio = new Audio(audioCache[cacheKey]);
+        audio.play();
+        setPreviewPlaying(voiceId);
+        
+        audio.onended = () => {
+          setPreviewPlaying(null);
+        };
+        return;
+      }
+      
+      // Generate new audio preview
+      setGeneratingPreview(voiceId);
+      
+      // Use a short preview text
+      const previewText = "Hello! This is how I sound with your current settings. I can help narrate your video content.";
+      
+      const result = await VoiceService.generateVoiceAudio({
+        text: previewText,
+        voiceId: voiceId,
+        settings: { speed, pitch }
+      });
+      
+      if (result?.audioUrl) {
+        // Cache the audio URL
+        setAudioCache(prev => ({
+          ...prev,
+          [cacheKey]: result.audioUrl
+        }));
+        
+        // Play the audio
+        const audio = new Audio(result.audioUrl);
+        audio.play();
+        setPreviewPlaying(voiceId);
+        
+        audio.onended = () => {
+          setPreviewPlaying(null);
+        };
+      }
+      
+    } catch (err) {
+      console.error('Error generating audio preview:', err);
+      alert('Could not generate audio preview. Please try again.');
+    } finally {
+      setGeneratingPreview(null);
     }
   };
   
@@ -73,10 +128,10 @@ export default function VoicePage() {
     const newPitch = parseInt(e.target.value);
     setPitch(newPitch);
     setVoiceSettings({ pitch: newPitch });
-  };
-    const handleContinue = () => {
-    setStep('voice');
-    router.push('/create/generate-audio');
+  };  
+  const handleContinue = () => {
+    setStep('background');
+    router.push('/create/background');
   };
   
   const handleBack = () => {
@@ -154,17 +209,26 @@ export default function VoicePage() {
                       </span>
                     ))}
                   </div>
-                  
-                  <Button
+                    <Button
                     variant="outline"
                     size="sm"
                     className="mt-3 w-full"
+                    disabled={generatingPreview === voice.id}
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePlayPreview(voice.id);
                     }}
                   >
-                    {previewPlaying === voice.id ? 'Stop Preview' : 'Preview Voice'}
+                    {generatingPreview === voice.id ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        Generating...
+                      </div>
+                    ) : previewPlaying === voice.id ? (
+                      'Stop Preview'
+                    ) : (
+                      'Preview Voice'
+                    )}
                   </Button>
                 </div>
               ))}

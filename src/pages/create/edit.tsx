@@ -79,8 +79,13 @@ export default function EditPage() {
         setShowSuccessModal(true);
       } else {
         throw new Error('Failed to create video');
+      }    } catch (err: any) {
+      if (err.message?.includes('session has expired') || err.message?.includes('login again')) {
+        // Redirect to login page
+        router.push('/login?returnUrl=/create/edit');
+        return;
       }
-    } catch (err: any) {
+      
       setError(err.message || 'Failed to export video. Please try again.');
       console.error('Video export error:', err);
     } finally {
@@ -181,6 +186,43 @@ export default function EditPage() {
     );
   };
   
+  const handleTestAPI = async () => {
+    try {
+      setIsCreating(true);
+      setError(null);
+      
+      // Test API connection first
+      console.log('Testing API connection...');
+      const testResult = await VideoService.testAPI();
+      console.log('API test result:', testResult);
+      
+      // Then test video creation
+      const params = {
+        script_text: state.script?.content || 'Test video script',
+        voice_id: state.selectedVoice?.id || 'default',
+        background_image_id: state.selectedBackground?.id || 'custom_282c039b',
+        subtitle_enabled: false,
+        subtitle_language: 'en',
+        subtitle_style: 'default'
+      };
+      
+      console.log('Testing video creation...');
+      const result = await VideoService.createTestVideo(params);
+      console.log('Test video result:', result);
+      
+      if (result && result.url) {
+        setExportedVideoUrl(result.url);
+        setShowSuccessModal(true);
+      }
+      
+    } catch (error) {
+      console.error('Test error:', error);
+      setError(error instanceof Error ? error.message : 'Test failed');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Layout>
       <Head>

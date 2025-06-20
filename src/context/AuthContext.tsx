@@ -11,10 +11,6 @@ interface AuthState {
 
 export interface AuthContextType {
   auth: AuthState;
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
   register: (username: string, email: string, password: string) => Promise<void>;
@@ -56,60 +52,23 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       localStorage.removeItem('access_token');
       setAuth({ ...initialState, loading: false });
     }
-  };  const login = async (usernameOrEmail: string, password: string): Promise<void> => {
+  };
+  const login = async (usernameOrEmail: string, password: string): Promise<void> => {
     try {
-      setAuth(prev => ({ ...prev, loading: true }));
+      // For now, always send as username field since backend expects it
+      // In future, backend should handle both email and username
+      const response = await authService.login({ username: usernameOrEmail, password });
+      localStorage.setItem('access_token', response.access_token);
       
-      // Demo login first for development
-      if (usernameOrEmail === 'demo@example.com' && password === 'password') {
-        const demoUser: User = {
-          id: 'demo_user_123',
-          username: 'demo_user',
-          email: 'demo@example.com',
-          fullName: 'Demo User',
-          avatar: '/assets/images/avatars/demo-avatar.jpg'
-        };
-        const demoToken = 'demo_token_' + Date.now();
-        
-        localStorage.setItem('access_token', demoToken);
-        localStorage.setItem('user_data', JSON.stringify(demoUser));
-        
-        setAuth({
-          isAuthenticated: true,
-          user: demoUser,
-          token: demoToken,
-          loading: false
-        });
-        return;
-      }
-      
-      // Try real API login
-      try {
-        const response = await authService.login({ username: usernameOrEmail, password });
-        localStorage.setItem('access_token', response.access_token);
-        
-        // Try to get user data from login response first
-        let user = response.user;
-        if (!user) {
-          // Fallback: try to get current user
-          user = await authService.getCurrentUser();
-        }
-        
-        localStorage.setItem('user_data', JSON.stringify(user));
-        
-        setAuth({
-          isAuthenticated: true,
-          user,
-          token: response.access_token,
-          loading: false
-        });
-      } catch (apiError) {
-        setAuth(prev => ({ ...prev, loading: false }));
-        throw new Error('Invalid email/username or password');
-      }
+      const user = await authService.getCurrentUser();
+      setAuth({
+        isAuthenticated: true,
+        user,
+        token: response.access_token,
+        loading: false
+      });
     } catch (error) {
-      setAuth(prev => ({ ...prev, loading: false }));
-      throw error;
+      throw new Error('Invalid email/username or password');
     }
   };
 
@@ -138,12 +97,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       });
     }
   };
-    const value = {
+  
+  const value = {
     auth,
-    user: auth.user,
-    token: auth.token,
-    isAuthenticated: auth.isAuthenticated,
-    isLoading: auth.loading,
     login,
     logout,
     register
