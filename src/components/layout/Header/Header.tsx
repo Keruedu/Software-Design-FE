@@ -90,15 +90,17 @@ export const Header: React.FC = () => {
                         >
                           Profile
                         </button>
-                        <button
-                          className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
-                          onClick={() => {
-                            setProfileMenuOpen(false);
-                            router.push('/auth/changePassword');
-                          }}
-                        >
-                          Change Password
-                        </button>
+                        {!auth.user?.social_credentials?.google && (
+                          <button
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                            onClick={() => {
+                              setProfileMenuOpen(false);
+                              router.push('/auth/changePassword');
+                            }}
+                          >
+                            Change Password
+                          </button>
+                        )}
                         <button
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
                           onClick={() => {
