@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import { FiMail, FiLock, FiLogIn, FiUser } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
+
 
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
@@ -11,14 +13,16 @@ import { useAuth } from '../../context/AuthContext';
 import { getInputType, isValidEmailOrUsername } from '../../utils/validation';
 import { toast } from 'react-toastify';
 
+
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
+  const { login, loginWithGoogle } = useAuth();
+  
   
   useEffect(() => {
     if (!router.isReady) return;
@@ -50,6 +54,24 @@ export default function LoginPage() {
       }
     }
   };
+  
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const { registered, username } = router.query;
+    
+    if (username) {
+      const usernameValue = Array.isArray(username) ? username[0] : username;
+      setUsernameOrEmail(usernameValue);
+    }
+    
+    if (registered === 'success') {
+      
+      router.replace('/auth/login', undefined, { shallow: true })
+        .catch(err => console.error('Error replacing URL:', err));
+    }
+  }, [router.isReady, router.query, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -113,7 +135,7 @@ export default function LoginPage() {
                 <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
                   <p>{error}</p>
                 </div>
-              )}              <form className="space-y-6" onSubmit={handleSubmit}>                <Input
+              )}              <form className="space-y-6 mx-auto max-w-md w-full" onSubmit={handleSubmit}>                <Input
                   label="Email or Username"
                   type="text"
                   placeholder="your@email.com or username"
@@ -152,6 +174,18 @@ export default function LoginPage() {
                 </Button>
               </form>
               
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-800 hover:bg-gray-100"
+                  onClick={loginWithGoogle}
+                  icon={<FcGoogle className="h-5 w-5" />}
+                >
+                  Sign in with Google
+                </Button>
+              </div>
+              
               <div className="text-center mt-8">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
@@ -170,6 +204,11 @@ export default function LoginPage() {
                 </p>
               </div>
             </div>
+            
+            
+            
+            
+            
           </div>
           
           {/* Right side - image or promotional content */}
