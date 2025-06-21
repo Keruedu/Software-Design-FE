@@ -77,5 +77,41 @@ export const mockVoices: Voice[] = [
     language: 'French',
     previewUrl: '/assets/sounds/voice-preview-male-4.mp3',
     tags: ['sophisticated', 'clear', 'articulate']
+  },
+  {
+    id: 'v9',
+    name: 'Ruby',
+    gender: 'female',
+    language: 'English',
+    accent: 'American',
+    previewUrl: '/assets/sounds/voice-preview-female-4.mp3',
+    tags: ['mature', 'authoritative', 'news']
+  },
+  {
+    id: 'v10',
+    name: 'Thunder',
+    gender: 'male',
+    language: 'English',
+    accent: 'American',
+    previewUrl: '/assets/sounds/voice-preview-male-5.mp3',
+    tags: ['deep', 'powerful', 'dramatic']
+  },
+  {
+    id: 'v11',
+    name: 'Jennifer',
+    gender: 'female',
+    language: 'English',
+    accent: 'American',
+    previewUrl: '/assets/sounds/voice-preview-female-5.mp3',
+    tags: ['professional', 'clear', 'business']
+  },
+  {
+    id: 'v12',
+    name: 'Mason',
+    gender: 'male',
+    language: 'English',
+    accent: 'American',
+    previewUrl: '/assets/sounds/voice-preview-male-6.mp3',
+    tags: ['young', 'friendly', 'casual']
   }
 ];

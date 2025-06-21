@@ -6,6 +6,7 @@ export interface Script {
   duration: number; // in seconds
   createdAt: string;
   updatedAt: string;
+  imagePrompts?: string[]; // AI-generated image prompts for backgrounds
 }
 
 export const mockScripts: Script[] = [

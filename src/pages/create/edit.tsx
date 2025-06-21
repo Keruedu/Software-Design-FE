@@ -23,18 +23,16 @@ export default function EditPage() {
   const [subtitle, setSubtitle] = useState(true);
   const [musicVolume, setMusicVolume] = useState(50);
   const [hasBgMusic, setHasBgMusic] = useState(false);
-  
   // Check if we have all the required data
   useEffect(() => {
-    if (!state.script || !state.selectedVoice || !state.selectedBackground) {
+    if (!state.script || !state.selectedVoice || (!state.selectedBackgrounds || state.selectedBackgrounds.length === 0)) {
       router.replace('/create/background');
     }
-  }, [state.script, state.selectedVoice, state.selectedBackground, router]);
-  
-  useEffect(() => {
+  }, [state.script, state.selectedVoice, state.selectedBackgrounds, router]);
+    useEffect(() => {
     // Simulate creating the video preview
     const createPreview = async () => {
-      if (state.script && state.selectedVoice && state.selectedBackground && !isCreating && !videoUrl) {
+      if (state.script && state.selectedVoice && state.selectedBackgrounds && state.selectedBackgrounds.length > 0 && !isCreating && !videoUrl) {
         setIsCreating(true);
         setError(null);
         
@@ -55,30 +53,69 @@ export default function EditPage() {
     };
     
     createPreview();
-  }, [state.script, state.selectedVoice, state.selectedBackground, isCreating, videoUrl]);
-  
-  const handleExportVideo = async () => {
+  }, [state.script, state.selectedVoice, state.selectedBackgrounds, isCreating, videoUrl]);
+    const handleExportVideo = async () => {
     setIsExporting(true);
     setError(null);
     
-    try {
-      // In a real app, this would create the actual video file with all edits
-      // For demo, we'll simulate with a delay
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // Mock export result
-      const result = {
-        url: '/assets/videos/exported-video.mp4',
-        downloadUrl: '/download/exported-video.mp4'
+    try {      // Create complete video using real API
+      const params = {
+        script_text: state.script?.content || '',
+        voice_id: state.selectedVoice?.id || 'default',
+        background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
+        background_image_ids: state.selectedBackgrounds?.length > 0 
+          ? state.selectedBackgrounds.map(bg => bg.id)
+          : undefined, // Send multiple backgrounds if available
+        subtitle_enabled: subtitle,
+        subtitle_language: state.subtitleOptions?.language || 'en',
+        subtitle_style: typeof state.subtitleOptions?.style === 'string' 
+          ? state.subtitleOptions.style 
+          : 'default'
       };
       
-      setExportedVideoUrl(result.url);
-      setShowSuccessModal(true);
-    } catch (err) {
-      setError('Failed to export video. Please try again.');
+      const result = await VideoService.createCompleteVideo(params);
+      
+      if (result && result.id) {
+        // Get video preview URL
+        const previewData = await VideoService.getVideoPreview(result.id);
+        setExportedVideoUrl(previewData.video_url);
+        setShowSuccessModal(true);
+      } else {
+        throw new Error('Failed to create video');
+      }    } catch (err: any) {
+      if (err.message?.includes('session has expired') || err.message?.includes('login again')) {
+        // Redirect to login page
+        router.push('/login?returnUrl=/create/edit');
+        return;
+      }
+      
+      setError(err.message || 'Failed to export video. Please try again.');
       console.error('Video export error:', err);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDownloadVideo = async () => {
+    if (!exportedVideoUrl) return;
+    
+    try {
+      // Extract video ID from URL or use a stored ID
+      const videoId = exportedVideoUrl.split('/').pop()?.split('.')[0];
+      if (videoId) {
+        const blob = await VideoService.downloadVideo(videoId);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `video-${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download video. Please try again.');
     }
   };
   
@@ -152,6 +189,43 @@ export default function EditPage() {
     );
   };
   
+  const handleTestAPI = async () => {
+    try {
+      setIsCreating(true);
+      setError(null);
+      
+      // Test API connection first
+      console.log('Testing API connection...');
+      const testResult = await VideoService.testAPI();
+      console.log('API test result:', testResult);
+      
+      // Then test video creation
+      const params = {
+        script_text: state.script?.content || 'Test video script',
+        voice_id: state.selectedVoice?.id || 'default',
+        background_image_id: state.selectedBackground?.id || 'custom_282c039b',
+        subtitle_enabled: false,
+        subtitle_language: 'en',
+        subtitle_style: 'default'
+      };
+      
+      console.log('Testing video creation...');
+      const result = await VideoService.createTestVideo(params);
+      console.log('Test video result:', result);
+      
+      if (result && result.url) {
+        setExportedVideoUrl(result.url);
+        setShowSuccessModal(true);
+      }
+      
+    } catch (error) {
+      console.error('Test error:', error);
+      setError(error instanceof Error ? error.message : 'Test failed');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Layout>
       <Head>
@@ -300,9 +374,11 @@ export default function EditPage() {
       <Modal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
-        title="Video Created Successfully!"
-        footer={
+        title="Video Created Successfully!"        footer={
           <>
+            <Button variant="outline" onClick={handleDownloadVideo}>
+              Download Video
+            </Button>
             <Button variant="outline" onClick={() => setShowSuccessModal(false)}>
               Create Another
             </Button>
@@ -312,27 +388,32 @@ export default function EditPage() {
           </>
         }
       >
-        <div className="text-center py-4">
-          <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+        <div className="space-y-4">
+          <div className="text-center py-4">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="mb-4">Your video has been created successfully!</p>
           </div>
-          <p className="mb-4">Your video has been created and is ready to view!</p>
+          
+          {exportedVideoUrl && (
+            <div className="mt-4">
+              <video
+                src={exportedVideoUrl}
+                controls
+                className="w-full max-w-md mx-auto rounded-lg"
+                style={{ maxHeight: '300px' }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
           
           <div className="bg-gray-100 p-4 rounded-lg">
             <p className="font-medium text-gray-900">{state.script?.title || 'Untitled Video'}</p>
-            <p className="text-sm text-gray-500 mb-3">Duration: 30 seconds</p>
-            
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleGoToDashboard}
-              >
-                View in Dashboard
-              </Button>
-            </div>
+            <p className="text-sm text-gray-500 mb-3">Created with AI technology</p>
           </div>
         </div>
       </Modal>
