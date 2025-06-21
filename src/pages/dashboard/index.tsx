@@ -73,9 +73,19 @@ export default function Dashboard() {
         ...prev,
         totalVideos: prev.totalVideos - 1
       }));
-      toast.success('Video deleted successfully');
+      toast.success('Video deleted successfully',
+        { 
+          position: 'bottom-right', 
+          autoClose: 3000 
+        }
+      );
     } catch (err) {
-      toast.error('Failed to delete video');
+      toast.error('Failed to delete video',
+        { 
+          position: 'bottom-right', 
+          autoClose: 3000 
+        }
+      );
       console.error('Error deleting video:', err);
     }
   };
