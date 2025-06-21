@@ -16,8 +16,6 @@ type ActiveTab = 'timeline' | 'text' | 'trim' | 'audio' | 'media' | 'effects' | 
 interface SidebarProps {
     activeTab: ActiveTab;
     setActiveTab: (tab: ActiveTab) => void;
-    sidebarCollapsed: boolean;
-    setSidebarCollapsed: (collapsed: boolean) => void;
     onBackToGenerate: () => void;
 }
 
@@ -81,7 +79,7 @@ const Sidebar:React.FC<SidebarProps>=({
         className="bg-white border-r border-gray-200 flex flex-col shadow-lg"
     >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b flex-shrink-0 border-gray-200">
             <div className="flex items-center justify-between">
                 {!sidebarCollapsed && (
                 <motion.div
