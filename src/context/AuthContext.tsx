@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { User } from '../types/auth';
+import { useRouter } from 'next/router';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -11,6 +12,10 @@ interface AuthState {
 
 export interface AuthContextType {
   auth: AuthState;
+  // user: User | null;
+  // token: string | null;
+  // isAuthenticated: boolean;
+  // isLoading: boolean;
   setAuth: React.Dispatch<React.SetStateAction<AuthState>>;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
@@ -29,6 +34,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [auth, setAuth] = useState<AuthState>(initialState);
+  const router = useRouter();
   
   // Check auth status on mount
   useEffect(() => {
@@ -44,7 +50,6 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         const token = accessTokenMatch[1];
         localStorage.setItem('access_token', token);
         
-        // Làm sạch URL - thay thế hash bằng chuỗi rỗng
         window.history.replaceState(
           {},
           document.title,
@@ -77,7 +82,8 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       localStorage.removeItem('access_token');
       setAuth({ ...initialState, loading: false });
     }
-  };
+  };  
+  
   const login = async (usernameOrEmail: string, password: string): Promise<void> => {
     try {
       // For now, always send as username field since backend expects it
@@ -129,11 +135,15 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         token: null,
         loading: false
       });
+      router.push('/auth/login');
     }
   };
-  
-  const value = {
+    const value = {
     auth,
+    // user: auth.user,
+    // token: auth.token,
+    // isAuthenticated: auth.isAuthenticated,
+    // isLoading: auth.loading,
     setAuth,
     login,
     logout,

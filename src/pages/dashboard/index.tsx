@@ -11,6 +11,7 @@ import { Video } from '../../mockdata/videos';
 import VideoManager from '../../components/features/VideoManager/VideoManager';
 import { useAuth } from '../../context/AuthContext';
 import { formatNumber } from '../../utils/format';
+import { toast } from 'react-toastify';
 
 export default function Dashboard() {
   const { auth } = useAuth();
@@ -29,7 +30,10 @@ export default function Dashboard() {
     const fetchVideos = async () => {
       try {
         setLoading(true);
-        const data = await VideoService.getAllVideos();
+        // const data = await VideoService.getAllVideos();
+        // setVideos(data);
+        
+        const data = await VideoService.getUserVideos();
         setVideos(data);
         
         // Calculate stats
@@ -69,7 +73,19 @@ export default function Dashboard() {
         ...prev,
         totalVideos: prev.totalVideos - 1
       }));
+      toast.success('Video deleted successfully',
+        { 
+          position: 'bottom-right', 
+          autoClose: 3000 
+        }
+      );
     } catch (err) {
+      toast.error('Failed to delete video',
+        { 
+          position: 'bottom-right', 
+          autoClose: 3000 
+        }
+      );
       console.error('Error deleting video:', err);
     }
   };
@@ -156,7 +172,7 @@ export default function Dashboard() {
               <div className="flex items-center">
                 <span className="text-gray-500 text-sm mr-4">{videos.length} videos</span>
                 <select 
-                  className="border border-gray-300 rounded-md text-sm py-1.5 px-3"
+                  className="border border-gray-300 rounded-md text-sm py-1.5 px-3 text-gray-800"
                   defaultValue="recent"
                 >
                   <option value="recent">Most Recent</option>

@@ -80,8 +80,7 @@ export const Header: React.FC = () => {
                     </button>
                     {profileMenuOpen && (
                       <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
-                        <div className="px-4 py-2 text-gray-800 font-semibold border-b">{auth.user?.username}</div>
-                        <button
+                        <div className="px-4 py-2 text-gray-800 font-semibold border-b">{auth.user?.username}</div>                        <button
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
                           onClick={() => {
                             setProfileMenuOpen(false);
@@ -90,17 +89,6 @@ export const Header: React.FC = () => {
                         >
                           Profile
                         </button>
-                        {!auth.user?.social_credentials?.google && (
-                          <button
-                            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
-                            onClick={() => {
-                              setProfileMenuOpen(false);
-                              router.push('/auth/changePassword');
-                            }}
-                          >
-                            Change Password
-                          </button>
-                        )}
                         <button
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
                           onClick={() => {
