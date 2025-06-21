@@ -7,7 +7,7 @@ import { FaRobot,FaVideo } from 'react-icons/fa'
 import {motion} from 'framer-motion'
 const VideoEditor :React.FC =()=>{
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'timeline' | 'text' | 'trim' | 'audio' | 'media' | 'effects' | 'layers'>('timeline');
+  const [activeTab, setActiveTab] = useState< 'text' | 'audio' | 'media' | 'effects' | 'layers'>('text');
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideo | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>('');
@@ -59,7 +59,7 @@ return (
 
     {/* Main Content */}
     <div className="flex-1 h-full flex flex-col">
-        <header className='bg-white border-b border-gray-200 px-6 py-4 shadow-sm'>
+        <header className='bg-white border-b border-gray-200 px-6 py-2 shadow-sm'>
           <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 {generatedVideo&&(

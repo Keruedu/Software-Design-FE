@@ -12,7 +12,7 @@ import {
   FaAlignJustify 
 } from 'react-icons/fa';
 import { useState } from "react";
-type ActiveTab = 'timeline' | 'text' | 'trim' | 'audio' | 'media' | 'effects' | 'layers';
+type ActiveTab = 'text' | 'audio' | 'media' | 'effects' | 'layers'
 interface SidebarProps {
     activeTab: ActiveTab;
     setActiveTab: (tab: ActiveTab) => void;
