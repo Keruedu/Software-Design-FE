@@ -4,6 +4,7 @@ export interface User {
   email: string;
   fullName: string;
   avatar?: string;
+  type: "regular" | "google" | "facebook";
   created_at: string;
   updated_at: string;
   social_credentials?: {

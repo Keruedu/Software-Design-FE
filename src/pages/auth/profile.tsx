@@ -34,7 +34,6 @@ export default function ProfilePage() {
     setEmail(user?.email || '');
     setAvatar(user?.avatar || '');
   }, [user]);
-
   useEffect(() => {
     if (router.query.linked === 'google') {
       toast.success("Google account linked successfully! You can now upload videos to YouTube.",
@@ -44,6 +43,19 @@ export default function ProfilePage() {
         }
       );
       refreshUserData();
+      // Clean up URL
+      router.replace('/auth/profile', undefined, { shallow: true });
+    } else if (router.query.link_error) {
+      const errorMessage = Array.isArray(router.query.link_error) 
+        ? router.query.link_error[0] 
+        : router.query.link_error;
+      
+      toast.error(decodeURIComponent(errorMessage as string),
+        {
+          position: "bottom-right",
+          autoClose: 3000,
+        }
+      );
       // Clean up URL
       router.replace('/auth/profile', undefined, { shallow: true });
     }
@@ -160,10 +172,8 @@ export default function ProfilePage() {
     } finally {
       setIsChangingPassword(false);
     }
-  };
-
-  // Check if user has Google linked
-  const hasGoogleLinked = user?.social_credentials?.google;
+  };  // Only regular users can change password
+  const isRegularAccount = user?.type === "regular" || !user?.type; 
   return (
     <Layout>
       <Head>
@@ -264,7 +274,7 @@ export default function ProfilePage() {
                   <FaGoogle className="text-red-500" />
                   Google Account
                 </h3>
-                {hasGoogleLinked ? (
+                {user?.social_credentials?.google ? (
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 text-green-700">
                       <span className="font-medium">✓ Google account linked</span>
@@ -286,72 +296,64 @@ export default function ProfilePage() {
                       Link Google Account
                     </Button>
                   </div>
-                )}
-              </div>
+                )}              </div>
 
-              {/* Security Section */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <FaKey className="text-blue-500" />
-                    Security
-                  </h3>
-                  <Button
-                    onClick={() => setShowChangePassword(!showChangePassword)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {showChangePassword ? 'Cancel' : 'Change Password'}
-                  </Button>
-                </div>
-                
-                {showChangePassword && (
-                  <form onSubmit={handleChangePassword} className="space-y-4 bg-gray-50 p-4 rounded-lg">
-                    <Input
-                      label="Current Password"
-                      type="password"
-                      value={currentPassword}
-                      onChange={e => setCurrentPassword(e.target.value)}
-                      required
-                      className="w-full"
-                    />
-                    <Input
-                      label="New Password"
-                      type="password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full"
-                    />
-                    <Input
-                      label="Confirm New Password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full"
-                    />
-                    <Button 
-                      type="submit" 
-                      isLoading={isChangingPassword} 
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+              {/* Security Section - Only show for regular accounts */}
+              {isRegularAccount && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <FaKey className="text-blue-500" />
+                      Security
+                    </h3>
+                    <Button
+                      onClick={() => setShowChangePassword(!showChangePassword)}
+                      variant="outline"
+                      size="sm"
                     >
-                      Update Password
+                      {showChangePassword ? 'Cancel' : 'Change Password'}
                     </Button>
-                  </form>
-                )}
-                
-                {hasGoogleLinked && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> Even with Google account linked, you can still change your password 
-                      to access your account using email/password login.
-                    </p>
                   </div>
-                )}
-              </div>
+                  
+                  {showChangePassword && (
+                    <form onSubmit={handleChangePassword} className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                      <Input
+                        label="Current Password"
+                        type="password"
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        required
+                        className="w-full"
+                      />
+                      <Input
+                        label="New Password"
+                        type="password"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full"
+                      />
+                      <Input
+                        label="Confirm New Password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full"
+                      />
+                      <Button 
+                        type="submit" 
+                        isLoading={isChangingPassword} 
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        Update Password
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -360,7 +360,8 @@ const VideoDetailPage = () => {
             </div>
           </div>
         </div>
-      </div>      <Modal
+      </div>      
+      <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         title="Delete Video"
@@ -408,7 +409,7 @@ const VideoDetailPage = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
               <input
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytTitle}
                 onChange={e => setYtTitle(e.target.value)}
                 placeholder="Enter video title"
@@ -417,7 +418,7 @@ const VideoDetailPage = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 rows={3}
                 value={ytDesc}
                 onChange={e => setYtDesc(e.target.value)}
@@ -427,7 +428,7 @@ const VideoDetailPage = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
               <input
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytTags}
                 onChange={e => setYtTags(e.target.value)}
                 placeholder="Enter tags separated by commas"
@@ -436,7 +437,7 @@ const VideoDetailPage = () => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Privacy</label>
               <select
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytPrivacy}
                 onChange={e => setYtPrivacy(e.target.value as 'public'|'private'|'unlisted')}
               >

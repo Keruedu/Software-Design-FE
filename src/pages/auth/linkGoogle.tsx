@@ -12,7 +12,6 @@ export default function LinkGooglePage() {
   const { auth } = useAuth();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
   useEffect(() => {
     if (router.query.linked === 'google') {
       toast.success('Link Google was successful! You can now upload videos to YouTube.',
@@ -23,6 +22,19 @@ export default function LinkGooglePage() {
       setTimeout(() => {
         router.push('/auth/profile');
       }, 2000);
+    } else if (router.query.link_error) {
+      const errorMessage = Array.isArray(router.query.link_error) 
+        ? router.query.link_error[0] 
+        : router.query.link_error;
+      
+      toast.error(decodeURIComponent(errorMessage as string),
+        {
+          position: "bottom-right",
+          autoClose: 5000,
+        }
+      );
+      // Clean up URL but stay on the page
+      router.replace('/auth/linkGoogle', undefined, { shallow: true });
     }
   }, [router.query]);
 
