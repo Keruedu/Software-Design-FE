@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { authService } from '@/services/authService';
 import Head from 'next/head';
 import { Layout } from '@/components/layout/Layout';
-import { FaPenAlt, FaKey, FaGoogle, FaUser } from 'react-icons/fa';
+import { FaPenAlt, FaKey, FaGoogle, FaUser, FaFacebook } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import api from '@/services/api';
 
@@ -33,10 +33,19 @@ export default function ProfilePage() {
     setFullName(user?.fullName || '');
     setEmail(user?.email || '');
     setAvatar(user?.avatar || '');
-  }, [user]);
-  useEffect(() => {
+  }, [user]);  useEffect(() => {
     if (router.query.linked === 'google') {
       toast.success("Google account linked successfully! You can now upload videos to YouTube.",
+        {
+          position: "bottom-right",
+          autoClose: 3000,
+        }
+      );
+      refreshUserData();
+      // Clean up URL
+      router.replace('/auth/profile', undefined, { shallow: true });
+    } else if (router.query.linked === 'facebook') {
+      toast.success("Facebook account linked successfully! You can now manage Facebook pages.",
         {
           position: "bottom-right",
           autoClose: 3000,
@@ -296,7 +305,38 @@ export default function ProfilePage() {
                       Link Google Account
                     </Button>
                   </div>
-                )}              </div>
+                )}
+              </div>
+
+              {/* Facebook Account Section */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FaFacebook className="text-blue-600" />
+                  Facebook Account
+                </h3>
+                {user?.social_credentials?.facebook ? (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <span className="font-medium">✓ Facebook account linked</span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-1">
+                      Email: {user?.social_credentials?.facebook?.email}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="text-gray-600 mb-3">
+                      Link your Facebook account to manage pages and posts
+                    </p>
+                    <Button
+                      onClick={() => router.push('/auth/linkFacebook')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <FaFacebook className="mr-2" />
+                      Link Facebook Account
+                    </Button>                  </div>
+                )}
+              </div>
 
               {/* Security Section - Only show for regular accounts */}
               {isRegularAccount && (

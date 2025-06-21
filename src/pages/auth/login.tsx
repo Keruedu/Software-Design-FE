@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import { FiMail, FiLock, FiLogIn, FiUser } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
+import { FaFacebook } from 'react-icons/fa';
 
 
 import { Button } from '../../components/common/Button/Button';
@@ -21,7 +22,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, loginWithFacebook } = useAuth();
   
   
   useEffect(() => {
@@ -206,10 +207,8 @@ export default function LoginPage() {
                       <span className="px-2 bg-white text-gray-500">Or continue with</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Google Login */}
-                <div className="mt-4">
+                </div>                {/* Social Login */}
+                <div className="mt-4 space-y-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -218,6 +217,15 @@ export default function LoginPage() {
                     icon={<FcGoogle className="h-5 w-5" />}
                   >
                     Sign in with Google
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="w-full flex items-center justify-center gap-3 bg-blue-600 border-2 border-blue-600 text-white hover:bg-blue-700 hover:border-blue-700 py-3 rounded-xl font-medium transition-all duration-200"
+                    onClick={loginWithFacebook}
+                    icon={<FaFacebook className="h-5 w-5" />}
+                  >
+                    Sign in with Facebook
                   </Button>
                 </div>
 

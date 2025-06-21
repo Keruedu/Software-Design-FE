@@ -21,6 +21,7 @@ export interface AuthContextType {
   logout: () => void;
   register: (username: string, email: string, fullName: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithFacebook: () => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -102,13 +103,21 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       throw new Error('Invalid email/username or password');
     }
   };
-  
-  const loginWithGoogle = async (): Promise<void> => {
+    const loginWithGoogle = async (): Promise<void> => {
     try {
       const response = await authService.getGoogleAuthUrl();
       window.location.href = response.auth_url;
     } catch (error) {
       throw new Error('Không thể bắt đầu đăng nhập Google');
+    }
+  };
+
+  const loginWithFacebook = async (): Promise<void> => {
+    try {
+      const response = await authService.getFacebookAuthUrl();
+      window.location.href = response.auth_url;
+    } catch (error) {
+      throw new Error('Không thể bắt đầu đăng nhập Facebook');
     }
   };
 
@@ -137,8 +146,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       });
       router.push('/auth/login');
     }
-  };
-    const value = {
+  };    const value = {
     auth,
     // user: auth.user,
     // token: auth.token,
@@ -148,6 +156,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     login,
     logout,
     loginWithGoogle,
+    loginWithFacebook,
     register
   };
   
