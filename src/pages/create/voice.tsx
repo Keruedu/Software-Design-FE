@@ -15,9 +15,11 @@ export default function VoicePage() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewPlaying, setPreviewPlaying] = useState<string | null>(null);  const [speed, setSpeed] = useState(state.voiceSettings.speed);
+  const [previewPlaying, setPreviewPlaying] = useState<string | null>(null);
+  const [speed, setSpeed] = useState(state.voiceSettings.speed);
   const [pitch, setPitch] = useState(state.voiceSettings.pitch);
   const [generatingPreview, setGeneratingPreview] = useState<string | null>(null);
+  const [audioCache, setAudioCache] = useState<{[key: string]: string}>({});
   
   // Check if we have a script, if not redirect to script step
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function VoicePage() {
 
     fetchVoices();
   }, [setSelectedVoice, state.selectedVoice]);
-  const handlePlayPreview = async (voiceId: string) => {
+    const handlePlayPreview = async (voiceId: string) => {
     try {
       // Stop any currently playing audio
       if (previewPlaying) {
@@ -60,7 +62,22 @@ export default function VoicePage() {
         return;
       }
       
-      // Generate new audio preview (VoiceService will handle caching)
+      // Create cache key with current settings
+      const cacheKey = `${voiceId}_${speed}_${pitch}`;
+      
+      // Check if we have cached audio
+      if (audioCache[cacheKey]) {
+        const audio = new Audio(audioCache[cacheKey]);
+        audio.play();
+        setPreviewPlaying(voiceId);
+        
+        audio.onended = () => {
+          setPreviewPlaying(null);
+        };
+        return;
+      }
+      
+      // Generate new audio preview
       setGeneratingPreview(voiceId);
       
       // Use a short preview text
@@ -73,6 +90,12 @@ export default function VoicePage() {
       });
       
       if (result?.audioUrl) {
+        // Cache the audio URL
+        setAudioCache(prev => ({
+          ...prev,
+          [cacheKey]: result.audioUrl
+        }));
+        
         // Play the audio
         const audio = new Audio(result.audioUrl);
         audio.play();

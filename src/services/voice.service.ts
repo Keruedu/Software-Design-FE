@@ -4,14 +4,6 @@ import { mockApiCall, mockVoices } from '../mockdata';
 // Backend API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Audio cache to prevent duplicate API calls
-const audioCache = new Map<string, VoiceGenerationResult>();
-
-// Helper function to create cache key
-const createCacheKey = (text: string, voiceId: string, speed: number, pitch: number): string => {
-  return `${voiceId}_${speed}_${pitch}_${text.slice(0, 100)}`; // Limit text length for cache key
-};
-
 export interface VoiceGenerationParams {
   text: string;
   voiceId: string;
@@ -111,32 +103,20 @@ export const VoiceService = {  /**
       const voice = mockVoices.find(v => v.id === id);
       return mockApiCall(voice || null);
     }
-  },  /**
+  },
+  /**
    * Generate audio from text using selected voice and backend API
    */
   generateVoiceAudio: async (params: VoiceGenerationParams): Promise<VoiceGenerationResult> => {
     try {
-      const settings = {
-        speed: params.settings?.speed || 1.0,
-        pitch: params.settings?.pitch || 0
-      };
-      
-      // Create cache key
-      const cacheKey = createCacheKey(params.text, params.voiceId, settings.speed, settings.pitch);
-      
-      // Check cache first
-      if (audioCache.has(cacheKey)) {
-        console.log('🎵 Using cached audio for:', cacheKey);
-        return audioCache.get(cacheKey)!;
-      }
-      
-      console.log('🎵 Generating new audio for:', cacheKey);
-      
       const token = localStorage.getItem('access_token');
       const requestBody = {
         text: params.text,
         voice_id: params.voiceId,
-        settings: settings
+        settings: {
+          speed: params.settings?.speed || 1.0,
+          pitch: params.settings?.pitch || 0
+        }
       };
       
       const response = await fetch(`${API_BASE_URL}/voices/generate`, {
@@ -154,18 +134,12 @@ export const VoiceService = {  /**
       
       const result = await response.json();
       
-      const voiceResult: VoiceGenerationResult = {
+      return {
         audioUrl: result.audio_url,
         duration: result.duration,
         voiceId: result.voice_id,
         settings: result.settings
       };
-        // Cache the result
-      audioCache.set(cacheKey, voiceResult);
-      console.log('💾 Cached audio result for:', cacheKey);
-      console.log('📊 Cache now has', audioCache.size, 'entries');
-      
-      return voiceResult;
       
     } catch (error) {
       console.error('Error generating voice audio from API:', error);
@@ -271,30 +245,13 @@ export const VoiceService = {  /**
       
       const data = await response.json();
       return data.genders;
-        } catch (error) {
+      
+    } catch (error) {
       console.error('Error fetching available genders from API:', error);
       
       // Fallback to mock genders
       const genders = [...new Set(mockVoices.map(voice => voice.gender))];
       return Promise.resolve(genders);
     }
-  },
-
-  /**
-   * Clear audio cache (useful for testing or memory management)
-   */
-  clearAudioCache: () => {
-    audioCache.clear();
-    console.log('🗑️ Audio cache cleared');
-  },
-
-  /**
-   * Get cache statistics
-   */
-  getCacheStats: () => {
-    return {
-      size: audioCache.size,
-      keys: Array.from(audioCache.keys())
-    };
   }
 };
