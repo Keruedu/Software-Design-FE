@@ -32,9 +32,9 @@ const VideoManager: React.FC<VideoManagerProps> = ({
     setShowDeleteModal(true);
   };
   
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (selectedVideo && onDelete) {
-      onDelete(selectedVideo.id);
+      await onDelete(selectedVideo.id);
       setShowDeleteModal(false);
       setSelectedVideo(null);
     }
