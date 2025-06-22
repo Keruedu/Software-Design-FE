@@ -3,6 +3,9 @@ import { mockApiCall, mockBackgrounds, mockScripts, mockVideos, mockVoices, tren
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Request cache for deduplication
+const requestCache = new Map<string, Promise<any>>();
+
 export interface VideoCreationParams {
   title: string;
   description: string;
@@ -15,7 +18,8 @@ export interface VideoCreationParams {
 export interface CompleteVideoCreationParams {
   script_text: string;
   voice_id: string;
-  background_image_id: string;
+  background_image_id: string; // Legacy single background
+  background_image_ids?: string[]; // New multi-background support
   subtitle_enabled?: boolean;
   subtitle_language?: string;
   subtitle_style?: string;
@@ -55,8 +59,7 @@ export interface VideoEditParams {
 /**
  * Service for video creation and management
  */
-export const VideoService = {
-  /**Get video user */
+export const VideoService = {  
    getUserVideos: async (): Promise<Video[]> => {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/media/?page=1&size=20&media_type=video`, {
@@ -123,38 +126,53 @@ export const VideoService = {
   
   /**
    * Create a complete video from script, voice, background, and subtitles
-   */  createCompleteVideo: async (params: CompleteVideoCreationParams): Promise<any> => {
-    let token = localStorage.getItem('access_token');
-    // For testing - use mock token if no real token found
-    if (!token) {
-      console.warn('No access token found, using mock token for testing');
-      token = 'mock-token-for-testing';
+   */
+  createCompleteVideo: async (params: CompleteVideoCreationParams): Promise<any> => {
+    // Create cache key for deduplication
+    const cacheKey = `create-video-${JSON.stringify(params)}`;
+    
+    // Check if this request is already in progress
+    if (requestCache.has(cacheKey)) {
+      console.log('⚡ Using cached video creation request');
+      return requestCache.get(cacheKey);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/video/create-complete`, {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    console.log('🎬 Creating new video...');
+    const requestPromise = fetch(`${API_BASE_URL}/api/video/create-complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(params)
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to create video');
-    }
-
-    return response.json();
+    }).then(async (response) => {
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create video');
+      }
+      return response.json();
+    }).finally(() => {
+      // Remove from cache after completion
+      setTimeout(() => {
+        requestCache.delete(cacheKey);
+      }, 5000); // 5 seconds
+    });    // Cache the promise
+    requestCache.set(cacheKey, requestPromise);
+      return requestPromise;
   },
 
   /**
    * Create video from existing audio and background components
-   */  createVideoFromComponents: async (params: VideoFromComponentsParams): Promise<any> => {
-    let token = localStorage.getItem('access_token');
+   */
+  createVideoFromComponents: async (params: VideoFromComponentsParams): Promise<any> => {
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      console.warn('No access token found, using mock token for testing');
-      token = 'mock-token-for-testing';
+      throw new Error('No access token found');
     }
 
     const response = await fetch(`${API_BASE_URL}/api/video/create-from-components`, {
@@ -177,10 +195,9 @@ export const VideoService = {
   /**
    * Get video preview URL
    */  getVideoPreview: async (videoId: string): Promise<{video_url: string; title: string; duration?: number; created_at: string}> => {
-    let token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      console.warn('No access token found, using mock token for testing');
-      token = 'mock-token-for-testing';
+      throw new Error('No access token found');
     }
 
     const response = await fetch(`${API_BASE_URL}/api/video/preview/${videoId}`, {
@@ -200,10 +217,9 @@ export const VideoService = {
   /**
    * Download video file
    */  downloadVideo: async (videoId: string): Promise<Blob> => {
-    let token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
     if (!token) {
-      console.warn('No access token found, using mock token for testing');
-      token = 'mock-token-for-testing';
+      throw new Error('No access token found');
     }
 
     const response = await fetch(`${API_BASE_URL}/api/video/download/${videoId}`, {

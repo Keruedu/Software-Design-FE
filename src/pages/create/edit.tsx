@@ -23,17 +23,16 @@ export default function EditPage() {
   const [subtitle, setSubtitle] = useState(true);
   const [musicVolume, setMusicVolume] = useState(50);
   const [hasBgMusic, setHasBgMusic] = useState(false);
-    // Check if we have all the required data
+  // Check if we have all the required data
   useEffect(() => {
-    if (!state.script || !state.selectedVoice || !state.selectedBackground) {
-      router.replace('/create/subtitle');
+    if (!state.script || !state.selectedVoice || (!state.selectedBackgrounds || state.selectedBackgrounds.length === 0)) {
+      router.replace('/create/background');
     }
-  }, [state.script, state.selectedVoice, state.selectedBackground, router]);
-  
-  useEffect(() => {
+  }, [state.script, state.selectedVoice, state.selectedBackgrounds, router]);
+    useEffect(() => {
     // Simulate creating the video preview
     const createPreview = async () => {
-      if (state.script && state.selectedVoice && state.selectedBackground && !isCreating && !videoUrl) {
+      if (state.script && state.selectedVoice && state.selectedBackgrounds && state.selectedBackgrounds.length > 0 && !isCreating && !videoUrl) {
         setIsCreating(true);
         setError(null);
         
@@ -54,20 +53,24 @@ export default function EditPage() {
     };
     
     createPreview();
-  }, [state.script, state.selectedVoice, state.selectedBackground, isCreating, videoUrl]);
+  }, [state.script, state.selectedVoice, state.selectedBackgrounds, isCreating, videoUrl]);
     const handleExportVideo = async () => {
     setIsExporting(true);
     setError(null);
     
-    try {
-      // Create complete video using real API
+    try {      // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
         voice_id: state.selectedVoice?.id || 'default',
-        background_image_id: state.selectedBackground?.id || 'default',
+        background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
+        background_image_ids: state.selectedBackgrounds?.length > 0 
+          ? state.selectedBackgrounds.map(bg => bg.id)
+          : undefined, // Send multiple backgrounds if available
         subtitle_enabled: subtitle,
         subtitle_language: state.subtitleOptions?.language || 'en',
-        subtitle_style: state.subtitleOptions?.style || 'default'
+        subtitle_style: typeof state.subtitleOptions?.style === 'string' 
+          ? state.subtitleOptions.style 
+          : 'default'
       };
       
       const result = await VideoService.createCompleteVideo(params);
@@ -79,8 +82,13 @@ export default function EditPage() {
         setShowSuccessModal(true);
       } else {
         throw new Error('Failed to create video');
+      }    } catch (err: any) {
+      if (err.message?.includes('session has expired') || err.message?.includes('login again')) {
+        // Redirect to login page
+        router.push('/login?returnUrl=/create/edit');
+        return;
       }
-    } catch (err: any) {
+      
       setError(err.message || 'Failed to export video. Please try again.');
       console.error('Video export error:', err);
     } finally {
@@ -181,6 +189,43 @@ export default function EditPage() {
     );
   };
   
+  const handleTestAPI = async () => {
+    try {
+      setIsCreating(true);
+      setError(null);
+      
+      // Test API connection first
+      console.log('Testing API connection...');
+      const testResult = await VideoService.testAPI();
+      console.log('API test result:', testResult);
+      
+      // Then test video creation
+      const params = {
+        script_text: state.script?.content || 'Test video script',
+        voice_id: state.selectedVoice?.id || 'default',
+        background_image_id: state.selectedBackground?.id || 'custom_282c039b',
+        subtitle_enabled: false,
+        subtitle_language: 'en',
+        subtitle_style: 'default'
+      };
+      
+      console.log('Testing video creation...');
+      const result = await VideoService.createTestVideo(params);
+      console.log('Test video result:', result);
+      
+      if (result && result.url) {
+        setExportedVideoUrl(result.url);
+        setShowSuccessModal(true);
+      }
+      
+    } catch (error) {
+      console.error('Test error:', error);
+      setError(error instanceof Error ? error.message : 'Test failed');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Layout>
       <Head>

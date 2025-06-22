@@ -4,6 +4,14 @@ import { mockApiCall, mockVoices } from '../mockdata';
 // Backend API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Audio cache to prevent duplicate API calls
+const audioCache = new Map<string, VoiceGenerationResult>();
+
+// Helper function to create cache key
+const createCacheKey = (text: string, voiceId: string, speed: number, pitch: number): string => {
+  return `${voiceId}_${speed}_${pitch}_${text.slice(0, 100)}`; // Limit text length for cache key
+};
+
 export interface VoiceGenerationParams {
   text: string;
   voiceId: string;
@@ -26,13 +34,17 @@ export interface VoiceGenerationResult {
 /**
  * Service for voice generation and management
  */
-export const VoiceService = {
-  /**
+export const VoiceService = {  /**
    * Get all available voices from backend API
    */
   getAllVoices: async (): Promise<Voice[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voices/`);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/voices/`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -54,17 +66,23 @@ export const VoiceService = {
     } catch (error) {
       console.error('Error fetching voices from API:', error);
       
-      // Fallback to mock data if API fails
+      // Only fallback to mock data if the API is completely unreachable
+      // But log this as it should not happen in production
+      console.warn('Falling back to mock data - this should not happen in production');
       return mockApiCall(mockVoices);
     }
   },
-
   /**
    * Get voice by ID from backend API
    */
   getVoiceById: async (id: string): Promise<Voice | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voices/${id}`);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/voices/${id}`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -93,26 +111,39 @@ export const VoiceService = {
       const voice = mockVoices.find(v => v.id === id);
       return mockApiCall(voice || null);
     }
-  },
-
-  /**
+  },  /**
    * Generate audio from text using selected voice and backend API
    */
   generateVoiceAudio: async (params: VoiceGenerationParams): Promise<VoiceGenerationResult> => {
     try {
+      const settings = {
+        speed: params.settings?.speed || 1.0,
+        pitch: params.settings?.pitch || 0
+      };
+      
+      // Create cache key
+      const cacheKey = createCacheKey(params.text, params.voiceId, settings.speed, settings.pitch);
+      
+      // Check cache first
+      if (audioCache.has(cacheKey)) {
+        console.log('🎵 Using cached audio for:', cacheKey);
+        return audioCache.get(cacheKey)!;
+      }
+      
+      console.log('🎵 Generating new audio for:', cacheKey);
+      
+      const token = localStorage.getItem('access_token');
       const requestBody = {
         text: params.text,
         voice_id: params.voiceId,
-        settings: {
-          speed: params.settings?.speed || 1.0,
-          pitch: params.settings?.pitch || 0
-        }
+        settings: settings
       };
       
       const response = await fetch(`${API_BASE_URL}/voices/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify(requestBody)
       });
@@ -123,12 +154,18 @@ export const VoiceService = {
       
       const result = await response.json();
       
-      return {
+      const voiceResult: VoiceGenerationResult = {
         audioUrl: result.audio_url,
         duration: result.duration,
         voiceId: result.voice_id,
         settings: result.settings
       };
+        // Cache the result
+      audioCache.set(cacheKey, voiceResult);
+      console.log('💾 Cached audio result for:', cacheKey);
+      console.log('📊 Cache now has', audioCache.size, 'entries');
+      
+      return voiceResult;
       
     } catch (error) {
       console.error('Error generating voice audio from API:', error);
@@ -144,16 +181,21 @@ export const VoiceService = {
         duration: 60,
         voiceId: params.voiceId,
         settings
-      };      return mockApiCall(result, 0.05, 3000);
+      };      
+      return mockApiCall(result, 0.05, 3000);
     }
   },
-
   /**
    * Filter voices by language using backend API
    */
   filterVoicesByLanguage: async (language: string): Promise<Voice[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voices/?language=${encodeURIComponent(language)}`);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/voices/?language=${encodeURIComponent(language)}`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -188,7 +230,12 @@ export const VoiceService = {
    */
   getAvailableLanguages: async (): Promise<string[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voices/languages/available`);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/voices/languages/available`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -211,7 +258,12 @@ export const VoiceService = {
    */
   getAvailableGenders: async (): Promise<string[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voices/genders/available`);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_BASE_URL}/voices/genders/available`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -219,13 +271,30 @@ export const VoiceService = {
       
       const data = await response.json();
       return data.genders;
-      
-    } catch (error) {
+        } catch (error) {
       console.error('Error fetching available genders from API:', error);
       
       // Fallback to mock genders
       const genders = [...new Set(mockVoices.map(voice => voice.gender))];
       return Promise.resolve(genders);
     }
+  },
+
+  /**
+   * Clear audio cache (useful for testing or memory management)
+   */
+  clearAudioCache: () => {
+    audioCache.clear();
+    console.log('🗑️ Audio cache cleared');
+  },
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats: () => {
+    return {
+      size: audioCache.size,
+      keys: Array.from(audioCache.keys())
+    };
   }
 };
