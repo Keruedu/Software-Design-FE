@@ -16,7 +16,8 @@ interface VideoCreationState {
   voiceSettings: {
     speed: number; // 0.5 to 2.0
     pitch: number; // -10 to 10
-  };  generatedAudio: VoiceGenerationResult | null;
+  };  
+  generatedAudio: VoiceGenerationResult | null;
   selectedBackground: Background | null; // Backward compatibility
   selectedBackgrounds: Background[]; // New multi-selection
   subtitleOptions: SubtitleOptions | null;
@@ -67,13 +68,28 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const setStep = (step: VideoCreationState['step']) => {
     setState(prev => ({ ...prev, step }));
   };
-  
-  const setSelectedTopic = (topic: TrendingTopic | null) => {
-    setState(prev => ({ ...prev, selectedTopic: topic }));
+    const setSelectedTopic = (topic: TrendingTopic | null) => {
+    setState(prev => {
+      // If topic changed, reset script to force regeneration
+      const shouldResetScript = prev.selectedTopic?.id !== topic?.id;
+      return {
+        ...prev,
+        selectedTopic: topic,
+        script: shouldResetScript ? null : prev.script
+      };
+    });
   };
   
   const setKeyword = (keyword: string) => {
-    setState(prev => ({ ...prev, keyword }));
+    setState(prev => {
+      // If keyword changed, reset script to force regeneration
+      const shouldResetScript = prev.keyword !== keyword;
+      return {
+        ...prev,
+        keyword,
+        script: shouldResetScript ? null : prev.script
+      };
+    });
   };
   
   const setScript = (script: Script | null) => {
