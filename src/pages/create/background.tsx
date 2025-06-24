@@ -173,8 +173,8 @@ export default function BackgroundPage() {
   const uniqueCategories = [...new Set(backgrounds.map(bg => bg.category))];
 
   const handleContinue = () => {
-    setStep('edit');
-    router.push('/create/edit');
+    setStep('preview');
+    router.push('/create/preview');
   };
 
   const handleBack = () => {
