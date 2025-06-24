@@ -8,6 +8,7 @@ export const Header: React.FC = () => {
   const { auth, logout } = useAuth();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   
   const navItems = [
     { label: 'Home', href: '/' },
@@ -57,18 +58,50 @@ export const Header: React.FC = () => {
               <div className="flex items-center">
                 {/* User profile */}
                 <div className="relative ml-3">
-                  <div className="flex items-center">                    <span className="text-sm font-medium text-gray-700 mr-3">
-                      {auth.user?.username}
-                    </span>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => logout()}
+                  
+                  
+                  <div className="flex-shrink-0 mr-3 relative">
+                    <button
+                      onClick={() => setProfileMenuOpen((open) => !open)}
+                      className="focus:outline-none"
+                      aria-label="User menu"
                     >
-                      Log out
-                    </Button>
+                      {auth.user?.avatar ? (
+                        <img
+                          src={auth.user.avatar}
+                          alt="avatar"
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-lg font-bold text-gray-700 uppercase">
+                          {auth.user?.username?.charAt(0) || 'U'}
+                        </div>
+                      )}
+                    </button>
+                    {profileMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-50">
+                        <div className="px-4 py-2 text-gray-800 font-semibold border-b">{auth.user?.username}</div>                        <button
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            router.push('/auth/profile');
+                          }}
+                        >
+                          Profile
+                        </button>
+                        <button
+                          className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            logout();
+                          }}
+                        >
+                          Log out
+                        </button>
+                      </div>
+                    )}
                   </div>
+                  
                 </div>
               </div>
             ) : (

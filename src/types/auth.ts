@@ -2,8 +2,14 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  fullName: string;
+  avatar?: string;
   created_at: string;
   updated_at: string;
+  social_credentials?: {
+    google?: any;
+    [key: string]: any;
+  };
 }
 
 export interface LoginResponse {
@@ -14,6 +20,7 @@ export interface LoginResponse {
 
 export interface RegisterRequest {
   username: string;
+  fullName: string;
   email: string;
   password: string;
 }

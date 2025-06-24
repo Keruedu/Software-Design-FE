@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
@@ -15,14 +15,30 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const validateForm = () => {
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !email || !fullName || !password || !confirmPassword) {
       setError('All fields are required');
+      return false;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setError('Username must contain only letters, numbers, and underscores');
+      return false;
+    }
+
+    if (username.length < 3 || username.length > 50) {
+      setError('Username must be between 3 and 50 characters');
+      return false;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address');
       return false;
     }
     
@@ -50,7 +66,7 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
-      await register(username, email, password);
+      await register(username, email, fullName, password);
       toast.success('Account created successfully! Please log in.', {
         position: 'bottom-right',
         autoClose: 3000,
@@ -85,140 +101,182 @@ export default function RegisterPage() {
           <title>Create Account - VideoAI</title>
           <meta name="description" content="Create a new VideoAI account" />
         </Head>
-      
-      <div className="flex min-h-screen bg-gray-50">
+        <div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
         {/* Left side - registration form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center">
-          <div className="max-w-md w-full px-6 py-8">
-            <div className="text-center mb-8">
+        <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+          <div className="max-w-lg w-full space-y-6">
+            {/* Header */}
+            <div className="text-center">
               <Link href="/" className="inline-block">
-                <h1 className="text-3xl font-bold text-blue-600">VideoAI</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  VideoAI
+                </h1>
               </Link>
-              <p className="mt-2 text-gray-600">Create your account</p>
+              <h2 className="mt-3 text-xl font-semibold text-gray-900">Join VideoAI!</h2>
+              <p className="mt-1 text-gray-600">Create your account to start making amazing videos</p>
             </div>
-            
-            {error && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
-                <p>{error}</p>
-              </div>
-            )}
-            
-            <form className="space-y-4" onSubmit={handleSubmit}>              <Input
-                label="Username"
-                type="text"
-                placeholder="johndoe"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}                required
-              />
+
+            {/* Registration Form Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+              {error && (
+                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}                required
-              />
-              
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}                required
-              />
-              
-              <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}                required
-              />
-              
-              <div className="mt-2">
-                <label className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
-                    required
-                  />
-                  <span className="ml-2 block text-sm text-gray-700">
-                    I agree to the{' '}
-                    <Link href="/terms" className="text-blue-600 hover:underline">
-                      Terms of Service
-                    </Link>{' '}
-                    and{' '}
-                    <Link href="/privacy" className="text-blue-600 hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </span>
-                </label>
-              </div>
-              
-              <Button
-                type="submit"
-                isLoading={isLoading}
-                disabled={!username || !email || !password || !confirmPassword}                className="w-full"
-              >
-                Create Account
-              </Button>
-            </form>
-            
-            <div className="text-center mt-8">
-              <p className="text-gray-600">
-                Already have an account?{' '}
-                <Link
-                  href="/auth/login"
-                  className="text-blue-600 font-medium hover:text-blue-500"
+              <form className="space-y-3" onSubmit={handleSubmit}>
+                <Input
+                  label="Full Name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  leftIcon={<FiUser className="h-5 w-5 text-gray-400" />}
+                  className="w-full py-2"
+                  required
+                />
+                
+                <Input
+                  label="Username"
+                  type="text"
+                  placeholder="johndoe"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  leftIcon={<FiUser className="h-5 w-5 text-gray-400" />}
+                  className="w-full py-2"
+                  required
+                />
+                
+                <Input
+                  label="Email Address"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  leftIcon={<FiMail className="h-5 w-5 text-gray-400" />}
+                  className="w-full py-2"
+                  required
+                />
+                
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  leftIcon={<FiLock className="h-5 w-5 text-gray-400" />}
+                  className="w-full py-2"
+                  required
+                />
+                
+                <Input
+                  label="Confirm Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  leftIcon={<FiLock className="h-5 w-5 text-gray-400" />}
+                  className="w-full py-2"
+                  required
+                />
+                
+                <div className="mt-3">
+                  <label className="flex items-center">
+                    <input 
+                      type="checkbox" 
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                      required
+                    />
+                    <span className="ml-2 block text-xs text-gray-700">
+                      I agree to the{' '}
+                      <Link href="/terms" className="text-blue-600 hover:underline">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link href="/privacy" className="text-blue-600 hover:underline">
+                        Privacy Policy
+                      </Link>
+                    </span>
+                  </label>
+                </div>
+                
+                <Button
+                  type="submit"
+                  isLoading={isLoading}
+                  disabled={!username || !email || !password || !confirmPassword}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 mt-4"
+                  icon={<FiUserPlus />}
                 >
-                  Sign in
-                </Link>
-              </p>
+                  Create Account
+                </Button>
+              </form>
+              
+              {/* Sign in link */}
+              <div className="text-center mt-4">
+                <p className="text-gray-600">
+                  Already have an account?{' '}
+                  <Link
+                    href="/auth/login"
+                    className="text-blue-600 font-semibold hover:text-blue-500 transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        
+        </div>        
         {/* Right side - promotional content */}
         <div className="hidden lg:block lg:w-1/2 bg-gradient-to-br from-blue-600 to-purple-700">
-          <div className="h-full flex flex-col items-center justify-center p-12">
+          <div className="h-full flex flex-col items-center justify-center p-8">
             <div className="max-w-lg text-center text-white">
-              <h2 className="text-3xl font-bold mb-6">Join Our Video Creator Community</h2>
-              <p className="mb-8 text-blue-100">
+              <h2 className="text-2xl font-bold mb-4">Join Our Video Creator Community</h2>
+              <p className="mb-6 text-blue-100">
                 Get started with VideoAI and transform your ideas into engaging short videos in minutes.
                 No video editing skills required!
               </p>
               
-              <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-2 gap-4 mb-6">
                 {[
                   {
                     title: 'AI Script Generation',
-                    description: 'Automatically generate tailored scripts for any topic'
+                    description: 'Automatically generate tailored scripts'
                   },
                   {
-                    title: 'Professional Voice Overs',
-                    description: 'Choose from dozens of natural-sounding AI voices'
+                    title: 'Professional Voices',
+                    description: 'Natural-sounding AI voices'
                   },
                   {
                     title: 'Beautiful Templates',
-                    description: 'Access our library of professional video templates'
+                    description: 'Professional video templates'
                   },
                   {
                     title: 'Easy Sharing',
-                    description: 'Export and share to social media with one click'
+                    description: 'Export and share instantly'
                   }
                 ].map((feature, i) => (
-                  <div key={i} className="text-left">
-                    <h3 className="font-bold text-lg">{feature.title}</h3>
-                    <p className="text-sm text-blue-100">{feature.description}</p>
+                  <div key={i} className="text-left p-3 bg-white/10 rounded-lg backdrop-blur-sm">
+                    <h3 className="font-bold text-sm">{feature.title}</h3>
+                    <p className="text-xs text-blue-100 mt-1">{feature.description}</p>
                   </div>
                 ))}
               </div>
               
               <div className="inline-flex items-center bg-white bg-opacity-20 rounded-full px-4 py-2 text-sm">
-                <span className="font-semibold">New users get 5 free videos!</span>
+                <span className="font-semibold">🎉 New users get 5 free videos!</span>
               </div>
             </div>
-          </div>        </div>
+          </div>
+        </div>
       </div>
       </>
     </ProtectedRoute>
