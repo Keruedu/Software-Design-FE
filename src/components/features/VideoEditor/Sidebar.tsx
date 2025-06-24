@@ -27,22 +27,10 @@ const Sidebar:React.FC<SidebarProps>=({
      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const sidebarItems = [
     {
-      id: 'timeline',
-      label: 'Timeline',
-      icon: FaVideo,
-      description: 'Video timeline and playback controls'
-    },
-    {
       id: 'text',
       label: 'Text & Titles',
       icon: FaFont,
       description: 'Add text overlays and titles'
-    },
-    {
-      id: 'trim',
-      label: 'Trim & Cut',
-      icon: FaCog,
-      description: 'Trim and cut video segments'
     },
     {
       id: 'audio',

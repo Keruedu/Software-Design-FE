@@ -1,30 +1,36 @@
 import React,{useState, useRef,useEffect} from 'react';
 import {motion} from 'framer-motion';
 import { FaPlay, FaPause,FaDownload, FaHandScissors, FaForward } from 'react-icons/fa';
+import AudioTrack from './AudioTrack';
 
+import { useAudioTracksContext,useTrimVideoContext } from '@/context/AudioTracks';
+import { AudioTrackData } from '@/types/audio';
 interface TimelineProps {
     duration: number;
     currentTime: number;
     onSeek: (time: number) => void;
     videoUrl: string;
+    isProcessing:boolean;
+    setIsProcessing: (isProcessing: boolean) => void;
 }
 
 const Timeline: React.FC<TimelineProps> = ({
     duration,
     currentTime,
     onSeek,
-    videoUrl
+    videoUrl,
+    isProcessing,
+    setIsProcessing,
 }) =>{
-    const [trimStart, setTrimStart] = useState(0);
-    const [trimEnd, setTrimEnd] = useState(0);
+    const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimVideoContext();
+    console.log(trimStart,trimEnd);
     const [isDraggingStart, setIsDraggingStart] = useState(false);
     const [isDraggingEnd, setIsDraggingEnd] = useState(false);
     const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
     // Thêm state cho playhead ảo
     const [virtualPlayheadTime, setVirtualPlayheadTime] = useState(0);
     const timelineRef = useRef<HTMLDivElement>(null);
-
+    const {audioTracks,setAudioTracks} = useAudioTracksContext();
     useEffect(() => {
       setTrimEnd(duration);
     },[duration]);
@@ -75,43 +81,6 @@ const Timeline: React.FC<TimelineProps> = ({
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const trimVideo = async () => {
-        if(!videoUrl) return;
-        setIsProcessing(true);
-        try{
-            const {FFmpeg} = await import('@ffmpeg/ffmpeg');
-            const{fetchFile} = await import('@ffmpeg/util');
-            const ffmpeg =new FFmpeg();
-            await ffmpeg.load();
-            const response = await fetch(videoUrl);
-            const videoData = await response.arrayBuffer();
-            await ffmpeg.writeFile('input.mp4', new Uint8Array(videoData));
-            await ffmpeg.exec([
-                '-i', 'input.mp4',
-                '-ss', trimStart.toString(),
-                '-to', trimEnd.toString(),
-                '-c', 'copy',
-                'output.mp4'
-            ])
-            const data = await ffmpeg.readFile('output.mp4');
-            const blob = new Blob([data], { type: 'video/mp4' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'AIVideo.mp4';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-        catch (error) {
-            console.error('Error trimming video:', error);
-            alert('Failed to trim video. Please try again.');
-        } finally {
-            setIsProcessing(false);
-        }
-    }
-
     // Tính toán vị trí hiển thị
     const actualPlayheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0;
     const virtualPlayheadPosition = duration > 0 ? (virtualPlayheadTime / duration) * 100 : 0;
@@ -150,9 +119,29 @@ const Timeline: React.FC<TimelineProps> = ({
         onSeek(time);
     }
 
+
+  
+        const onUpdateAudioTrack = (id: string, updates: Partial<AudioTrackData>) => {
+            setAudioTracks(prevTracks =>
+                prevTracks.map(track =>
+                track.id === id ? { ...track, ...updates } : track
+                )
+            );
+        };
+
+    const onDeleteAudioTrack =()=>{
+        
+    }
+    const onSelectAudioTrack =()=>{
+        
+    }
+
+
+
+
+
     return(
         <div className="bg-gray-50 rounded-lg space-y-5">
-            
             <div className="flex justify-center text-xs text-gray-500">
                     <span className={`font-medium transition-colors duration-200 ${
                         isDraggingPlayhead ? 'text-orange-600' : 'text-gray-700'
@@ -239,6 +228,31 @@ const Timeline: React.FC<TimelineProps> = ({
                 
                 
             </div>
+            {/* Audio Tracks */}
+            {audioTracks.length > 0 && (
+                <div className="space-y-2 px-2">
+                    <div className="text-xs text-gray-600 font-medium mb-1">Audio Tracks</div>
+                    <div className="space-y-2">
+                        {audioTracks.map((track) => (
+                            <div key={track.id} className="relative h-12 bg-gray-200 rounded-lg">
+                                <AudioTrack
+                                    track={track}
+                                    videoDuration={duration}
+                                    onUpdateTrack={onUpdateAudioTrack}
+                                    onSelectTrack={onSelectAudioTrack}
+                                />
+                                
+                                {/* Playhead for audio tracks */}
+                                <div
+                                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none"
+                                    style={{ left: `${displayPlayheadPosition}%` }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            
         </div>
     )
 }
