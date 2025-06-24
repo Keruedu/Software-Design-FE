@@ -22,7 +22,49 @@ export class FFmpegService{
         await this.ffmpeg.load();
         this.isLoaded = true;
     }
+
+
+async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
+    if (!this.ffmpeg || !this.isLoaded) {
+        throw new Error("FFmpeg is not initialized. Call initialize() first.");
+    }
+    try {
+        let videoData: ArrayBuffer;
+        if (videoFile instanceof File || videoFile instanceof Blob) {
+            videoData = await videoFile.arrayBuffer();
+        } else {
+            const response = await fetch(videoFile);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch video file: ${response.statusText}`);
+            }
+            videoData = await response.arrayBuffer();
+        }
+
+        const timestamp = Date.now();
+        const inputVideoName = `probe_video_${timestamp}.mp4`;
         
+        await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
+        
+        try {
+            await this.ffmpeg.exec([
+                '-i', inputVideoName,
+                '-f', 'null',
+                '-map', '0:a',
+            ]);
+            
+            await this.ffmpeg.deleteFile(inputVideoName);
+            return true;
+            
+        } catch (error) {
+            await this.ffmpeg.deleteFile(inputVideoName);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error("Error checking audio stream:", error);
+        return false;
+    }
+}
     async addAudioToVideo(
         videoFile:File|string|Blob,
         audioFile:File|Blob,
@@ -70,7 +112,9 @@ export class FFmpegService{
                 filterComplex =`[1:a]volume=${audioVolume},aformat=sample_fmts=fltp:sample_rates=44100${audioDelay}[audio_processed]`;
             }
             else{
-                if(false)
+                const hasAudio = await this.hasAudioStream(videoFile);
+                console.log()
+                if(!hasAudio)
                 {
                     filterComplex =`[1:a]volume=${audioVolume},aformat=sample_fmts=fltp:sample_rates=44100${audioDelay}[audio_processed]`;
                 }
