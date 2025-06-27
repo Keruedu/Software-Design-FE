@@ -13,9 +13,13 @@ export const authService = {
       headers: { 'Content-Type': 'application/json' }
     });
     return response.data;
-  },
-  async getGoogleAuthUrl(): Promise<{ auth_url: string }> {
+  },  async getGoogleAuthUrl(): Promise<{ auth_url: string }> {
     const response = await api.get('/user/google/auth');
+    return response.data;
+  },
+  
+  async getFacebookAuthUrl(): Promise<{ auth_url: string }> {
+    const response = await api.get('/user/facebook/auth');
     return response.data;
   },
   async logout(): Promise<void> {

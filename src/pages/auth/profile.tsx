@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { authService } from '@/services/authService';
 import Head from 'next/head';
 import { Layout } from '@/components/layout/Layout';
-import { FaPenAlt, FaKey, FaGoogle, FaUser } from 'react-icons/fa';
+import { FaPenAlt, FaKey, FaGoogle, FaUser, FaFacebook } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import api from '@/services/api';
 
@@ -33,9 +33,7 @@ export default function ProfilePage() {
     setFullName(user?.fullName || '');
     setEmail(user?.email || '');
     setAvatar(user?.avatar || '');
-  }, [user]);
-
-  useEffect(() => {
+  }, [user]);  useEffect(() => {
     if (router.query.linked === 'google') {
       toast.success("Google account linked successfully! You can now upload videos to YouTube.",
         {
@@ -44,6 +42,29 @@ export default function ProfilePage() {
         }
       );
       refreshUserData();
+      // Clean up URL
+      router.replace('/auth/profile', undefined, { shallow: true });
+    } else if (router.query.linked === 'facebook') {
+      toast.success("Facebook account linked successfully! You can now manage Facebook pages.",
+        {
+          position: "bottom-right",
+          autoClose: 3000,
+        }
+      );
+      refreshUserData();
+      // Clean up URL
+      router.replace('/auth/profile', undefined, { shallow: true });
+    } else if (router.query.link_error) {
+      const errorMessage = Array.isArray(router.query.link_error) 
+        ? router.query.link_error[0] 
+        : router.query.link_error;
+      
+      toast.error(decodeURIComponent(errorMessage as string),
+        {
+          position: "bottom-right",
+          autoClose: 3000,
+        }
+      );
       // Clean up URL
       router.replace('/auth/profile', undefined, { shallow: true });
     }
@@ -160,10 +181,8 @@ export default function ProfilePage() {
     } finally {
       setIsChangingPassword(false);
     }
-  };
-
-  // Check if user has Google linked
-  const hasGoogleLinked = user?.social_credentials?.google;
+  };  // Only regular users can change password
+  const isRegularAccount = user?.type === "regular" || !user?.type; 
   return (
     <Layout>
       <Head>
@@ -264,7 +283,7 @@ export default function ProfilePage() {
                   <FaGoogle className="text-red-500" />
                   Google Account
                 </h3>
-                {hasGoogleLinked ? (
+                {user?.social_credentials?.google ? (
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 text-green-700">
                       <span className="font-medium">✓ Google account linked</span>
@@ -289,69 +308,92 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Security Section */}
+              {/* Facebook Account Section */}
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <FaKey className="text-blue-500" />
-                    Security
-                  </h3>
-                  <Button
-                    onClick={() => setShowChangePassword(!showChangePassword)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {showChangePassword ? 'Cancel' : 'Change Password'}
-                  </Button>
-                </div>
-                
-                {showChangePassword && (
-                  <form onSubmit={handleChangePassword} className="space-y-4 bg-gray-50 p-4 rounded-lg">
-                    <Input
-                      label="Current Password"
-                      type="password"
-                      value={currentPassword}
-                      onChange={e => setCurrentPassword(e.target.value)}
-                      required
-                      className="w-full"
-                    />
-                    <Input
-                      label="New Password"
-                      type="password"
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full"
-                    />
-                    <Input
-                      label="Confirm New Password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full"
-                    />
-                    <Button 
-                      type="submit" 
-                      isLoading={isChangingPassword} 
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                    >
-                      Update Password
-                    </Button>
-                  </form>
-                )}
-                
-                {hasGoogleLinked && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> Even with Google account linked, you can still change your password 
-                      to access your account using email/password login.
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <FaFacebook className="text-blue-600" />
+                  Facebook Account
+                </h3>
+                {user?.social_credentials?.facebook ? (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <span className="font-medium">✓ Facebook account linked</span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-1">
+                      Email: {user?.social_credentials?.facebook?.email}
                     </p>
                   </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="text-gray-600 mb-3">
+                      Link your Facebook account to manage pages and posts
+                    </p>
+                    <Button
+                      onClick={() => router.push('/auth/linkFacebook')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <FaFacebook className="mr-2" />
+                      Link Facebook Account
+                    </Button>                  </div>
                 )}
               </div>
+
+              {/* Security Section - Only show for regular accounts */}
+              {isRegularAccount && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <FaKey className="text-blue-500" />
+                      Security
+                    </h3>
+                    <Button
+                      onClick={() => setShowChangePassword(!showChangePassword)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {showChangePassword ? 'Cancel' : 'Change Password'}
+                    </Button>
+                  </div>
+                  
+                  {showChangePassword && (
+                    <form onSubmit={handleChangePassword} className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                      <Input
+                        label="Current Password"
+                        type="password"
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        required
+                        className="w-full"
+                      />
+                      <Input
+                        label="New Password"
+                        type="password"
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full"
+                      />
+                      <Input
+                        label="Confirm New Password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        className="w-full"
+                      />
+                      <Button 
+                        type="submit" 
+                        isLoading={isChangingPassword} 
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        Update Password
+                      </Button>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
