@@ -200,13 +200,14 @@ export default function ScriptPage() {
             </p>
           </div>
           
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={handleBack}>
+          <div className="flex flex-col md:flex-row md:justify-between gap-4 pt-6 border-t border-gray-200">
+            <Button variant="outline" onClick={handleBack} className="px-6 py-2 w-full md:w-auto">
               Back
             </Button>
             <Button 
               onClick={handleContinue}
               disabled={!scriptContent.trim() || !scriptTitle.trim()}
+              className="px-6 py-2 w-full md:w-auto"
             >
               Continue to Voice Selection
             </Button>
