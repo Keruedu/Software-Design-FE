@@ -5,6 +5,8 @@ import { FaPlay, FaPause,FaBackward,FaForward, FaRegSave } from 'react-icons/fa'
 import { videoProcessor } from '@/services/videoProcessor.service';
 import { ffmpegService } from '@/services/editVideo.service';
 import { useAudioTracksContext } from '@/context/AudioTracks';
+import { useTimelineContext } from '@/context/TimelineContext';
+import { audioManager } from '@/services/audioManager';
 import { AudioTrackData } from '@/types/audio';
 
 interface VideoPlayerProps {
@@ -40,7 +42,9 @@ useEffect(()=>{
     };
     initializeFFmpeg();
 },[])
-const {audioTracks,setAudioTracks} = useAudioTracksContext();
+
+const { audioTracks, setAudioTracks } = useAudioTracksContext();
+const { timelineState } = useTimelineContext();
 const [trimStart, setTrimStart] = useState(0);
 const [trimEnd, setTrimEnd] = useState(0);
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
@@ -52,21 +56,38 @@ const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
 
+// Get all audio items from timeline tracks
+const audioItems = timelineState.tracks.flatMap(track => 
+    track.items.filter(item => item.type === 'audio')
+);
+
 useEffect(() => {
   setUrl(videoUrl);
 }, [videoUrl]);
 
-// Sync external playing state
+// Sync external playing state and manage audio playback
 useEffect(() => {
     setIsPlaying(externalIsPlaying);
-}, [externalIsPlaying]);
+    
+    if (externalIsPlaying) {
+        audioManager.play(currentTime, audioItems, timelineState.tracks);
+    } else {
+        audioManager.pause();
+    }
+}, [externalIsPlaying, currentTime, audioItems]); // Removed timelineState.tracks dependency
 
-// Sync external currentTime to video player
+// Update audio items when timeline changes
+useEffect(() => {
+    audioManager.updateAudioItems(audioItems);
+}, [audioItems]);
+
+// Sync external currentTime to video player and audio
 useEffect(() => {
     if (playerRef.current && Math.abs(currentTime - externalCurrentTime) > 0.5) {
         playerRef.current.seekTo(externalCurrentTime, 'seconds');
+        audioManager.seekTo(externalCurrentTime, audioItems, timelineState.tracks);
     }
-}, [externalCurrentTime]);
+}, [externalCurrentTime, audioItems]); // Removed timelineState.tracks dependency
 
 // Cleanup effect
 useEffect(() => {
@@ -79,6 +100,9 @@ useEffect(() => {
             allVideos.forEach(video => video.pause());
             allAudios.forEach(audio => audio.pause());
         }
+        
+        // Cleanup audio manager
+        audioManager.dispose();
     };
 }, []);
 
@@ -110,10 +134,14 @@ const handlDuration=(duration:number)=>{
 const handleProgress = (progress: { playedSeconds: number }) => {
     setCurrentTime(progress.playedSeconds);
     onProgress(progress);
+    
+    // Only sync audio playback with video progress if there are audio items
+    // Don't call audioManager.play() continuously to avoid interference
 };
 const handleTimelineSeek = (time: number) => {
     if (playerRef.current) {
         playerRef.current.seekTo(time, 'seconds');
+        audioManager.seekTo(time, audioItems, timelineState.tracks);
     }
 };
 const trimVideo = async () => {

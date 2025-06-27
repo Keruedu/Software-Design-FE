@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TimelineItem } from '@/types/timeline';
-import { FaImage, FaMusic, FaVideo, FaFont, FaMagic, FaVolumeUp, FaVolumeMute, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaImage, FaMusic, FaVideo, FaFont, FaMagic, FaVolumeUp, FaVolumeMute, FaEye, FaEyeSlash, FaTrash } from 'react-icons/fa';
 
 interface TimelineItemComponentProps {
   item: TimelineItem;
   pixelsPerSecond: number;
+  zoom: number;
   trackHeight: number;
   onUpdateItem: (updates: Partial<TimelineItem>) => void;
   onDeleteItem: () => void;
@@ -16,6 +17,7 @@ interface TimelineItemComponentProps {
 const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
   item,
   pixelsPerSecond,
+  zoom,
   trackHeight,
   onUpdateItem,
   onDeleteItem,
@@ -24,11 +26,72 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, startTime: 0 });
+  const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, startTime: 0, duration: 0 });
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
 
-  const width = item.duration * pixelsPerSecond;
-  const left = item.startTime * pixelsPerSecond;
+  // Snap to grid helper function for better precision
+  const snapToGrid = (time: number, zoom: number) => {
+    if (zoom >= 2) {
+      return Math.round(time * 10) / 10;
+    } else if (zoom >= 1) {
+      return Math.round(time * 2) / 2;
+    } else {
+      return Math.round(time);
+    }
+  };
+
+  const width = item.duration * pixelsPerSecond * zoom;
+  const left = item.startTime * pixelsPerSecond * zoom;
+
+  // Handle mouse events for drag and resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaTime = deltaX / (pixelsPerSecond * zoom);
+        const rawNewStartTime = dragStart.startTime + deltaTime;
+        const newStartTime = Math.max(0, snapToGrid(rawNewStartTime, zoom));
+        onUpdateItem({ startTime: newStartTime });
+      } else if (isResizing) {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaTime = deltaX / (pixelsPerSecond * zoom);
+        
+        if (resizeDirection === 'right') {
+          // Resize from right - change duration
+          const rawNewDuration = dragStart.duration + deltaTime;
+          const newDuration = Math.max(0.1, snapToGrid(rawNewDuration, zoom));
+          onUpdateItem({ duration: newDuration });
+        } else if (resizeDirection === 'left') {
+          // Resize from left - change both startTime and duration
+          const rawNewStartTime = dragStart.startTime + deltaTime;
+          const newStartTime = Math.max(0, snapToGrid(rawNewStartTime, zoom));
+          const newDuration = Math.max(0.1, snapToGrid(dragStart.duration - deltaTime, zoom));
+          onUpdateItem({ 
+            startTime: newStartTime,
+            duration: newDuration 
+          });
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+      setResizeDirection(null);
+    };
+
+    if (isDragging || isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isResizing, resizeDirection, dragStart, pixelsPerSecond, zoom, onUpdateItem]);
 
   const getItemIcon = () => {
     switch (item.type) {
@@ -53,17 +116,28 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.item-content')) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.button === 0) { // Left mouse button only
       setIsDragging(true);
-      setDragStart({ x: e.clientX, startTime: item.startTime });
+      setDragStart({ x: e.clientX, startTime: item.startTime, duration: item.duration });
       onSelect();
     }
   };
 
-  const handleResizeStart = (e: React.MouseEvent) => {
+  const handleResizeStart = (e: React.MouseEvent, direction: 'left' | 'right') => {
+    e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
-    setDragStart({ x: e.clientX, startTime: item.startTime });
+    setResizeDirection(direction);
+    setDragStart({ x: e.clientX, startTime: item.startTime, duration: item.duration });
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDeleteItem();
   };
 
   const formatTime = (seconds: number) => {
@@ -78,21 +152,24 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
         ref={itemRef}
         className={`absolute top-1 bottom-1 rounded-md cursor-pointer transition-all duration-200 ${getItemColor()} ${
           isSelected ? 'ring-2 ring-white ring-opacity-80 shadow-lg' : 'hover:shadow-md'
-        }`}
+        } ${isDragging ? 'z-50' : 'z-10'}`}
         style={{
           left: `${left}px`,
           width: `${Math.max(width, 30)}px`,
           height: `${trackHeight - 8}px`
         }}
         onMouseDown={handleMouseDown}
+        onMouseEnter={() => setShowDeleteButton(true)}
+        onMouseLeave={() => setShowDeleteButton(false)}
         whileHover={{ scale: 1.02 }}
         animate={{ 
           scale: isSelected ? 1.05 : 1,
           opacity: isDragging ? 0.8 : 1
         }}
+        drag={false} // Disable framer-motion drag to use custom drag
       >
         {/* Item Content */}
-        <div className="item-content h-full flex items-center justify-between px-2 relative overflow-hidden">
+        <div className="item-content h-full flex items-center justify-between px-2 relative overflow-hidden pointer-events-none">
           {/* Left side - Icon and name */}
           <div className="flex items-center space-x-1 text-white text-xs font-medium min-w-0">
             {getItemIcon()}
@@ -114,15 +191,48 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           </div>
         </div>
 
-        {/* Resize Handle */}
+        {/* Delete Button */}
+        {showDeleteButton && isSelected && (
+          <button
+            onClick={handleDeleteClick}
+            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-all duration-200 pointer-events-auto z-10"
+            title="Xóa item"
+          >
+            <FaTrash className="w-2 h-2" />
+          </button>
+        )}
+
+        {/* Left Resize Handle */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-white bg-opacity-20 hover:bg-opacity-40 transition-all"
-          onMouseDown={handleResizeStart}
-        />
+          className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize transition-all pointer-events-auto ${
+            isResizing && resizeDirection === 'left' ? 'bg-blue-500 w-3' : 'bg-white bg-opacity-20 hover:bg-opacity-40 hover:w-3'
+          }`}
+          onMouseDown={(e) => handleResizeStart(e, 'left')}
+        >
+          {isResizing && resizeDirection === 'left' && (
+            <div className="absolute -top-6 -left-8 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+              {formatTime(item.duration)}
+            </div>
+          )}
+        </div>
+
+        {/* Right Resize Handle */}
+        <div
+          className={`absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-all pointer-events-auto ${
+            isResizing && resizeDirection === 'right' ? 'bg-blue-500 w-3' : 'bg-white bg-opacity-20 hover:bg-opacity-40 hover:w-3'
+          }`}
+          onMouseDown={(e) => handleResizeStart(e, 'right')}
+        >
+          {isResizing && resizeDirection === 'right' && (
+            <div className="absolute -top-6 -right-8 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+              {formatTime(item.duration)}
+            </div>
+          )}
+        </div>
 
         {/* Progress indicator for video/audio */}
         {(item.type === 'video' || item.type === 'audio') && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20 pointer-events-none">
             <div 
               className="h-full bg-white bg-opacity-60 transition-all duration-100"
               style={{ width: '0%' }} // This would be updated based on playback progress
@@ -133,15 +243,15 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
         {/* Thumbnail for video/image */}
         {(item.type === 'video' || item.type === 'image') && item.thumbnail && (
           <div 
-            className="absolute inset-0 bg-cover bg-center opacity-30 rounded-md"
+            className="absolute inset-0 bg-cover bg-center opacity-30 rounded-md pointer-events-none"
             style={{ backgroundImage: `url(${item.thumbnail})` }}
           />
         )}
       </motion.div>
 
-      {/* Drag/Resize Overlay */}
-      {(isDragging || isResizing) && (
-        <div className="fixed inset-0 z-50 cursor-move" />
+      {/* Global Drag Overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-40 cursor-move pointer-events-none" />
       )}
     </>
   );

@@ -206,14 +206,15 @@ const VideoEditor: React.FC = () => {
                   <h4 className="font-medium text-blue-900 mb-2">💡 Hướng dẫn sử dụng:</h4>
                   <ul className="text-blue-800 space-y-1 text-xs">
                     <li>• Upload hình ảnh, video, audio vào thư viện</li>
-                    <li>• Kéo thả media từ thư viện vào timeline</li>
-                    <li>• Video → Track Video, Audio → Track Audio</li>
-                    <li>• Hình ảnh → Track Overlay hoặc Video</li>
+                    <li>• Kéo thả bất kỳ media nào vào bất kỳ track nào</li>
+                    <li>• Tracks chỉ là để tổ chức, không giới hạn loại media</li>
+                    <li>• Có thể resize, ẩn/hiện, lock/unlock tracks</li>
                   </ul>
                 </div>
                 <MediaLibrary
                   mediaItems={globalMediaItems}
                   setMediaItems={setGlobalMediaItems}
+                  showHeader={false}
                   onAddMedia={(media) => {
                     // Handle adding media to timeline
                     console.log('Added media:', media);

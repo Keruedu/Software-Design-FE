@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FaPlay, FaPause, FaBackward, FaForward, FaRegSave, FaPlus, FaSearchMinus, FaSearchPlus } from 'react-icons/fa';
 import { useTimelineContext } from '@/context/TimelineContext';
 import { useTrimVideoContext } from '@/context/AudioTracks';
+import { audioManager } from '@/services/audioManager';
 import TimelineTrack from './TimelineTrack';
 import { Track, TimelineItem } from '@/types/timeline';
 
@@ -87,15 +88,26 @@ const Timeline: React.FC<TimelineProps> = ({
     }, [duration, trimEnd, setTrimEnd]);
 
     const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const frames = Math.floor((seconds % 1) * 30); 
+        
+        if (timelineState.zoom >= 2) {
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+        } else if (timelineState.zoom >= 1) {
+            const preciseSeconds = (seconds % 60).toFixed(1);
+            return `${mins.toString().padStart(2, '0')}:${preciseSeconds.padStart(4, '0')}`;
+        } else {
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
     };
 
     const getTimeFromPosition = (clientX: number) => {
         if (!timelineRef.current) return 0;
         const rect = timelineRef.current.getBoundingClientRect();
-        const percentage = Math.max(0, Math.min(1, (clientX - rect.left - 180) / (rect.width - 180))); // Account for track headers
+        const timelineWidth = duration * timelineState.pixelsPerSecond * timelineState.zoom;
+        const percentage = Math.max(0, Math.min(1, (clientX - rect.left - 180) / timelineWidth)); // Account for track headers
         return percentage * duration;
     };
 
@@ -111,6 +123,14 @@ const Timeline: React.FC<TimelineProps> = ({
     const handleTimelineClick = (e: React.MouseEvent) => {
         if (isDraggingPlayhead) return;
         const time = getTimeFromPosition(e.clientX);
+        
+        // Get all audio items from timeline tracks
+        const audioItems = timelineState.tracks.flatMap(track => 
+            track.items.filter(item => item.type === 'audio')
+        );
+        
+        // Sync audio manager with the seek
+        audioManager.seekTo(time, audioItems, timelineState.tracks);
         onSeek(time);
     };
 
@@ -129,6 +149,13 @@ const Timeline: React.FC<TimelineProps> = ({
 
         const handleMouseUp = () => {
             if (isDraggingPlayhead) {
+                // Get all audio items from timeline tracks
+                const audioItems = timelineState.tracks.flatMap(track => 
+                    track.items.filter(item => item.type === 'audio')
+                );
+                
+                // Sync audio manager with the seek
+                audioManager.seekTo(virtualPlayheadTime, audioItems, timelineState.tracks);
                 onSeek(virtualPlayheadTime);
             }
             setIsDraggingPlayhead(false);
@@ -145,32 +172,18 @@ const Timeline: React.FC<TimelineProps> = ({
         };
     }, [isDraggingPlayhead, duration, onSeek, virtualPlayheadTime]);
 
-    const handleAddTrack = (type: Track['type']) => {
-        const trackNames = {
-            video: 'Video mới',
-            audio: 'Audio mới',
-            overlay: 'Overlay mới',
-            text: 'Text mới',
-            effect: 'Effect mới'
-        };
-
-        const trackColors = {
-            video: '#3B82F6',
-            audio: '#10B981',
-            overlay: '#F59E0B',
-            text: '#EF4444',
-            effect: '#8B5CF6'
-        };
+    const handleAddTrack = () => {
+        // Calculate next track number
+        const nextTrackNumber = timelineState.tracks.length + 1;
 
         addTrack({
-            name: trackNames[type],
-            type,
-            height: type === 'video' ? 50 : type === 'audio' ? 40 : 35,
+            name: `Track ${nextTrackNumber}`,
+            type: 'video', 
+            height: 50,
             isVisible: true,
             isLocked: false,
             items: [],
-            color: trackColors[type],
-            ...(type === 'audio' && { isMuted: false, volume: 1 })
+            color: '#3B82F6' 
         });
     };
 
@@ -181,6 +194,7 @@ const Timeline: React.FC<TimelineProps> = ({
         
         try {
             const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            
             if (data.type === 'media-item') {
                 const mediaItem = data.mediaItem;
                 const track = timelineState.tracks.find(t => t.id === trackId);
@@ -190,53 +204,30 @@ const Timeline: React.FC<TimelineProps> = ({
                     return;
                 }
                 
-                // Check if media type matches track type with more flexible rules
-                const isValidDrop = 
-                    (mediaItem.type === 'video' && track.type === 'video') ||
-                    (mediaItem.type === 'audio' && track.type === 'audio') ||
-                    (mediaItem.type === 'image' && (track.type === 'overlay' || track.type === 'video'));
-                
-                if (!isValidDrop) {
-                    // Show error message
-                    const notification = document.createElement('div');
-                    notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                    notification.textContent = `Không thể thêm ${mediaItem.type} vào ${track.type} track. Vui lòng chọn track phù hợp.`;
-                    document.body.appendChild(notification);
-                    setTimeout(() => {
-                        if (document.body.contains(notification)) {
-                            notification.style.opacity = '0';
-                            setTimeout(() => {
-                                if (document.body.contains(notification)) {
-                                    document.body.removeChild(notification);
-                                }
-                            }, 300);
-                        }
-                    }, 3000);
-                    return;
-                }
-                
-                // Calculate drop position more precisely
+                // Allow dropping any media type on any track for maximum flexibility
+                // Calculate drop position precisely
                 const rect = e.currentTarget.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const percentage = Math.max(0, Math.min(1, clickX / rect.width));
                 const startTime = percentage * duration;
                 
-                // Add item to track
+                // Add item to track with appropriate properties based on media type
                 addItemToTrack(trackId, {
                     type: mediaItem.type === 'image' ? 'image' : mediaItem.type,
                     name: mediaItem.name,
                     startTime,
-                    duration: mediaItem.duration || (mediaItem.type === 'image' ? 5 : 10), // Default durations
+                    duration: mediaItem.duration || (mediaItem.type === 'image' ? 5 : mediaItem.type === 'audio' ? 10 : 10), 
                     url: mediaItem.url,
                     thumbnail: mediaItem.thumbnail,
-                    volume: mediaItem.type === 'audio' ? 1 : undefined,
-                    opacity: mediaItem.type === 'image' ? 1 : undefined
+                    // Set properties based on media type
+                    volume: mediaItem.type === 'audio' || mediaItem.type === 'video' ? 1 : undefined,
+                    opacity: mediaItem.type === 'image' || mediaItem.type === 'video' ? 1 : undefined
                 });
 
                 // Show success notification
                 const notification = document.createElement('div');
                 notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-slide-in';
-                notification.textContent = `Đã thêm ${mediaItem.name} vào ${track.name}`;
+                notification.textContent = `✅ Đã thêm "${mediaItem.name}" vào "${track.name}"`;
                 document.body.appendChild(notification);
                 setTimeout(() => {
                     if (document.body.contains(notification)) {
@@ -256,15 +247,23 @@ const Timeline: React.FC<TimelineProps> = ({
 
     const handleDragOverTrack = (trackId: string, e: React.DragEvent) => {
         e.preventDefault();
-        setIsDragOverTrack(trackId);
+        e.stopPropagation();
+        
+        // Only update state if it's actually changing to prevent flickering
+        if (isDragOverTrack !== trackId) {
+            setIsDragOverTrack(trackId);
+        }
     };
 
-    const handleDragLeaveTrack = () => {
-        setIsDragOverTrack(null);
+    const handleDragLeaveTrack = (e?: React.DragEvent) => {
+        // Use a small delay to prevent flickering when moving between elements
+        setTimeout(() => {
+            setIsDragOverTrack(null);
+        }, 50);
     };
 
     const playheadPosition = duration > 0 ? 
-        ((isDraggingPlayhead ? virtualPlayheadTime : currentTime) / duration) * (timelineState.pixelsPerSecond * duration) : 0;
+        ((isDraggingPlayhead ? virtualPlayheadTime : currentTime) / duration) * (timelineState.pixelsPerSecond * duration * timelineState.zoom) : 0;
 
     return (
         <div className="bg-white border-t border-gray-200">
@@ -372,95 +371,108 @@ const Timeline: React.FC<TimelineProps> = ({
                             <div className="relative">
                                 <button
                                     onClick={() => {
-                                        const menu = document.getElementById('add-track-menu');
-                                        if (menu) {
-                                            menu.classList.toggle('hidden');
-                                        }
+                                        handleAddTrack();
                                     }}
                                     className="flex items-center space-x-1 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors text-xs"
-                                    data-add-track
                                 >
                                     <FaPlus className="w-2.5 h-2.5" />
-                                    <span>Add</span>
+                                    <span>Add Track</span>
                                 </button>
-                                
-                                <div 
-                                    id="add-track-menu"
-                                    className="hidden absolute right-0 top-7 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1 min-w-[130px]"
-                                >
-                                    <button
-                                        onClick={() => {
-                                            handleAddTrack('video');
-                                            document.getElementById('add-track-menu')?.classList.add('hidden');
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center space-x-2"
-                                    >
-                                        <span>🎬</span>
-                                        <span>Video Track</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleAddTrack('audio');
-                                            document.getElementById('add-track-menu')?.classList.add('hidden');
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center space-x-2"
-                                    >
-                                        <span>🎵</span>
-                                        <span>Audio Track</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleAddTrack('overlay');
-                                            document.getElementById('add-track-menu')?.classList.add('hidden');
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center space-x-2"
-                                    >
-                                        <span>🖼️</span>
-                                        <span>Image Track</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleAddTrack('text');
-                                            document.getElementById('add-track-menu')?.classList.add('hidden');
-                                        }}
-                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 flex items-center space-x-2"
-                                    >
-                                        <span>📝</span>
-                                        <span>Text Track</span>
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
                     
                     {/* Time markers */}
-                    <div className="flex-1 relative h-6 bg-white">
-                        {Array.from({ length: Math.ceil(duration / 5) }, (_, i) => (
-                            <div
-                                key={i}
-                                className="absolute top-0 bottom-0 flex flex-col"
-                                style={{ left: `${i * 5 * timelineState.pixelsPerSecond}px` }}
-                            >
-                                <div className="border-l border-gray-400 h-3"></div>
-                                <div className="text-xs text-gray-600 ml-1" style={{ fontSize: '10px' }}>
-                                    {formatTime(i * 5)}
+                    <div 
+                        className="flex-1 relative h-6 bg-white"
+                        style={{ minWidth: `${duration * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                    >
+                        {/* Major time markers (every 5 seconds for normal zoom, every 1 second for high zoom) */}
+                        {timelineState.zoom >= 2 ? (
+                            // High zoom: show every 1 second
+                            Array.from({ length: Math.ceil(duration) + 1 }, (_, i) => (
+                                <div
+                                    key={`major-${i}`}
+                                    className="absolute top-0 bottom-0 flex flex-col"
+                                    style={{ left: `${i * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                                >
+                                    <div className="border-l border-gray-400 h-3"></div>
+                                    <div className="text-xs text-gray-600 ml-1" style={{ fontSize: '9px' }}>
+                                        {formatTime(i)}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            // Normal zoom: show every 5 seconds
+                            Array.from({ length: Math.ceil(duration / 5) + 1 }, (_, i) => (
+                                <div
+                                    key={`major-${i}`}
+                                    className="absolute top-0 bottom-0 flex flex-col"
+                                    style={{ left: `${i * 5 * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                                >
+                                    <div className="border-l border-gray-400 h-3"></div>
+                                    <div className="text-xs text-gray-600 ml-1" style={{ fontSize: '10px' }}>
+                                        {formatTime(i * 5)}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                        
+                        {/* Minor time markers */}
+                        {timelineState.zoom >= 2 ? (
+                            // High zoom: show every 0.5 second
+                            Array.from({ length: Math.ceil(duration * 2) + 1 }, (_, i) => 
+                                i % 2 !== 0 ? (
+                                    <div
+                                        key={`minor-${i}`}
+                                        className="absolute top-0 bottom-0"
+                                        style={{ left: `${(i * 0.5) * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                                    >
+                                        <div className="border-l border-gray-300 h-2"></div>
+                                    </div>
+                                ) : null
+                            )
+                        ) : timelineState.zoom >= 1 ? (
+                            // Medium zoom: show every 1 second (excluding major markers)
+                            Array.from({ length: Math.ceil(duration) + 1 }, (_, i) => 
+                                i % 5 !== 0 ? (
+                                    <div
+                                        key={`minor-${i}`}
+                                        className="absolute top-0 bottom-0"
+                                        style={{ left: `${i * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                                    >
+                                        <div className="border-l border-gray-300 h-2"></div>
+                                    </div>
+                                ) : null
+                            )
+                        ) : null}
+                        
+                        {/* Sub-second markers (every 0.1 second) when very highly zoomed in */}
+                        {timelineState.zoom >= 3 && Array.from({ length: Math.ceil(duration * 10) + 1 }, (_, i) => 
+                            i % 5 !== 0 ? (
+                                <div
+                                    key={`sub-${i}`}
+                                    className="absolute top-0 bottom-0"
+                                    style={{ left: `${(i * 0.1) * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
+                                >
+                                    <div className="border-l border-gray-200 h-1"></div>
+                                </div>
+                            ) : null
+                        )}
                     </div>
                 </div>
 
                 {/* Tracks */}
                 <div className="relative">
                     {/* Empty Timeline Message */}
-                    {timelineState.tracks.every(track => track.items.length === 0) && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10 bg-white bg-opacity-90">
-                            <div className="text-center py-8">
+                    {timelineState.tracks.every(track => track.items.length === 0) && timelineState.tracks.length > 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 bg-white bg-opacity-75 pointer-events-none">
+                            <div className="text-center py-8 pointer-events-auto bg-white rounded-lg shadow-lg px-6 border border-gray-200">
                                 <div className="text-4xl mb-4">🎬</div>
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Your timeline is empty</h3>
                                 <p className="text-gray-500 mb-4">Add some media from the Media panel to start editing!</p>
                                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-400">
-                                    <span>💡 Tip: Kéo thả media từ thư viện vào tracks</span>
+                                    <span>💡 Tip: Kéo thả bất kỳ media nào vào bất kỳ track nào</span>
                                 </div>
                             </div>
                         </div>
@@ -472,6 +484,7 @@ const Timeline: React.FC<TimelineProps> = ({
                             track={track}
                             duration={duration}
                             pixelsPerSecond={timelineState.pixelsPerSecond}
+                            zoom={timelineState.zoom}
                             currentTime={currentTime}
                             onUpdateTrack={(updates) => updateTrack(track.id, updates)}
                             onDeleteTrack={() => removeTrack(track.id)}
@@ -516,15 +529,6 @@ const Timeline: React.FC<TimelineProps> = ({
                     transition={{ duration: 0.15 }}
                 />
             </div>
-
-            {/* Close add track menu when clicking outside */}
-            <div onClick={(e) => {
-                const menu = document.getElementById('add-track-menu');
-                const button = e.target as HTMLElement;
-                if (menu && !menu.contains(button) && !button.closest('button[data-add-track]')) {
-                    menu.classList.add('hidden');
-                }
-            }} />
         </div>
     );
 };
