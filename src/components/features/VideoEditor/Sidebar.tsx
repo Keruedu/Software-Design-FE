@@ -12,7 +12,7 @@ import {
   FaAlignJustify 
 } from 'react-icons/fa';
 import { useState } from "react";
-type ActiveTab = 'text' | 'audio' | 'media' | 'effects' | 'layers'
+type ActiveTab = 'text' | 'media' | 'effects' | 'layers' | null
 interface SidebarProps {
     activeTab: ActiveTab;
     setActiveTab: (tab: ActiveTab) => void;
@@ -32,12 +32,7 @@ const Sidebar:React.FC<SidebarProps>=({
       icon: FaFont,
       description: 'Add text overlays and titles'
     },
-    {
-      id: 'audio',
-      label: 'Audio',
-      icon: FaMusic,
-      description: 'Audio tracks and sound effects'
-    },
+
     {
       id: 'media',
       label: 'Media',
@@ -103,7 +98,14 @@ const Sidebar:React.FC<SidebarProps>=({
                     <motion.button
                         key={item.id}
                         whileHover={{ x: 2 }}
-                        onClick={() => setActiveTab(item.id)}
+                        onClick={() => {
+                            // Toggle logic: if clicking on active tab, deactivate it
+                            if (activeTab === item.id) {
+                                setActiveTab(null); // Deactivate all tabs
+                            } else {
+                                setActiveTab(item.id as ActiveTab);
+                            }
+                        }}
                         className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${
                                 activeTab === item.id
                                 ? 'bg-blue-100 text-blue-700 border border-blue-200'

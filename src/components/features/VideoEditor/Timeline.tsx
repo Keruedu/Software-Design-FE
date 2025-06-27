@@ -1,6 +1,6 @@
 import React,{useState, useRef,useEffect} from 'react';
 import {motion} from 'framer-motion';
-import { FaPlay, FaPause,FaDownload, FaHandScissors, FaForward } from 'react-icons/fa';
+import { FaPlay, FaPause,FaDownload, FaHandScissors, FaForward, FaBackward, FaRegSave } from 'react-icons/fa';
 import AudioTrack from './AudioTrack';
 
 import { useAudioTracksContext,useTrimVideoContext } from '@/context/AudioTracks';
@@ -12,6 +12,19 @@ interface TimelineProps {
     videoUrl: string;
     isProcessing:boolean;
     setIsProcessing: (isProcessing: boolean) => void;
+    isPlaying?: boolean;
+    onPlay?: () => void;
+    onPause?: () => void;
+    onSkipBackward?: () => void;
+    onSkipForward?: () => void;
+    onSaveVideo?: () => void;
+    backgroundImages?: Array<{
+        id: string;
+        url: string;
+        startTime: number;
+        duration: number;
+        name: string;
+    }>;
 }
 
 const Timeline: React.FC<TimelineProps> = ({
@@ -21,9 +34,15 @@ const Timeline: React.FC<TimelineProps> = ({
     videoUrl,
     isProcessing,
     setIsProcessing,
+    isPlaying = false,
+    onPlay,
+    onPause,
+    onSkipBackward,
+    onSkipForward,
+    onSaveVideo,
+    backgroundImages = []
 }) =>{
     const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimVideoContext();
-    console.log(trimStart,trimEnd);
     const [isDraggingStart, setIsDraggingStart] = useState(false);
     const [isDraggingEnd, setIsDraggingEnd] = useState(false);
     const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
@@ -47,14 +66,12 @@ const Timeline: React.FC<TimelineProps> = ({
             } else if (isDraggingEnd) {
                 setTrimEnd(Math.min(duration, Math.max(time, trimStart + 0.1)));
             } else if (isDraggingPlayhead) {
-                // Chỉ cập nhật playhead ảo, KHÔNG gọi onSeek
                 const clampedTime = Math.max(0, Math.min(duration, time));
                 setVirtualPlayheadTime(clampedTime);
             }
         };
 
         const handleMouseUp = () => {
-            // Chỉ khi thả chuột mới seek video thật sự
             if (isDraggingPlayhead) {
                 onSeek(virtualPlayheadTime);
             }
@@ -81,11 +98,9 @@ const Timeline: React.FC<TimelineProps> = ({
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Tính toán vị trí hiển thị
     const actualPlayheadPosition = duration > 0 ? (currentTime / duration) * 100 : 0;
     const virtualPlayheadPosition = duration > 0 ? (virtualPlayheadTime / duration) * 100 : 0;
     
-    // Sử dụng vị trí ảo khi đang drag, vị trí thật khi không drag
     const displayPlayheadPosition = isDraggingPlayhead ? virtualPlayheadPosition : actualPlayheadPosition;
     const displayTime = isDraggingPlayhead ? virtualPlayheadTime : currentTime;
     
@@ -108,7 +123,6 @@ const Timeline: React.FC<TimelineProps> = ({
             setIsDraggingEnd(true);
         } else if (type === 'playhead') {
             setIsDraggingPlayhead(true);
-            // Khởi tạo vị trí ảo bằng vị trí hiện tại
             setVirtualPlayheadTime(currentTime);
         }
     }
@@ -141,19 +155,89 @@ const Timeline: React.FC<TimelineProps> = ({
 
 
     return(
-        <div className="bg-gray-50 rounded-lg space-y-5">
-            <div className="flex justify-center text-xs text-gray-500">
-                    <span className={`font-medium transition-colors duration-200 ${
-                        isDraggingPlayhead ? 'text-orange-600' : 'text-gray-700'
-                    }`}>
-                        {formatTime(displayTime)}
-                    </span>
+        <div className="bg-white border-t border-gray-200">
+            {/* Video Controls */}
+            <div className="px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                            if (onSkipBackward) {
+                                onSkipBackward();
+                            } else {
+                                onSeek(Math.max(0, currentTime - 10));
+                            }
+                        }}
+                        className="text-white p-3 rounded-full bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
+                    >
+                        <FaBackward className="w-4 h-4" />
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                            if (isPlaying) {
+                                onPause?.();
+                            } else {
+                                onPlay?.();
+                            }
+                        }}
+                        className="text-white p-4 rounded-full bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
+                    >
+                        {isPlaying ? <FaPause className="w-5 h-5" /> : <FaPlay className="w-5 h-5 ml-0.5" />}
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                            if (onSkipForward) {
+                                onSkipForward();
+                            } else {
+                                onSeek(Math.min(duration, currentTime + 10));
+                            }
+                        }}
+                        className="text-white p-3 rounded-full bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
+                    >
+                        <FaForward className="w-4 h-4" />
+                    </motion.button>
                 </div>
-            {/* Timeline */}
-            <div className="space-y-2 px-2">
-                <div ref={timelineRef}
-                     className="relative h-8 bg-gray-300 rounded-lg cursor-pointer"
-                     onClick={handleTimelineClick}
+                
+                <div className="flex items-center space-x-4">
+                    <div className="text-sm text-gray-600">
+                        <span className={`font-medium transition-colors duration-200 ${
+                            isDraggingPlayhead ? 'text-orange-600' : 'text-gray-700'
+                        }`}>
+                            {formatTime(displayTime)} / {formatTime(duration)}
+                        </span>
+                    </div>
+                    
+                    {/* Save Video Button */}
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={onSaveVideo}
+                        disabled={isProcessing}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                    >
+                        {isProcessing ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <FaRegSave className="w-4 h-4" />
+                        )}
+                        <span>{isProcessing ? 'Processing...' : 'Save Video'}</span>
+                    </motion.button>
+                </div>
+            </div>
+
+            {/* Timeline Area */}
+            <div className="px-6 pb-4">
+                <div className="bg-gray-50 rounded-lg space-y-5 p-4">
+                    {/* Timeline */}
+                    <div className="space-y-2">
+                        <div ref={timelineRef}
+                             className="relative h-8 bg-gray-300 rounded-lg cursor-pointer"
+                             onClick={handleTimelineClick}
                      >
                      {/* Trim selection */}
                     <div className="absolute top-0 bottom-0 bg-blue-200 border-l-2 border-r-2  rounded"
@@ -184,7 +268,6 @@ const Timeline: React.FC<TimelineProps> = ({
                          <span className="absolute -top-8 text-xs text-gray-500 right-0">{formatTime(trimEnd)}</span>
                     </motion.div>
                     
-                    {/* Playhead thật (chỉ hiển thị khi KHÔNG drag) */}
                     {!isDraggingPlayhead && (
                         <div
                             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none transition-all duration-100"
@@ -192,7 +275,6 @@ const Timeline: React.FC<TimelineProps> = ({
                         />
                     )}
                     
-                    {/* Playhead ảo (chỉ hiển thị khi đang drag) */}
                     {isDraggingPlayhead && (
                         <div
                             className="absolute top-0 bottom-0 w-0.5 bg-orange-400 z-20 pointer-events-none"
@@ -252,7 +334,8 @@ const Timeline: React.FC<TimelineProps> = ({
                     </div>
                 </div>
             )}
-            
+                </div>
+            </div>
         </div>
     )
 }

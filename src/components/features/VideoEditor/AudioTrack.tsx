@@ -27,17 +27,16 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
   const [dragStartX, setDragStartX] = useState(0);
   const [initialStartTime, setInitialStartTime] = useState(0);
   
-  // Preview states - cho UI display, không lưu vào database
+  // Preview states
   const [previewStartTime, setPreviewStartTime] = useState(track.startTime);
   const [previewTrimStart, setPreviewTrimStart] = useState(track.trimStart);
   const [previewTrimEnd, setPreviewTrimEnd] = useState(track.trimEnd);
   
-  // Pending changes - track xem có thay đổi chưa được lưu không
+  // Pending changes
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
   
   const trackRef = useRef<HTMLDivElement>(null);
 
-  // Reset preview values khi track data thay đổi từ bên ngoài
   useEffect(() => {
     setPreviewStartTime(track.startTime);
     setPreviewTrimStart(track.trimStart);
@@ -45,7 +44,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     setHasPendingChanges(false);
   }, [track.startTime, track.trimStart, track.trimEnd]);
 
-  // Memoized calculations - sử dụng preview values cho UI
+  // Memoized calculations
   const { trackStartPosition, trackWidth, trimStartPercentage, trimEndPercentage, visibleWidth } = useMemo(() => {
     const actualStartTime = previewStartTime;
     const actualTrimStart = previewTrimStart;
@@ -168,7 +167,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     if (previewTrimEnd !== track.trimEnd) {
       updates.trimEnd = previewTrimEnd;
     }
-    console.log(previewStartTime,previewTrimStart,previewTrimEnd)
+    
     if (Object.keys(updates).length > 0) {
       onUpdateTrack(track.id, updates);
     }

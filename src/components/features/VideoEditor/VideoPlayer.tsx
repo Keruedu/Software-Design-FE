@@ -1,27 +1,35 @@
-import React,{useState,useRef,useEffect} from 'react';
+import React,{useState,useRef,useEffect,forwardRef,useImperativeHandle} from 'react';
 import { motion } from 'framer-motion';
 import ReactPlayer from 'react-player';
 import { FaPlay, FaPause,FaBackward,FaForward, FaRegSave } from 'react-icons/fa';
-import Timeline from './Timeline';
-import { TrimVideoContextProvider } from '@/context/AudioTracks';
 import { videoProcessor } from '@/services/videoProcessor.service';
 import { ffmpegService } from '@/services/editVideo.service';
-import { useAudioTracksContext,useTrimVideoContext } from '@/context/AudioTracks';
+import { useAudioTracksContext } from '@/context/AudioTracks';
 import { AudioTrackData } from '@/types/audio';
 
 interface VideoPlayerProps {
     videoUrl: string;
     onDuration: (duration: number) => void;
     onProgress: (progress: { playedSeconds: number }) => void;
+    isPlaying?: boolean;
+    onPlay?: () => void;
+    onPause?: () => void;
+    onSeek?: (direction: 'forward' | 'backward') => void;
+    currentTime?: number;
 }
 
 
 
-const VideoPlayer:React.FC<VideoPlayerProps> = ({
+const VideoPlayer = forwardRef<any, VideoPlayerProps>(({
     videoUrl,
     onDuration,
     onProgress,
-}) => {
+    isPlaying: externalIsPlaying = false,
+    onPlay,
+    onPause,
+    onSeek: externalOnSeek,
+    currentTime: externalCurrentTime = 0,
+}, ref) => {
 useEffect(()=>{
     const initializeFFmpeg = async () => {
         try {
@@ -35,7 +43,7 @@ useEffect(()=>{
 const {audioTracks,setAudioTracks} = useAudioTracksContext();
 const [trimStart, setTrimStart] = useState(0);
 const [trimEnd, setTrimEnd] = useState(0);
-const [isPlaying, setIsPlaying] = useState(false)
+const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
 const [volume, setVolume] = useState(1)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
@@ -43,9 +51,47 @@ const playerRef = useRef<ReactPlayer>(null)
 const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
+
 useEffect(() => {
   setUrl(videoUrl);
 }, [videoUrl]);
+
+// Sync external playing state
+useEffect(() => {
+    setIsPlaying(externalIsPlaying);
+}, [externalIsPlaying]);
+
+// Sync external currentTime to video player
+useEffect(() => {
+    if (playerRef.current && Math.abs(currentTime - externalCurrentTime) > 0.5) {
+        playerRef.current.seekTo(externalCurrentTime, 'seconds');
+    }
+}, [externalCurrentTime]);
+
+// Cleanup effect
+useEffect(() => {
+    return () => {
+        if (playerRef.current) {
+            setIsPlaying(false);
+            // Pause tất cả media elements
+            const allVideos = document.querySelectorAll('video');
+            const allAudios = document.querySelectorAll('audio');
+            allVideos.forEach(video => video.pause());
+            allAudios.forEach(audio => audio.pause());
+        }
+    };
+}, []);
+
+// Expose methods to parent component
+useImperativeHandle(ref, () => ({
+    handleSaveVideo,
+    seekTo: (time: number) => {
+        if (playerRef.current) {
+            playerRef.current.seekTo(time, 'seconds');
+        }
+    }
+}));
+
 const handleSeek = (typeSeek:string) => {
     if (playerRef.current) {
         const currentTime = playerRef.current.getCurrentTime();
@@ -118,7 +164,7 @@ const trimAudio = async () => {
         const updatedTracks: AudioTrackData[] = [];
         for (const track of audioTracks) {
             if (track.trimStart !== 0 || track.trimEnd !== track.duration) {
-                console.log("Hello")
+                // Trim audio if needed
                 const result = await ffmpegService.trimAudio(
                     track.file,
                     track.trimStart,
@@ -165,65 +211,49 @@ const handleSaveVideo = async () => {
                     progressInterval={100}
                     loop={false}
                     onEnded={() => setIsPlaying(false)}
+                    config={{
+                        file: {
+                            attributes: {
+                                preload: 'metadata',
+                                controlsList: 'nodownload noremoteplayback',
+                                disablePictureInPicture: true
+                            }
+                        }
+                    }}
+                    stopOnUnmount={true}
                 />
             </div>
-            {/* Video Control */}
-            <div className="p-2">
+            {/* Video Control - Disabled (chỉ hiển thị) */}
+            {/* <div className="p-2">
                 <div className="flex items-center justify-center space-x-5">
                      <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={()=> handleSeek('backward')}
-                        className="text-white p-2 rounded-full bg-blue-600 hover:bg-blue-700 shadow-md">
+                        disabled={true}
+                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
                         <FaBackward className="w-4 h-4" />
                     </motion.button>
                     <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={()=>setIsPlaying(!isPlaying)}
-                        className="text-white p-2 rounded-full bg-blue-600 hover:bg-blue-700 shadow-md">
+                        disabled={true}
+                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
                         {isPlaying ? <FaPause className="w-4 h-4" /> : <FaPlay className="w-4 h-4 ml-0.5" />}
                     </motion.button>
                      <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={()=>handleSeek('forward')}
-                        className="text-white p-2 rounded-full bg-blue-600 hover:bg-blue-700 shadow-md">
+                        disabled={true}
+                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
                         <FaForward className="w-4 h-4" />
                     </motion.button>
                 </div>
-            </div>
-            <div className="p-4 border-t border-gray-200">
-                <TrimVideoContextProvider value={{trimStart,trimEnd,setTrimStart,setTrimEnd}}>
-                    <Timeline
-                        duration={duration}
-                        currentTime={currentTime}
-                        onSeek={handleTimelineSeek}
-                        videoUrl={videoUrl}
-                        isProcessing={isProcessing}
-                        setIsProcessing={setIsProcessing}
-                    />
-                </TrimVideoContextProvider>
-            </div>
-            <div className="ml-auto flex items-center justify-between px-2 py-2 border-t border-gray-200">
-                <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={()=>{handleSaveVideo()}}
-                    disabled={isProcessing}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {isProcessing ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                        <FaRegSave className="w-4 h-4" />
-                    )}
-                    <span>{isProcessing ? 'Processing...' : 'Save Video'}</span>
-                </motion.button>
-            </div>
+            </div> */}
         </div>
     )
-}
+});
+
+VideoPlayer.displayName = 'VideoPlayer';
 
 export default VideoPlayer;
 
