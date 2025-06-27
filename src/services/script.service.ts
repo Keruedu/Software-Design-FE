@@ -49,17 +49,16 @@ export const ScriptService = {
         
         if (!response.ok) {
           throw new Error(`API request failed: ${response.statusText}`);
-        }
-          const data = await response.json();
-        const aiResult = data.text;
+        }        const data = await response.json();
+        const aiResult = data.text || {};
         
         // Create script object from AI response
         const newScript: Script = {
           id: `script_${Date.now()}`,
           topic,
           title: aiResult.title || `Video about ${topic}`,
-          content: aiResult.script || 'Generated script content...',
-          duration: Math.ceil(aiResult.script?.split(' ').length * 0.5) || 60, // Estimate duration
+          content: aiResult.script || aiResult.content || 'Generated script content...',
+          duration: Math.ceil((aiResult.script || aiResult.content || '').split(' ').length * 0.5) || 60, // Estimate duration
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           imagePrompts: aiResult.image_prompts || [] // Extract image prompts from AI response

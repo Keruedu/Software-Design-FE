@@ -12,10 +12,6 @@ interface AuthState {
 
 export interface AuthContextType {
   auth: AuthState;
-  // user: User | null;
-  // token: string | null;
-  // isAuthenticated: boolean;
-  // isLoading: boolean;
   setAuth: React.Dispatch<React.SetStateAction<AuthState>>;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
@@ -83,8 +79,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       localStorage.removeItem('access_token');
       setAuth({ ...initialState, loading: false });
     }
-  };  
-  
+  };
+
+
   const login = async (usernameOrEmail: string, password: string): Promise<void> => {
     try {
       // For now, always send as username field since backend expects it
@@ -146,7 +143,8 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       });
       router.push('/auth/login');
     }
-  };    const value = {
+  
+  const value = {
     auth,
     // user: auth.user,
     // token: auth.token,
