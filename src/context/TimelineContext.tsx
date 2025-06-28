@@ -171,12 +171,17 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateTrack = useCallback((trackId: string, updates: Partial<Track>) => {
-    setTimelineState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
+    console.log('Debug - TimelineContext updateTrack called:', { trackId, updates });
+    setTimelineState(prev => {
+      const updatedTracks = prev.tracks.map(track => 
         track.id === trackId ? { ...track, ...updates } : track
-      )
-    }));
+      );
+      console.log('Debug - Updated tracks:', updatedTracks.find(t => t.id === trackId));
+      return {
+        ...prev,
+        tracks: updatedTracks
+      };
+    });
   }, []);
 
   const setCurrentTime = useCallback((time: number) => {

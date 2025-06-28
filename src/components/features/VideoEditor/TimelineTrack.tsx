@@ -50,11 +50,11 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
   const timelineWidth = duration * pixelsPerSecond * zoom;
   const playheadPosition = currentTime * pixelsPerSecond * zoom;
 
-  // Check if this track has any audio items
-  const hasAudioItems = track.items.some(item => item.type === 'audio');
+  // Check if this track has any audio items (audio or video with audio)
+  const hasAudioItems = track.items.some(item => item.type === 'audio' || item.type === 'video');
   
-  // Check if track is muted via audio manager
-  const isTrackMuted = audioManager.isTrackMuted(track.id);
+  // Use track's own mute state instead of audio manager
+  const isTrackMuted = track.isMuted || false;
 
   const handleAddItem = (type: TimelineItem['type']) => {
     const newItem: Omit<TimelineItem, 'id' | 'trackId'> = {
@@ -140,24 +140,15 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
   };
 
   const handleTrackMuteToggle = () => {
-    if (hasAudioItems) {
-      if (isTrackMuted) {
-        audioManager.unmuteTrack(track.id);
-      } else {
-        audioManager.muteTrack(track.id);
-      }
-      
-      // Get all audio items from timeline
-      const allAudioItems = timelineState.tracks.flatMap(track => 
-        track.items.filter(item => item.type === 'audio')
-      );
-      
-      // Update all audio volumes immediately
-      audioManager.updateAllAudioVolumes(allAudioItems, timelineState.tracks);
-      
-      // Force re-render to update UI without affecting track state
-      setForceUpdate(prev => prev + 1);
-    }
+    const newMutedState = !isTrackMuted;
+    console.log('Debug - Track mute toggle clicked for track:', track.id, 'hasAudioItems:', hasAudioItems, 'current muted:', isTrackMuted, 'new state:', newMutedState);
+    
+    // Always allow mute/unmute regardless of audio items (user might add audio items later)
+    onUpdateTrack({ isMuted: newMutedState });
+    console.log('Debug - Updated track mute state to:', newMutedState);
+    
+    // Show visual feedback immediately by forcing re-render
+    setForceUpdate(prev => prev + 1);
   };
 
 
@@ -181,6 +172,9 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
         <div className="flex items-center space-x-2 min-w-0">
           <div className="min-w-0 flex-1">
             <div className="flex items-center space-x-1">
+              <span className="text-sm font-medium text-gray-700 truncate">
+                {track.name}
+              </span>
               {isTrackMuted && (
                 <span className="text-red-500 text-xs" title="Track đã tắt âm">
                   🔇
@@ -189,31 +183,33 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             </div>
             <div className="text-xs text-gray-500" style={{ fontSize: '10px' }}>
               {track.items.length} item{track.items.length !== 1 ? 's' : ''}
+              {hasAudioItems && (
+                <span className="ml-1">
+                  • {isTrackMuted ? 'Muted' : 'Audio'}
+                </span>
+              )}
+              {isTrackMuted && !hasAudioItems && (
+                <span className="ml-1 text-red-500">• Muted</span>
+              )}
             </div>
           </div>
         </div>
 
         {/* Track Controls */}
         <div className="flex items-center space-x-0.5">
-          {/* Volume control - unified for both audio items and legacy audio tracks */}
-          {(hasAudioItems || track.type === 'audio') && (
-            <button
-              onClick={hasAudioItems ? handleTrackMuteToggle : () => onUpdateTrack({ isMuted: !track.isMuted })}
-              className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
-                (hasAudioItems ? isTrackMuted : track.isMuted) ? 'text-red-500' : 'text-gray-600'
-              }`}
-              title={
-                hasAudioItems 
-                  ? (isTrackMuted ? 'Bật âm thanh track' : 'Tắt âm thanh track')
-                  : (track.isMuted ? 'Bật âm thanh' : 'Tắt âm thanh')
-              }
-            >
-              {(hasAudioItems ? isTrackMuted : track.isMuted) ? 
-                <FaVolumeMute className="w-2.5 h-2.5" /> : 
-                <FaVolumeUp className="w-2.5 h-2.5" />
-              }
-            </button>
-          )}
+          {/* Volume control - show for all tracks */}
+          <button
+            onClick={handleTrackMuteToggle}
+            className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
+              isTrackMuted ? 'text-red-500' : 'text-gray-600'
+            }`}
+            title={isTrackMuted ? 'Bật âm thanh track' : 'Tắt âm thanh track'}
+          >
+            {isTrackMuted ? 
+              <FaVolumeMute className="w-2.5 h-2.5" /> : 
+              <FaVolumeUp className="w-2.5 h-2.5" />
+            }
+          </button>
 
           {/* Visibility Toggle */}
           <button

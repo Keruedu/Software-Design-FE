@@ -10,7 +10,8 @@ interface MediaItem {
   thumbnail?: string;
   duration?: number;
   size: number;
-  uploadedAt: Date;
+  uploadedAt?: Date;
+  isMainVideo?: boolean; // Flag to identify main video
 }
 
 interface MediaLibraryProps {
@@ -346,22 +347,34 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                   onMouseLeave={() => setHoveredItem(null)}
                   title={`Kéo thả ${item.name} vào timeline`}
                 >
-                {/* Delete button */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: hoveredItem === item.id ? 1 : 0, scale: hoveredItem === item.id ? 1 : 0.8 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteMedia(item);
-                  }}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 z-10 shadow-lg"
-                  title="Xóa media"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <FaTrash className="w-2.5 h-2.5" />
-                </motion.button>
+                {/* Delete Button - Hide for main video */}
+                {!item.isMainVideo && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: hoveredItem === item.id ? 1 : 0, scale: hoveredItem === item.id ? 1 : 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteMedia(item);
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 z-10 shadow-lg"
+                    title="Xóa media"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaTrash className="w-2.5 h-2.5" />
+                  </motion.button>
+                )}
+
+                {/* Main Video Indicator */}
+                {item.isMainVideo && (
+                  <div
+                    className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1.5 z-10 shadow-lg"
+                    title="Video chính - không thể xóa"
+                  >
+                    <FaVideo className="w-2.5 h-2.5" />
+                  </div>
+                )}
 
                 {/* Thumbnail */}
                 <div className="aspect-video bg-gray-200 rounded-md mb-2 flex items-center justify-center overflow-hidden relative">
@@ -394,13 +407,20 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
 
                 {/* Info */}
                 <div className="space-y-1">
-                  <div className="flex items-center space-x-1">
-                    <div className="text-gray-600">
-                      {getMediaIcon(item.type)}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1 min-w-0">
+                      <div className="text-gray-600">
+                        {getMediaIcon(item.type)}
+                      </div>
+                      <span className="text-xs font-medium text-gray-900 truncate">
+                        {item.name}
+                      </span>
                     </div>
-                    <span className="text-xs font-medium text-gray-900 truncate">
-                      {item.name}
-                    </span>
+                    {item.isMainVideo && (
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1 py-0.5 rounded flex-shrink-0">
+                        CHÍNH
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">
                     {formatFileSize(item.size)}
