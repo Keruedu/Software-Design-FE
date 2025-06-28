@@ -61,7 +61,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
       type,
       name: `${type.charAt(0).toUpperCase() + type.slice(1)} mới`,
       startTime: currentTime,
-      duration: 5, // Default 5 seconds
+      duration: Math.min(5, duration - currentTime), 
     };
 
     if (type === 'audio') {
@@ -71,7 +71,10 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
       newItem.opacity = 1;
     }
 
-    onAddItem(newItem);
+    // Only add if there's time remaining
+    if (newItem.duration > 0) {
+      onAddItem(newItem);
+    }
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -160,7 +163,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
       } ${isDragOver ? 'shadow-lg' : ''} ${
         isTrackMuted ? 'opacity-60' : ''
       }`}
-      style={{ height: `${track.height + 8}px` }}
+      style={{ height: `${track.height}px` }}
     >
       {/* Track Header */}
       <div 
@@ -171,24 +174,10 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
       >
         <div className="flex items-center space-x-2 min-w-0">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center space-x-1">
-              <span className="text-sm font-medium text-gray-700 truncate">
-                {track.name}
-              </span>
-              {isTrackMuted && (
-                <span className="text-red-500 text-xs" title="Track đã tắt âm">
-                  🔇
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500" style={{ fontSize: '10px' }}>
+            {/* Chỉ hiển thị thông tin số lượng items */}
+            <div className="text-xs text-gray-500" style={{ fontSize: '11px' }}>
               {track.items.length} item{track.items.length !== 1 ? 's' : ''}
-              {hasAudioItems && (
-                <span className="ml-1">
-                  • {isTrackMuted ? 'Muted' : 'Audio'}
-                </span>
-              )}
-              {isTrackMuted && !hasAudioItems && (
+              {isTrackMuted && (
                 <span className="ml-1 text-red-500">• Muted</span>
               )}
             </div>
@@ -298,6 +287,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             pixelsPerSecond={pixelsPerSecond}
             zoom={zoom}
             trackHeight={track.height}
+            videoDuration={duration} // Pass duration as videoDuration constraint
             onUpdateItem={(updates) => onUpdateItem(item.id, updates)}
             onDeleteItem={() => onDeleteItem(item.id)}
             onSelect={() => onSelectItem(item.id)}

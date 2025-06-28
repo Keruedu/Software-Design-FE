@@ -18,10 +18,13 @@ interface VideoPlayerProps {
     onPause?: () => void;
     onSeek?: (direction: 'forward' | 'backward') => void;
     currentTime?: number;
+    volume?: number;
     onVolumeChange?: (volume: number) => void;
     isMuted?: boolean;
     onToggleMute?: () => void;
-    isMainVideoTrackMuted?: boolean; // Add this to check if main video track is muted
+    isMainVideoTrackMuted?: boolean; 
+    trimStart?: number;
+    trimEnd?: number;
 }
 
 
@@ -35,10 +38,13 @@ const VideoPlayer = forwardRef<any, VideoPlayerProps>(({
     onPause,
     onSeek: externalOnSeek,
     currentTime: externalCurrentTime = 0,
+    volume: externalVolume = 1, 
     onVolumeChange,
     isMuted = false,
     onToggleMute,
     isMainVideoTrackMuted = false,
+    trimStart = 0,
+    trimEnd = 0,
 }, ref) => {
 useEffect(()=>{
     const initializeFFmpeg = async () => {
@@ -53,10 +59,7 @@ useEffect(()=>{
 
 const { audioTracks, setAudioTracks } = useAudioTracksContext();
 const { timelineState } = useTimelineContext();
-const [trimStart, setTrimStart] = useState(0);
-const [trimEnd, setTrimEnd] = useState(0);
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
-const [volume, setVolume] = useState(1)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
 const playerRef = useRef<ReactPlayer>(null)
@@ -64,7 +67,6 @@ const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
 
-// Get all audio items from timeline tracks
 const audioItems = timelineState.tracks.flatMap(track => 
     track.items.filter(item => item.type === 'audio')
 );
@@ -78,7 +80,6 @@ useEffect(() => {
     setIsPlaying(externalIsPlaying);
     
     if (externalIsPlaying) {
-        // Update audio manager with current track mute states before playing
         audioManager.play(currentTime, audioItems, timelineState.tracks);
         
         // Sync mute states with audio manager
@@ -99,8 +100,6 @@ useEffect(() => {
     audioManager.updateAudioItems(audioItems);
 }, [audioItems]);
 
-//... existing useEffects...
-
 // Sync track mute states with audio manager
 useEffect(() => {
     console.log('Debug - VideoPlayer syncing track mute states:', timelineState.tracks.map(t => ({ id: t.id, isMuted: t.isMuted })));
@@ -117,9 +116,9 @@ useEffect(() => {
 
 // Log when main video track mute state changes
 useEffect(() => {
-    console.log('Debug - VideoPlayer main video track mute state:', isMainVideoTrackMuted, 'global mute:', isMuted);
-    console.log('Debug - Final video volume will be:', (isMuted || isMainVideoTrackMuted) ? 0 : volume);
-}, [isMainVideoTrackMuted, isMuted, volume]);
+    // console.log('Debug - VideoPlayer main video track mute state:', isMainVideoTrackMuted, 'global mute:', isMuted);
+    // console.log('Debug - Final video volume will be:', (isMuted || isMainVideoTrackMuted) ? 0 : externalVolume);
+}, [isMainVideoTrackMuted, isMuted, externalVolume]);
 
 // Sync external currentTime to video player and audio
 useEffect(() => {
@@ -129,12 +128,13 @@ useEffect(() => {
     }
 }, [externalCurrentTime, audioItems]); // Removed timelineState.tracks dependency
 
-// Notify parent about volume changes
+// Debug logging for external volume changes
 useEffect(() => {
-    if (onVolumeChange) {
-        onVolumeChange(volume);
-    }
-}, [volume, onVolumeChange]);
+    // console.log('Debug - VideoPlayer received external volume:', externalVolume);
+}, [externalVolume]);
+
+// Notify parent about volume changes - Remove this since we're using external volume
+// The parent controls the volume state now
 
 // Cleanup effect
 useEffect(() => {
@@ -179,7 +179,27 @@ const handlDuration=(duration:number)=>{
     onDuration(duration);
 }
 const handleProgress = (progress: { playedSeconds: number }) => {
-    setCurrentTime(progress.playedSeconds);
+    const currentTime = progress.playedSeconds;
+    
+    // Check if playback is outside trim boundaries
+    if (trimEnd > 0 && currentTime >= trimEnd) {
+        // Stop playback when reaching trim end
+        setIsPlaying(false);
+        if (onPause) onPause();
+        
+        // Seek back to trim end to prevent overshoot
+        if (playerRef.current) {
+            playerRef.current.seekTo(trimEnd, 'seconds');
+        }
+        
+        // Update progress with trim end time
+        setCurrentTime(trimEnd);
+        onProgress({ playedSeconds: trimEnd });
+        return;
+    }
+    
+    // Normal progress update
+    setCurrentTime(currentTime);
     onProgress(progress);
     
     // Only sync audio playback with video progress if there are audio items
@@ -204,8 +224,7 @@ const trimVideo = async () => {
                 },
             });
             
-            setTrimStart(0);
-            setTrimEnd(result.duration);
+            // Trim values are now managed by parent component via props
         }
         catch (error) {
             console.error('Error trimming video:', error);
@@ -282,7 +301,7 @@ const handleSaveVideo = async () => {
                     onDuration={handlDuration}
                     width="100%"
                     height="100%"
-                    volume={(isMuted || isMainVideoTrackMuted) ? 0 : volume}
+                    volume={(isMuted || isMainVideoTrackMuted) ? 0 : externalVolume}
                     progressInterval={100}
                     loop={false}
                     onEnded={() => setIsPlaying(false)}
@@ -298,46 +317,6 @@ const handleSaveVideo = async () => {
                     stopOnUnmount={true}
                 />
                 
-                {/* Volume Control Overlay */}
-                <div className="absolute top-4 right-4 flex items-center space-x-2 bg-black bg-opacity-50 rounded-lg px-3 py-2">
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={onToggleMute}
-                        className="text-white hover:text-blue-400 transition-colors"
-                    >
-                        {isMuted ? (
-                            <FaVolumeMute className="w-4 h-4" />
-                        ) : volume > 0.5 ? (
-                            <FaVolumeUp className="w-4 h-4" />
-                        ) : (
-                            <FaVolumeDown className="w-4 h-4" />
-                        )}
-                    </motion.button>
-                    
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={isMuted ? 0 : volume}
-                        onChange={(e) => {
-                            const newVolume = parseFloat(e.target.value);
-                            setVolume(newVolume);
-                            if (newVolume > 0 && isMuted && onToggleMute) {
-                                onToggleMute(); // Unmute when adjusting volume
-                            }
-                        }}
-                        className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
-                        style={{
-                            background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(isMuted ? 0 : volume) * 100}%, #6B7280 ${(isMuted ? 0 : volume) * 100}%, #6B7280 100%)`
-                        }}
-                    />
-                    
-                    <span className="text-white text-xs font-mono min-w-[3rem]">
-                        {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
-                    </span>
-                </div>
             </div>
             {/* Video Control - Disabled (chỉ hiển thị) */}
             {/* <div className="p-2">

@@ -24,12 +24,15 @@ export interface TimelineItem {
     fontFamily?: string;
     fontWeight?: string;
   };
+  isMainVideoUnit?: boolean;
+  isLocked?: boolean; 
+  maxDuration?: number; 
 }
 
 export interface Track {
   id: string;
   name: string;
-  type: 'video' | 'audio' | 'overlay' | 'text' | 'effect';
+  type: 'video' | 'audio' | 'overlay' | 'text' | 'effect' | 'mixed';
   height: number;
   isVisible: boolean;
   isLocked: boolean;

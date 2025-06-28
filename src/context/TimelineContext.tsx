@@ -28,8 +28,8 @@ export const useTimelineContext = () => {
 const DEFAULT_TRACKS: Track[] = [
   {
     id: 'track-1',
-    name: 'Track 1',
-    type: 'video',
+    name: '',
+    type: 'mixed',
     height: 60,
     isVisible: true,
     isLocked: false,
@@ -38,35 +38,35 @@ const DEFAULT_TRACKS: Track[] = [
   },
   {
     id: 'track-2',
-    name: 'Track 2',
-    type: 'audio',
+    name: '',
+    type: 'mixed',
     height: 50,
     isVisible: true,
     isLocked: false,
     isMuted: false,
     volume: 1,
     items: [],
-    color: '#10B981'
+    color: '#3B82F6'
   },
   {
     id: 'track-3',
-    name: 'Track 3',
-    type: 'overlay',
+    name: '',
+    type: 'mixed',
     height: 40,
     isVisible: true,
     isLocked: false,
     items: [],
-    color: '#F59E0B'
+    color: '#3B82F6'
   },
   {
     id: 'track-4',
-    name: 'Track 4',
-    type: 'text',
+    name: '',
+    type: 'mixed',
     height: 40,
     isVisible: true,
     isLocked: false,
     items: [],
-    color: '#EF4444'
+    color: '#3B82F6'
   }
 ];
 
@@ -82,10 +82,12 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addTrack = useCallback((track: Omit<Track, 'id'>) => {
     const id = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Generate track name based on current track count if not provided
-    const trackName = track.name || `Track ${timelineState.tracks.length + 1}`;
-    
-    const newTrack: Track = { ...track, id, name: trackName };
+    const newTrack: Track = { 
+      ...track, 
+      id, 
+      name: '', 
+      type: 'mixed'
+    };
     
     setTimelineState(prev => ({
       ...prev,
@@ -93,7 +95,7 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
     
     return id;
-  }, [timelineState.tracks.length]);
+  }, []);
 
   const removeTrack = useCallback((trackId: string) => {
     setTimelineState(prev => ({
@@ -113,14 +115,9 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           : track
       );
 
-      // Calculate new duration if item extends beyond current duration
-      const itemEndTime = newItem.startTime + newItem.duration;
-      const newDuration = Math.max(prev.duration, itemEndTime);
-
       return {
         ...prev,
-        tracks: updatedTracks,
-        duration: newDuration
+        tracks: updatedTracks
       };
     });
     
@@ -171,12 +168,12 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateTrack = useCallback((trackId: string, updates: Partial<Track>) => {
-    console.log('Debug - TimelineContext updateTrack called:', { trackId, updates });
+    // console.log('Debug - TimelineContext updateTrack called:', { trackId, updates });
     setTimelineState(prev => {
       const updatedTracks = prev.tracks.map(track => 
         track.id === trackId ? { ...track, ...updates } : track
       );
-      console.log('Debug - Updated tracks:', updatedTracks.find(t => t.id === trackId));
+      // console.log('Debug - Updated tracks:', updatedTracks.find(t => t.id === trackId));
       return {
         ...prev,
         tracks: updatedTracks

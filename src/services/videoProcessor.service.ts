@@ -81,12 +81,20 @@ export class VideoProcessor {
         try{
             switch(step.type) {
                 case 'trim':
+                    console.log('VideoProcessor - Executing trim step:', {
+                        startTime: step.params.startTime,
+                        endTime: step.params.endTime,
+                        duration: step.params.endTime - step.params.startTime,
+                        originalDuration: this.currentVideo.duration
+                    });
+                    
                     resultBlob = await this.ffmpegService.trimVideo(
                         this.currentVideo.blob,
                         step.params.startTime,
                         step.params.endTime
                     )
                     this.currentVideo.duration = step.params.endTime - step.params.startTime;
+                    console.log('VideoProcessor - Trim completed, new duration:', this.currentVideo.duration);
                     break;
                 case 'addAudio':
                     resultBlob =await this.ffmpegService.addAudioToVideo(
@@ -94,6 +102,10 @@ export class VideoProcessor {
                         step.params.audioFile,
                         step.params.options
                     )
+                    break;
+                case 'adjustVolume':
+                    // Temporarily skip volume adjustment as it is not implemented yet
+                    resultBlob = this.currentVideo.blob;
                     break;
                 case 'replaceAudio':
                     resultBlob = await this.ffmpegService.addAudioToVideo(
@@ -152,6 +164,10 @@ export class VideoProcessor {
                             step.params.audioFile,
                             step.params.options
                         );
+                        break;
+
+                    case 'adjustVolume':
+                        // Temporarily skip volume adjustment as it is not implemented yet
                         break;
 
                     case 'replaceAudio':
