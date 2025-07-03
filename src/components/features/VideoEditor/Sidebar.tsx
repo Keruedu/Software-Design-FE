@@ -28,7 +28,7 @@ const Sidebar:React.FC<SidebarProps>=({
     const sidebarItems = [
     {
       id: 'text',
-      label: 'Text & Titles',
+      label: 'Text',
       icon: FaFont,
       description: 'Add text overlays and titles'
     },

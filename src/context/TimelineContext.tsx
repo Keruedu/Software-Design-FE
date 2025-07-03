@@ -67,6 +67,16 @@ const DEFAULT_TRACKS: Track[] = [
     isLocked: false,
     items: [],
     color: '#3B82F6'
+  },
+  {
+    id: 'text-track',
+    name: 'Text Overlays',
+    type: 'text',
+    height: 50,
+    isVisible: true,
+    isLocked: false,
+    items: [],
+    color: '#8B5CF6'
   }
 ];
 

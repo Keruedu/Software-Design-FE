@@ -1,4 +1,4 @@
-import React,{useState,useRef,useEffect,forwardRef,useImperativeHandle} from 'react';
+import React,{useState,useRef,useEffect,forwardRef,useImperativeHandle,useCallback} from 'react';
 import { motion } from 'framer-motion';
 import ReactPlayer from 'react-player';
 import { FaPlay, FaPause,FaBackward,FaForward, FaRegSave, FaVolumeUp, FaVolumeMute, FaVolumeDown } from 'react-icons/fa';
@@ -6,8 +6,10 @@ import { videoProcessor } from '@/services/videoProcessor.service';
 import { ffmpegService } from '@/services/editVideo.service';
 import { useAudioTracksContext } from '@/context/AudioTracks';
 import { useTimelineContext } from '@/context/TimelineContext';
+import { useTextOverlayContext } from '@/context/TextOverlayContext';
 import { audioManager } from '@/services/audioManager';
 import { AudioTrackData } from '@/types/audio';
+import TextOverlay from './TextOverlay';
 
 interface VideoPlayerProps {
     videoUrl: string;
@@ -59,9 +61,17 @@ useEffect(()=>{
 
 const { audioTracks, setAudioTracks } = useAudioTracksContext();
 const { timelineState } = useTimelineContext();
+const { 
+    state: { textOverlays }, 
+    startEditing, 
+    stopEditing,
+    getTextOverlayAtTime 
+} = useTextOverlayContext();
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
+const [videoContainerRef, setVideoContainerRef] = useState<HTMLDivElement | null>(null)
+const [videoSize, setVideoSize] = useState({ width: 0, height: 0 })
 const playerRef = useRef<ReactPlayer>(null)
 const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
@@ -136,22 +146,67 @@ useEffect(() => {
 // Notify parent about volume changes - Remove this since we're using external volume
 // The parent controls the volume state now
 
-// Cleanup effect
+// Update video container size when video loads
 useEffect(() => {
-    return () => {
-        if (playerRef.current) {
-            setIsPlaying(false);
-            // Pause tất cả media elements
-            const allVideos = document.querySelectorAll('video');
-            const allAudios = document.querySelectorAll('audio');
-            allVideos.forEach(video => video.pause());
-            allAudios.forEach(audio => audio.pause());
-        }
+    if (videoContainerRef && playerRef.current) {
+        const updateSize = () => {
+            const playerElement = playerRef.current?.getInternalPlayer();
+            if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
+                const containerRect = videoContainerRef.getBoundingClientRect();
+                const videoAspectRatio = playerElement.videoWidth / playerElement.videoHeight;
+                const containerAspectRatio = containerRect.width / containerRect.height;
+                
+                let videoWidth, videoHeight;
+                if (videoAspectRatio > containerAspectRatio) {
+                    videoWidth = containerRect.width;
+                    videoHeight = containerRect.width / videoAspectRatio;
+                } else {
+                    videoHeight = containerRect.height;
+                    videoWidth = containerRect.height * videoAspectRatio;
+                }
+                
+                setVideoSize({ width: videoWidth, height: videoHeight });
+            }
+        };
         
-        // Cleanup audio manager
-        audioManager.dispose();
-    };
-}, []);
+        updateSize();
+        window.addEventListener('resize', updateSize);
+        
+        return () => window.removeEventListener('resize', updateSize);
+    }
+}, [videoContainerRef, url]);
+
+// Handle text overlay double click for editing
+const handleTextOverlayDoubleClick = useCallback((textId: string) => {
+    startEditing(textId);
+}, [startEditing]);
+
+// Get visible text overlays for current time
+const visibleTextOverlays = getTextOverlayAtTime(currentTime);
+
+// Handle text overlay processing
+const addTextOverlayToVideo = async () => {
+    try {
+        for (const textOverlay of textOverlays) {
+            const result = await videoProcessor.addProcessingStep({
+                type: 'addTextOverlay',
+                params: {
+                    text: textOverlay.text,
+                    position: textOverlay.position,
+                    style: textOverlay.style,
+                    timing: textOverlay.timing,
+                    size: textOverlay.size,
+                    opacity: textOverlay.opacity,
+                    shadow: textOverlay.shadow,
+                    outline: textOverlay.outline,
+                    background: textOverlay.background,
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error adding text overlays to video:', error);
+    }
+};
 
 // Expose methods to parent component
 useImperativeHandle(ref, () => ({
@@ -281,7 +336,8 @@ const trimAudio = async () => {
 const handleSaveVideo = async () => {
     await trimVideo();
     await trimAudio();
-    await addAudioToVideo()
+    await addAudioToVideo();
+    await addTextOverlayToVideo();
     setForceUpdate(!forceUpdate);
     const currentVideo = videoProcessor.getCurrentVideo();
     if (!currentVideo) {
@@ -290,9 +346,29 @@ const handleSaveVideo = async () => {
     }
     setUrl(currentVideo.url);
 }
+
+// Cleanup effect  
+useEffect(() => {
+    return () => {
+        if (playerRef.current) {
+            setIsPlaying(false);
+            // Pause tất cả media elements
+            const allVideos = document.querySelectorAll('video');
+            const allAudios = document.querySelectorAll('audio');
+            allVideos.forEach(video => video.pause());
+            allAudios.forEach(audio => audio.pause());
+        }
+        
+        // Cleanup audio manager
+        audioManager.dispose();
+    };
+}, []);
     return(
         <div className="bg-white rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
-            <div className="flex-1 relative min-h-0 py-2">
+            <div 
+                ref={setVideoContainerRef}
+                className="flex-1 relative min-h-0 py-2"
+            >
                 <ReactPlayer
                     ref ={playerRef}
                     url={ url}
@@ -316,6 +392,18 @@ const handleSaveVideo = async () => {
                     }}
                     stopOnUnmount={true}
                 />
+                
+                {/* Text Overlays */}
+                {visibleTextOverlays.map((textOverlay) => (
+                    <TextOverlay
+                        key={textOverlay.id}
+                        overlay={textOverlay}
+                        currentTime={currentTime}
+                        videoWidth={videoSize.width}
+                        videoHeight={videoSize.height}
+                        onDoubleClick={handleTextOverlayDoubleClick}
+                    />
+                ))}
                 
             </div>
             {/* Video Control - Disabled (chỉ hiển thị) */}

@@ -291,5 +291,203 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             video.src = url;
         });
     }
+
+    async addTextOverlay(
+        videoFile: File | string | Blob,
+        textOverlayParams: {
+            text: string;
+            position: { x: number; y: number };
+            style: {
+                fontSize: number;
+                fontFamily: string;
+                color: string;
+                fontWeight: string;
+                fontStyle: string;
+                textAlign: string;
+            };
+            timing: {
+                startTime: number;
+                duration: number;
+            };
+            size?: { width: number; height: number };
+            opacity?: number;
+            shadow?: {
+                enabled: boolean;
+                color: string;
+                blur: number;
+                offsetX: number;
+                offsetY: number;
+            };
+            outline?: {
+                enabled: boolean;
+                color: string;
+                width: number;
+            };
+            background?: {
+                enabled: boolean;
+                color: string;
+                opacity: number;
+                borderRadius: number;
+                padding: number;
+            };
+        }
+    ): Promise<Blob> {
+        if (!this.ffmpeg || !this.isLoaded) {
+            throw new Error("FFmpeg is not initialized. Call initialize() first.");
+        }
+
+        try {
+            let videoData: ArrayBuffer;
+            if (videoFile instanceof File || videoFile instanceof Blob) {
+                videoData = await videoFile.arrayBuffer();
+            } else {
+                const response = await fetch(videoFile);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch video file: ${response.statusText}`);
+                }
+                videoData = await response.arrayBuffer();
+            }
+
+            const timestamp = Date.now();
+            const inputVideoName = `input_video_${timestamp}.mp4`;
+            const outputName = `output_${timestamp}.mp4`;
+
+            await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
+
+            // Build FFmpeg text filter string
+            const textFilter = this.buildTextFilter(textOverlayParams);
+            
+            console.log('FFmpeg text filter:', textFilter);
+
+            // Execute FFmpeg command with text overlay
+            await this.ffmpeg.exec([
+                '-i', inputVideoName,
+                '-vf', textFilter,
+                '-c:a', 'copy',
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '23',
+                outputName
+            ]);
+
+            const data = await this.ffmpeg.readFile(outputName);
+            const resultBlob = new Blob([data], { type: 'video/mp4' });
+
+            // Cleanup files
+            await this.ffmpeg.deleteFile(inputVideoName);
+            await this.ffmpeg.deleteFile(outputName);
+
+            return resultBlob;
+        } catch (error) {
+            console.error("Error adding text overlay:", error);
+            throw new Error(`Failed to add text overlay: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    private buildTextFilter(params: any): string {
+        const {
+            text,
+            position,
+            style,
+            timing,
+            size,
+            opacity = 1,
+            shadow,
+            outline,
+            background,
+        } = params;
+
+        // Escape text for FFmpeg
+        const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
+        
+        // Convert percentage position to pixels (assuming 1920x1080 reference)
+        const x = Math.round((position.x / 100) * 1920);
+        const y = Math.round((position.y / 100) * 1080);
+
+        // Build base text filter
+        let textFilter = `drawtext=text='${escapedText}'`;
+        
+        // Position
+        textFilter += `:x=${x}:y=${y}`;
+        
+        // Font settings
+        textFilter += `:fontsize=${style.fontSize}`;
+        textFilter += `:fontcolor=${style.color}`;
+        
+        // Font family (FFmpeg uses different font names)
+        const fontFamily = this.mapFontFamily(style.fontFamily);
+        if (fontFamily) {
+            textFilter += `:fontfile=${fontFamily}`;
+        }
+        
+        // Font weight and style
+        if (style.fontWeight === 'bold') {
+            textFilter += `:font_weight=bold`;
+        }
+        if (style.fontStyle === 'italic') {
+            textFilter += `:font_style=italic`;
+        }
+        
+        // Timing
+        if (timing.startTime > 0) {
+            textFilter += `:enable='between(t,${timing.startTime},${timing.startTime + timing.duration})'`;
+        } else {
+            textFilter += `:enable='between(t,0,${timing.duration})'`;
+        }
+        
+        // Opacity
+        if (opacity < 1) {
+            const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0');
+            textFilter += `:alpha=${alpha}`;
+        }
+        
+        // Shadow
+        if (shadow?.enabled) {
+            textFilter += `:shadowcolor=${shadow.color}`;
+            textFilter += `:shadowx=${shadow.offsetX}`;
+            textFilter += `:shadowy=${shadow.offsetY}`;
+        }
+        
+        // Outline
+        if (outline?.enabled) {
+            textFilter += `:bordercolor=${outline.color}`;
+            textFilter += `:borderw=${outline.width}`;
+        }
+        
+        // Box background
+        if (background?.enabled) {
+            textFilter += `:box=1`;
+            textFilter += `:boxcolor=${background.color}`;
+            if (background.opacity < 1) {
+                const bgAlpha = Math.round(background.opacity * 255).toString(16).padStart(2, '0');
+                textFilter += `:boxalpha=${bgAlpha}`;
+            }
+            if (background.padding) {
+                textFilter += `:boxborderw=${background.padding}`;
+            }
+        }
+        
+        return textFilter;
+    }
+
+    private mapFontFamily(fontFamily: string): string | null {
+        // Map web font names to system font paths
+        // This is a simplified mapping - in production, you'd want to include actual font files
+        const fontMap: { [key: string]: string } = {
+            'Arial': 'arial.ttf',
+            'Helvetica': 'helvetica.ttf',
+            'Times New Roman': 'times.ttf',
+            'Georgia': 'georgia.ttf',
+            'Verdana': 'verdana.ttf',
+            'Courier New': 'courier.ttf',
+            'Arial Black': 'arialbd.ttf',
+            'Comic Sans MS': 'comic.ttf',
+            'Impact': 'impact.ttf',
+            'Trebuchet MS': 'trebuc.ttf',
+            'Tahoma': 'tahoma.ttf',
+        };
+        
+        return fontMap[fontFamily] || null;
+    }
 }
 export const ffmpegService = FFmpegService.getInstance();

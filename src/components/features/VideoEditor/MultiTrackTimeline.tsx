@@ -6,6 +6,7 @@ import { useTrimVideoContext } from '@/context/AudioTracks';
 import { audioManager } from '@/services/audioManager';
 import TimelineTrack from './TimelineTrack';
 import { Track, TimelineItem } from '@/types/timeline';
+import { useTextOverlayContext } from '@/context/TextOverlayContext';
 
 // Helper function to format time
 const formatTime = (seconds: number) => {
@@ -75,6 +76,7 @@ const Timeline: React.FC<TimelineProps> = ({
     } = useTimelineContext();
 
     const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimVideoContext();
+    const { state: textOverlayState } = useTextOverlayContext();
     
     const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
     const [virtualPlayheadTime, setVirtualPlayheadTime] = useState(0);

@@ -9,6 +9,7 @@ import PropertiesPanel from '@/components/features/VideoEditor/PropertiesPanel'
 import AudioProperties from '@/components/features/VideoEditor/AudioProperties'
 import MediaLibrary from '@/components/features/VideoEditor/MediaLibrary'
 import ExportProgressModal from '@/components/features/VideoEditor/ExportProgressModal'
+import TextOverlayPanel from '@/components/features/VideoEditor/TextOverlayPanel'
 import { AudioTrackData } from '@/types/audio'
 import { FaRobot, FaVideo, FaMusic, FaCog, FaDownload, FaCut, FaUndo, FaSave } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -16,6 +17,7 @@ import { videoProcessor } from '@/services/videoProcessor.service'
 import { videoExportService } from '@/services/videoExport.service'
 import { AudioTracksContextProvider, TrimVideoContextProvider, useTrimVideoContext } from '@/context/AudioTracks'
 import { TimelineProvider, useTimelineContext } from '@/context/TimelineContext'
+import { TextOverlayProvider } from '@/context/TextOverlayContext'
 
 const VideoEditor: React.FC = () => {
   // Move trim state to wrapper level to avoid context conflicts
@@ -24,11 +26,13 @@ const VideoEditor: React.FC = () => {
 
   return (
     <TimelineProvider>
-      <AudioTracksContextProvider value={{audioTracks:[],setAudioTracks:() => {}}}>
-        <TrimVideoContextProvider value={{trimStart, trimEnd, setTrimStart, setTrimEnd}}>
-          <VideoEditorContent />
-        </TrimVideoContextProvider>
-      </AudioTracksContextProvider>
+      <TextOverlayProvider>
+        <AudioTracksContextProvider value={{audioTracks:[],setAudioTracks:() => {}}}>
+          <TrimVideoContextProvider value={{trimStart, trimEnd, setTrimStart, setTrimEnd}}>
+            <VideoEditorContent />
+          </TrimVideoContextProvider>
+        </AudioTracksContextProvider>
+      </TextOverlayProvider>
     </TimelineProvider>
   )
 }
@@ -187,7 +191,7 @@ const VideoEditorContent: React.FC = () => {
   }, [videoDuration, trimEnd, setTrimEnd]);
 
   useEffect(() => {
-    if (activeTab === 'media') {
+    if (activeTab === 'media' ||activeTab) {
       setIsPropertiesPanelOpen(true);
     } else {
       setIsPropertiesPanelOpen(false);
@@ -1563,7 +1567,7 @@ const VideoEditorContent: React.FC = () => {
                 )}
               </div>
 
-              {/* Properties Panel or Media Library */}
+              {/* Properties Panel or Media Library or Text Overlay Panel */}
               {isPropertiesPanelOpen && activeTab === 'media' ? (
                 // Direct Media Library for media tab
                 <div className="bg-white border-l border-gray-200 shadow-sm flex-shrink-0" style={{ width: `${propertiesPanelWidth}px` }}>
@@ -1600,10 +1604,41 @@ const VideoEditorContent: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              ) : isPropertiesPanelOpen && activeTab === 'text' ? (
+                // Direct Text Overlay Panel for text tab
+                <div className="bg-white border-l border-gray-200 shadow-sm flex-shrink-0" style={{ width: `${propertiesPanelWidth}px` }}>
+                  <div className="h-full flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                      <h3 className="text-lg font-semibold text-gray-900">Text Overlay</h3>
+                      <button
+                        onClick={() => {
+                          setIsPropertiesPanelOpen(false);
+                          setActiveTab(null);
+                        }}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    {/* Text Overlay Panel */}
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      <TextOverlayPanel
+                        currentTime={currentTime}
+                        onAddText={() => {
+                          showNotification('Đã thêm text overlay mới', 'success');
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 // Properties Panel for other tabs
                 <PropertiesPanel
-                  isOpen={isPropertiesPanelOpen && activeTab !== 'media'}
+                  isOpen={isPropertiesPanelOpen && activeTab !== 'media' && activeTab !== 'text'}
                   onClose={() => {
                     setIsPropertiesPanelOpen(false);
                     setActiveTab(null);

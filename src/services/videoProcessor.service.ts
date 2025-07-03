@@ -2,7 +2,7 @@ import { ffmpegService,FFmpegService } from "./editVideo.service";
 
 export interface VideoProcessingStep{
   id: string;
-  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio';
+  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay';
   params: any;
   timestamp: number;
 }
@@ -16,7 +16,43 @@ export interface ProcessedVideo{
   originalUrl?: string;
 }
 
-
+export interface TextOverlayParams {
+  text: string;
+  position: { x: number; y: number };
+  style: {
+    fontSize: number;
+    fontFamily: string;
+    color: string;
+    fontWeight: string;
+    fontStyle: string;
+    textAlign: string;
+  };
+  timing: {
+    startTime: number;
+    duration: number;
+  };
+  size?: { width: number; height: number };
+  opacity?: number;
+  shadow?: {
+    enabled: boolean;
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  outline?: {
+    enabled: boolean;
+    color: string;
+    width: number;
+  };
+  background?: {
+    enabled: boolean;
+    color: string;
+    opacity: number;
+    borderRadius: number;
+    padding: number;
+  };
+}
 
 export class VideoProcessor {
     private static instance: VideoProcessor;
@@ -114,6 +150,13 @@ export class VideoProcessor {
                         {...step.params.options, replaceOriginalAudio: true }
                     )
                     break;
+                case 'addTextOverlay':
+                    resultBlob = await this.ffmpegService.addTextOverlay(
+                        this.currentVideo.blob,
+                        step.params
+                    );
+                    console.log('VideoProcessor - Text overlay added successfully');
+                    break;
                 default:
                     throw new Error(`Unsupported step type: ${step.type}`);
             }
@@ -175,6 +218,12 @@ export class VideoProcessor {
                             currentBlob,
                             step.params.audioFile,
                             { ...step.params.options, replaceOriginalAudio: true }
+                        );
+                        break;
+                    case 'addTextOverlay':
+                        currentBlob = await this.ffmpegService.addTextOverlay(
+                            currentBlob,
+                            step.params
                         );
                         break;
                 }
