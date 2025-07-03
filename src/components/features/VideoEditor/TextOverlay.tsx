@@ -43,15 +43,32 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
   const isEditing = editingTextId === overlay.id;
 
   // Calculate position and size based on video dimensions
-  const pixelPosition = {
-    x: (overlay.position.x / 100) * videoWidth,
-    y: (overlay.position.y / 100) * videoHeight,
-  };
-
+  // Position is calculated to center the text at the percentage point
   const pixelSize = {
     width: overlay.size.width,
     height: overlay.size.height,
   };
+
+  // Use fallback dimensions if video dimensions are not available
+  const actualVideoWidth = videoWidth || 640;
+  const actualVideoHeight = videoHeight || 360;
+
+  const pixelPosition = {
+    x: (overlay.position.x / 100) * actualVideoWidth - pixelSize.width / 2,
+    y: (overlay.position.y / 100) * actualVideoHeight - pixelSize.height / 2,
+  };
+
+  // Debug log
+  console.log('TextOverlay Debug:', {
+    overlayId: overlay.id,
+    overlayPosition: overlay.position,
+    videoSize: { width: videoWidth, height: videoHeight },
+    actualVideoSize: { width: actualVideoWidth, height: actualVideoHeight },
+    pixelSize,
+    pixelPosition,
+    calculatedLeft: pixelPosition.x,
+    calculatedTop: pixelPosition.y
+  });
 
   // Handle mouse down for dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -89,22 +106,24 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
 
     const containerRect = container.getBoundingClientRect();
     
-    // Calculate new position based on mouse position minus drag offset
+    // Calculate new center position based on mouse position minus drag offset
     const newCenterX = e.clientX - dragStart.x;
     const newCenterY = e.clientY - dragStart.y;
     
-    // Convert to top-left position
-    const newX = newCenterX - pixelSize.width / 2 - containerRect.left;
-    const newY = newCenterY - pixelSize.height / 2 - containerRect.top;
+    // Convert to relative position within container
+    const relativeX = newCenterX - containerRect.left;
+    const relativeY = newCenterY - containerRect.top;
 
-    // Apply constraints to keep text within container bounds
-    const maxX = containerRect.width - pixelSize.width;
-    const maxY = containerRect.height - pixelSize.height;
+    // Apply constraints to keep text center within container bounds
+    const minX = pixelSize.width / 2;
+    const maxX = containerRect.width - pixelSize.width / 2;
+    const minY = pixelSize.height / 2;
+    const maxY = containerRect.height - pixelSize.height / 2;
     
-    const constrainedX = Math.max(0, Math.min(maxX, newX));
-    const constrainedY = Math.max(0, Math.min(maxY, newY));
+    const constrainedX = Math.max(minX, Math.min(maxX, relativeX));
+    const constrainedY = Math.max(minY, Math.min(maxY, relativeY));
 
-    // Convert to percentage
+    // Convert to percentage based on center position
     const percentageX = (constrainedX / containerRect.width) * 100;
     const percentageY = (constrainedY / containerRect.height) * 100;
 
