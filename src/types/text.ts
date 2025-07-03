@@ -84,6 +84,7 @@ export interface TextOverlayActions {
   sendToBack: (id: string) => void;
   getTextOverlayAtTime: (time: number) => TextOverlayData[];
   getTextOverlayById: (id: string) => TextOverlayData | null;
+  restoreTextOverlays: (textOverlays: TextOverlayData[]) => void;
 }
 
 export interface TextOverlayContextType extends TextOverlayActions {
@@ -94,7 +95,7 @@ export const DEFAULT_TEXT_STYLE: TextOverlayData['style'] = {
   fontSize: 32,
   fontFamily: 'Arial',
   color: '#ffffff',
-  fontWeight: 'bold',
+  fontWeight: 'normal',
   fontStyle: 'normal',
   textAlign: 'center',
   textDecoration: 'none',
@@ -113,22 +114,9 @@ export const DEFAULT_TEXT_SIZE = {
 };
 
 export const FONT_FAMILIES = [
-  'Arial',
-  'Helvetica',
-  'Times New Roman',
-  'Georgia',
-  'Verdana',
-  'Courier New',
-  'Arial Black',
-  'Comic Sans MS',
-  'Impact',
-  'Lucida Console',
-  'Trebuchet MS',
-  'Tahoma',
-  'Palatino',
-  'Garamond',
-  'Bookman',
-  'Avant Garde',
+  "Roboto",
+  "Open Sans",
+  "Lato",
 ];
 
 export const FONT_SIZES = [

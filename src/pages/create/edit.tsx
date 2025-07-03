@@ -17,7 +17,7 @@ import { videoProcessor } from '@/services/videoProcessor.service'
 import { videoExportService } from '@/services/videoExport.service'
 import { AudioTracksContextProvider, TrimVideoContextProvider, useTrimVideoContext } from '@/context/AudioTracks'
 import { TimelineProvider, useTimelineContext } from '@/context/TimelineContext'
-import { TextOverlayProvider } from '@/context/TextOverlayContext'
+import { TextOverlayProvider, useTextOverlayContext } from '@/context/TextOverlayContext'
 
 const VideoEditor: React.FC = () => {
   // Move trim state to wrapper level to avoid context conflicts
@@ -40,6 +40,7 @@ const VideoEditor: React.FC = () => {
 const VideoEditorContent: React.FC = () => {
   const router = useRouter()
   const { addItemToTrack, timelineState, updateTrack } = useTimelineContext()
+  const { state: textOverlayState, getTextOverlayAtTime, restoreTextOverlays } = useTextOverlayContext()
   // Use trim context directly instead of props
   const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimVideoContext();
 
@@ -53,7 +54,8 @@ const VideoEditorContent: React.FC = () => {
   const [videoDuration, setVideoDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  
+  console.log('textOverlayState:', textOverlayState);
+  const [videoSize, setVideoSize] = useState<{ width: number; height: number }>({ width: 1280, height: 720 }); 
   // Debug: Log trim context values whenever they change
   useEffect(() => {
     console.log('Trim context values changed:', {
@@ -1094,24 +1096,117 @@ const VideoEditorContent: React.FC = () => {
           });
 
           // Cập nhật progress cho mỗi audio
-          setExportProgress(50 + (i + 1) / audioItems.length * 30);
+          setExportProgress(50 + (i + 1) / audioItems.length * 20);
         }
       }
 
-      // Bước 5: Tạo video cuối cùng
+      // Bước 5: Xử lý Text Overlays
+      // Get text overlays from saved data or current state
+      let effectiveTextOverlays = textOverlayState.textOverlays.filter(overlay => overlay.isVisible);
+      if (savedTimelineData?.textOverlays && Array.isArray(savedTimelineData.textOverlays)) {
+        effectiveTextOverlays = savedTimelineData.textOverlays.filter((overlay: any) => overlay.isVisible);
+        console.log('Debug Export - Using saved text overlays:', effectiveTextOverlays.length);
+      } else {
+        console.log('Debug Export - Using current text overlays:', effectiveTextOverlays.length);
+      }
+      
+      if (effectiveTextOverlays.length > 0) {
+        setExportStage(`Đang thêm ${effectiveTextOverlays.length} text overlay(s)...`);
+        showNotification(`Đang thêm ${effectiveTextOverlays.length} text overlay(s)...`, 'info');
+        
+        console.log('Debug Export - Text overlays to process:', effectiveTextOverlays.map(overlay => ({
+          id: overlay.id,
+          text: overlay.text,
+          startTime: overlay.timing.startTime,
+          duration: overlay.timing.duration,
+          endTime: overlay.timing.endTime,
+          position: overlay.position,
+          style: overlay.style,
+          isVisible: overlay.isVisible
+        })));
+        
+        // Process all text overlays in one step for better performance
+        const adjustedTextOverlays = [];
+        
+        for (const textOverlay of effectiveTextOverlays) {
+          // Adjust timing for trimmed video
+          let adjustedStartTime = textOverlay.timing.startTime;
+          let adjustedDuration = textOverlay.timing.duration;
+          
+          // If video was trimmed, adjust text overlay timing
+          if (effectiveTrimStart > 0 || effectiveTrimEnd < videoDuration) {
+            // Skip text overlays that are completely outside the trimmed range
+            if (textOverlay.timing.endTime <= effectiveTrimStart || textOverlay.timing.startTime >= effectiveTrimEnd) {
+              console.log(`Debug Export - Skipping text overlay "${textOverlay.text}" (outside trim range)`);
+              continue;
+            }
+            
+            // Adjust timing for overlays that intersect with trimmed range
+            adjustedStartTime = Math.max(0, textOverlay.timing.startTime - effectiveTrimStart);
+            const adjustedEndTime = Math.min(
+              effectiveTrimEnd - effectiveTrimStart,
+              textOverlay.timing.endTime - effectiveTrimStart
+            );
+            adjustedDuration = adjustedEndTime - adjustedStartTime;
+            
+            console.log(`Debug Export - Adjusted text overlay timing for "${textOverlay.text}":`, {
+              original: { start: textOverlay.timing.startTime, duration: textOverlay.timing.duration },
+              adjusted: { start: adjustedStartTime, duration: adjustedDuration },
+              trimRange: { start: effectiveTrimStart, end: effectiveTrimEnd }
+            });
+          }
+          
+          if (adjustedDuration <= 0) {
+            console.log(`Debug Export - Skipping text overlay "${textOverlay.text}" (invalid duration after adjustment)`);
+            continue;
+          }
+          
+          adjustedTextOverlays.push({
+            text: textOverlay.text,
+            position: textOverlay.position,
+            style: textOverlay.style,
+            timing: {
+              startTime: adjustedStartTime,
+              duration: adjustedDuration
+            },
+            size: textOverlay.size,
+            opacity: textOverlay.opacity,
+            shadow: textOverlay.shadow,
+            outline: textOverlay.outline,
+            background: textOverlay.background,
+          });
+        }
+        
+        // Add all text overlays in one processing step
+        if (adjustedTextOverlays.length > 0) {
+          await videoProcessor.addProcessingStep({
+            type: 'addMultipleTextOverlays',
+            params: {
+              overlays: adjustedTextOverlays,
+              videoSize:videoSize
+            }
+          });
+
+          console.log(`Debug Export - Added ${adjustedTextOverlays.length} text overlays in one step`);
+        }
+        
+        setExportProgress(80);
+      }
+
+      // Bước 6: Tạo video cuối cùng
       setExportStage('Đang hoàn tất xử lý video...');
       showNotification('Đang hoàn tất xử lý video...', 'info');
-      setExportProgress(70);
+      setExportProgress(85);
 
       const exportedVideo = videoProcessor.getCurrentVideo();
       if (!exportedVideo) {
         throw new Error('Không thể tạo video cuối cùng');
       }
 
-      // Bước 6: Upload video lên server và cập nhật database
+      // Bước 7: Upload video lên server và cập nhật database
       setExportStage('Đang upload video lên server...');
       showNotification('Đang upload video lên server...', 'info');
-      setExportProgress(80);
+      setExportProgress(90);
 
       // Chuẩn bị dữ liệu export
       const processingSteps = videoProcessor.getProcessingHistory();
@@ -1126,6 +1221,19 @@ const VideoEditorContent: React.FC = () => {
           volume: item.volume,
           startTime: item.startTime,
           duration: item.duration
+        })),
+        textOverlays: effectiveTextOverlays.map((overlay: any) => ({
+          id: overlay.id,
+          text: overlay.text,
+          position: overlay.position,
+          style: overlay.style,
+          timing: overlay.timing,
+          size: overlay.size,
+          opacity: overlay.opacity,
+          shadow: overlay.shadow,
+          outline: overlay.outline,
+          background: overlay.background,
+          isVisible: overlay.isVisible
         })),
         videoVolume: effectiveVideoVolume, // Sử dụng effective video volume
         exportTimestamp: new Date().toISOString()
@@ -1143,9 +1251,9 @@ const VideoEditorContent: React.FC = () => {
         }
       );
 
-      setExportProgress(90);
+      setExportProgress(98);
 
-      // Bước 7: Thông báo thành công và tùy chọn tải xuống
+      // Bước 8: Thông báo thành công và tùy chọn tải xuống
       setExportStage('Hoàn thành export video!');
       showNotification(
         `Video đã được export và lưu thành công! Video ID: ${uploadResult.video_id}`,
@@ -1159,6 +1267,7 @@ const VideoEditorContent: React.FC = () => {
         videoUrl: uploadResult.video_url,
         processingSteps: processingSteps.length,
         audioTracksAdded: audioItems.length,
+        textOverlaysAdded: effectiveTextOverlays.length,
         trimApplied: effectiveTrimStart > 0 || effectiveTrimEnd < videoDuration, // Sử dụng effective values
         trimValues: { start: effectiveTrimStart, end: effectiveTrimEnd }, // Thêm trim values để debug
         originalVideoUpdated: uploadResult.original_video_updated,
@@ -1176,6 +1285,7 @@ const VideoEditorContent: React.FC = () => {
         originalDuration: videoDuration,
         trimmedDuration: trimEnd - trimStart,
         audioTracksAdded: audioItems.length,
+        textOverlaysAdded: effectiveTextOverlays.length,
         finalVolume: videoVolume,
         totalProcessingSteps: videoProcessor.getProcessingHistory().length
       });
@@ -1244,6 +1354,19 @@ const VideoEditorContent: React.FC = () => {
             startTime: item.startTime,
             duration: item.duration
           })),
+        textOverlays: textOverlayState.textOverlays.map(overlay => ({
+          id: overlay.id,
+          text: overlay.text,
+          position: overlay.position,
+          style: overlay.style,
+          timing: overlay.timing,
+          size: overlay.size,
+          opacity: overlay.opacity,
+          shadow: overlay.shadow,
+          outline: overlay.outline,
+          background: overlay.background,
+          isVisible: overlay.isVisible
+        })),
         lastSaved: new Date().toISOString(),
         isMainVideoTrimmed: trimStart > 0 || trimEnd < videoDuration
       };
@@ -1256,7 +1379,7 @@ const VideoEditorContent: React.FC = () => {
 
       setLastSaved(new Date());
       showNotification(
-        `Timeline đã được lưu! Trim: ${formatTime(trimStart)} - ${formatTime(trimEnd)} (${formatTime(trimEnd - trimStart)})`,
+        `Timeline đã được lưu! Trim: ${formatTime(trimStart)} - ${formatTime(trimEnd)} (${formatTime(trimEnd - trimStart)}), Text: ${currentTimelineData.textOverlays.length} overlay(s)`,
         'success'
       );
 
@@ -1265,7 +1388,8 @@ const VideoEditorContent: React.FC = () => {
         trimmedDuration: trimEnd - trimStart,
         trimStart,
         trimEnd,
-        audioTracksCount: currentTimelineData.audioTracks.length
+        audioTracksCount: currentTimelineData.audioTracks.length,
+        textOverlaysCount: currentTimelineData.textOverlays.length
       });
 
     } catch (error) {
@@ -1322,8 +1446,14 @@ const VideoEditorContent: React.FC = () => {
               setVideoVolume(savedData.videoVolume);
             }
             
+            // Restore text overlays if available
+            if (savedData.textOverlays && Array.isArray(savedData.textOverlays)) {
+              restoreTextOverlays(savedData.textOverlays);
+              console.log('Debug - Restored text overlays:', savedData.textOverlays.length);
+            }
+            
             showNotification(
-              `Đã khôi phục timeline đã lưu: ${formatTime(savedData.trimStart || 0)} - ${formatTime(savedData.trimEnd || videoDuration)}`,
+              `Đã khôi phục timeline đã lưu: ${formatTime(savedData.trimStart || 0)} - ${formatTime(savedData.trimEnd || videoDuration)} + ${savedData.textOverlays?.length || 0} text(s)`,
               'success'
             );
             console.log('Restored saved timeline:', savedData);
@@ -1335,7 +1465,7 @@ const VideoEditorContent: React.FC = () => {
     };
 
     loadSavedState();
-  }, [generatedVideo?.id, videoDuration]);
+  }, [generatedVideo?.id, videoDuration, setTrimStart, setTrimEnd, setVideoVolume, restoreTextOverlays]);
 
   return (
     <AudioTracksContextProvider value={{audioTracks:uploadedAudios,setAudioTracks:setUploadedAudios}}>
@@ -1555,6 +1685,7 @@ const VideoEditorContent: React.FC = () => {
                       isMainVideoTrackMuted={isMainVideoTrackMuted()}
                       trimStart={trimStart}
                       trimEnd={trimEnd}
+                      setVideoSize={setVideoSize}
                       onSeek={(direction) => {
                         if (direction === 'forward') {
                           handleSkipForward();

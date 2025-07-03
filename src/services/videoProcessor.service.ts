@@ -2,7 +2,7 @@ import { ffmpegService,FFmpegService } from "./editVideo.service";
 
 export interface VideoProcessingStep{
   id: string;
-  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay';
+  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays';
   params: any;
   timestamp: number;
 }
@@ -150,12 +150,12 @@ export class VideoProcessor {
                         {...step.params.options, replaceOriginalAudio: true }
                     )
                     break;
-                case 'addTextOverlay':
-                    resultBlob = await this.ffmpegService.addTextOverlay(
+                case 'addMultipleTextOverlays':
+                    resultBlob = await this.ffmpegService.addMultipleTextOverlays(
                         this.currentVideo.blob,
-                        step.params
+                        step.params.overlays,
+                        step.params.videoSize
                     );
-                    console.log('VideoProcessor - Text overlay added successfully');
                     break;
                 default:
                     throw new Error(`Unsupported step type: ${step.type}`);
@@ -224,6 +224,13 @@ export class VideoProcessor {
                         currentBlob = await this.ffmpegService.addTextOverlay(
                             currentBlob,
                             step.params
+                        );
+                        break;
+                    case 'addMultipleTextOverlays':
+                        currentBlob = await this.ffmpegService.addMultipleTextOverlays(
+                            currentBlob,
+                            step.params.overlays,
+                            step.params.videoSize
                         );
                         break;
                 }

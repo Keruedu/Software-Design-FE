@@ -269,9 +269,9 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({
               className="w-12 h-8 border border-gray-300 rounded cursor-pointer"
             />
             <div className="grid grid-cols-10 gap-1 flex-1">
-              {TEXT_COLORS.map((color) => (
+              {TEXT_COLORS.map((color,index) => (
                 <button
-                  key={color}
+                  key={index}
                   onClick={() => handleStyleUpdate({ color })}
                   className={`w-6 h-6 rounded border-2 ${
                     selectedOverlay.style.color === color 

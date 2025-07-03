@@ -48,7 +48,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     width: overlay.size.width,
     height: overlay.size.height,
   };
-
+  console.log('videoWidth:', videoWidth, 'videoHeight:', videoHeight);
   // Use fallback dimensions if video dimensions are not available
   const actualVideoWidth = videoWidth || 640;
   const actualVideoHeight = videoHeight || 360;
@@ -58,17 +58,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     y: (overlay.position.y / 100) * actualVideoHeight - pixelSize.height / 2,
   };
 
-  // Debug log
-  console.log('TextOverlay Debug:', {
-    overlayId: overlay.id,
-    overlayPosition: overlay.position,
-    videoSize: { width: videoWidth, height: videoHeight },
-    actualVideoSize: { width: actualVideoWidth, height: actualVideoHeight },
-    pixelSize,
-    pixelPosition,
-    calculatedLeft: pixelPosition.x,
-    calculatedTop: pixelPosition.y
-  });
+
 
   // Handle mouse down for dragging
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -237,7 +227,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
         top: pixelPosition.y,
         width: pixelSize.width,
         height: pixelSize.height,
-        zIndex: overlay.zIndex + 1000,
+        zIndex: overlay.zIndex + 2,
         transform: `rotate(${overlay.rotation}deg)`,
         opacity: overlay.opacity,
       }}

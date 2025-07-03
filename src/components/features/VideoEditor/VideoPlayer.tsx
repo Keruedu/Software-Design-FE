@@ -27,6 +27,7 @@ interface VideoPlayerProps {
     isMainVideoTrackMuted?: boolean; 
     trimStart?: number;
     trimEnd?: number;
+    setVideoSize?: (size: { width: number; height: number }) => void; 
 }
 
 
@@ -47,6 +48,7 @@ const VideoPlayer = forwardRef<any, VideoPlayerProps>(({
     isMainVideoTrackMuted = false,
     trimStart = 0,
     trimEnd = 0,
+    setVideoSize: setExternalVideoSize = () => {},
 }, ref) => {
 useEffect(()=>{
     const initializeFFmpeg = async () => {
@@ -112,7 +114,6 @@ useEffect(() => {
 
 // Sync track mute states with audio manager
 useEffect(() => {
-    console.log('Debug - VideoPlayer syncing track mute states:', timelineState.tracks.map(t => ({ id: t.id, isMuted: t.isMuted })));
     timelineState.tracks.forEach(track => {
         if (track.isMuted) {
             audioManager.muteTrack(track.id);
@@ -164,7 +165,7 @@ useEffect(() => {
                     videoHeight = containerRect.height;
                     videoWidth = containerRect.height * videoAspectRatio;
                 }
-                
+                setExternalVideoSize({ width: playerElement.videoWidth, height: playerElement.videoHeight });
                 setVideoSize({ width: videoWidth, height: videoHeight });
             }
         };
@@ -180,7 +181,18 @@ useEffect(() => {
 const handleTextOverlayDoubleClick = useCallback((textId: string) => {
     startEditing(textId);
 }, [startEditing]);
-
+const handleReady = () => {
+    if (videoContainerRef && playerRef.current) {
+        const playerElement = playerRef.current.getInternalPlayer();
+        if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
+            // Cập nhật videoSize ngay khi ready
+            setExternalVideoSize({ 
+                width: playerElement.videoWidth, 
+                height: playerElement.videoHeight 
+            });
+        }
+    }
+};
 // Get visible text overlays for current time
 const visibleTextOverlays = getTextOverlayAtTime(currentTime);
 
@@ -370,6 +382,7 @@ useEffect(() => {
                 className="flex-1 relative min-h-0 py-2"
             >
                 <ReactPlayer
+                    onReady={handleReady}
                     ref ={playerRef}
                     url={ url}
                     playing={isPlaying}

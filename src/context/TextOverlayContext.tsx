@@ -28,7 +28,8 @@ type TextOverlayAction =
   | { type: 'SET_TEXT_OVERLAY_VISIBILITY'; payload: { id: string; visible: boolean } }
   | { type: 'SET_TEXT_OVERLAY_LOCK'; payload: { id: string; locked: boolean } }
   | { type: 'BRING_TO_FRONT'; payload: { id: string } }
-  | { type: 'SEND_TO_BACK'; payload: { id: string } };
+  | { type: 'SEND_TO_BACK'; payload: { id: string } }
+  | { type: 'RESTORE_TEXT_OVERLAYS'; payload: { textOverlays: TextOverlayData[] } };
 
 const initialState: TextOverlayState = {
   textOverlays: [],
@@ -276,6 +277,19 @@ const textOverlayReducer = (state: TextOverlayState, action: TextOverlayAction):
       };
     }
 
+    case 'RESTORE_TEXT_OVERLAYS': {
+      return {
+        ...state,
+        textOverlays: action.payload.textOverlays.map(overlay => ({
+          ...overlay,
+          isSelected: false, // Reset selection when restoring
+        })),
+        selectedTextId: null,
+        isEditMode: false,
+        editingTextId: null,
+      };
+    }
+
     default:
       return state;
   }
@@ -455,6 +469,10 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return state.textOverlays.find(overlay => overlay.id === id) || null;
   }, [state.textOverlays]);
 
+  const restoreTextOverlays = useCallback((textOverlays: TextOverlayData[]) => {
+    dispatch({ type: 'RESTORE_TEXT_OVERLAYS', payload: { textOverlays } });
+  }, []);
+
   const contextValue: TextOverlayContextType = {
     state,
     addTextOverlay,
@@ -476,6 +494,7 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     sendToBack,
     getTextOverlayAtTime,
     getTextOverlayById,
+    restoreTextOverlays,
   };
 
   return (
