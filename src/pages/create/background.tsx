@@ -4,6 +4,7 @@ import Head from 'next/head';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
+import { ImageUpload, UploadedBackgroundItem } from '../../components/features/ImageUpload';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { Background } from '../../mockdata/backgrounds';
 import { VoiceGenerationResult, VoiceService } from '../../services/voice.service';
@@ -34,7 +35,9 @@ export default function BackgroundPage() {
   const [selectedStyle, setSelectedStyle] = useState<StyleOption | null>(null);
   const [generatingBackgrounds, setGeneratingBackgrounds] = useState(false);
   const [generatedBackgrounds, setGeneratedBackgrounds] = useState<Background[]>([]);
+  const [uploadedBackgrounds, setUploadedBackgrounds] = useState<Background[]>([]);
   const [currentStep, setCurrentStep] = useState<'style' | 'backgrounds'>('style');
+  const [imageLoadErrors, setImageLoadErrors] = useState<Set<string>>(new Set());
 
   const selectedBackgrounds = state.selectedBackgrounds || [];
   const MAX_SELECTIONS = 3;
@@ -50,6 +53,19 @@ export default function BackgroundPage() {
 
   useEffect(() => {
     setSelectedBackgrounds([]);
+    
+    // Load uploaded backgrounds from localStorage
+    const savedUploaded = localStorage.getItem('uploadedBackgrounds');
+    if (savedUploaded) {
+      try {
+        const parsed = JSON.parse(savedUploaded);
+        if (Array.isArray(parsed)) {
+          setUploadedBackgrounds(parsed);
+        }
+      } catch (error) {
+        console.error('Failed to load uploaded backgrounds:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -128,7 +144,7 @@ export default function BackgroundPage() {
         const sceneBackgrounds = await BackgroundService.generateBackgroundsForScenes(
           state.script.imagePrompts,
           style.id,
-          3
+          1
         );
 
         generatedBgs = Object.entries(sceneBackgrounds).flatMap(([sceneIndex, backgrounds]) =>
@@ -163,7 +179,36 @@ export default function BackgroundPage() {
     setCurrentStep('style');
     setSelectedStyle(null);
     setGeneratedBackgrounds([]);
+    setUploadedBackgrounds([]);
     setSelectedBackgrounds([]);
+  };
+
+  const handleImageUploaded = (background: Background) => {
+    const updatedUploaded = [background, ...uploadedBackgrounds];
+    setUploadedBackgrounds(updatedUploaded);
+    
+    // Save to localStorage
+    localStorage.setItem('uploadedBackgrounds', JSON.stringify(updatedUploaded));
+    
+    // Auto-select uploaded image if under limit
+    if (selectedBackgrounds.length < MAX_SELECTIONS) {
+      const newSelection = [...selectedBackgrounds, background];
+      setSelectedBackgrounds(newSelection);
+    }
+  };
+
+  const handleRemoveUploadedBackground = (backgroundId: string) => {
+    const updatedUploaded = uploadedBackgrounds.filter(bg => bg.id !== backgroundId);
+    setUploadedBackgrounds(updatedUploaded);
+    localStorage.setItem('uploadedBackgrounds', JSON.stringify(updatedUploaded));
+    
+    // Also remove from selected if it was selected
+    const updatedSelected = selectedBackgrounds.filter(bg => bg.id !== backgroundId);
+    setSelectedBackgrounds(updatedSelected);
+  };
+
+  const handleImageError = (styleId: string) => {
+    setImageLoadErrors(prev => new Set([...prev, styleId]));
   };
 
   const filteredBackgrounds = selectedFilter
@@ -208,35 +253,93 @@ export default function BackgroundPage() {
   const renderStyleSelection = () => (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-medium text-gray-900 mb-2">Choose a Style</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Select an art style to generate backgrounds for your video based on your script content.
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Choose Your Art Style</h2>
+        <p className="text-sm text-gray-600 mb-6">
+          Select an art style to generate backgrounds for your video based on your script content. 
+          Each style will create unique, AI-generated backgrounds that match your story.
         </p>
       </div>
 
       {generatingBackgrounds && (
-        <div className="flex items-center justify-center p-8 bg-blue-50 rounded-lg">
-          <div className="animate-spin mr-3 h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-          <span className="text-blue-700">Generating backgrounds with {selectedStyle?.name} style...</span>
+        <div className="flex items-center justify-center p-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+          <div className="animate-spin mr-3 h-8 w-8 border-3 border-blue-500 rounded-full border-t-transparent"></div>
+          <div className="text-center">
+            <span className="text-blue-700 font-semibold text-lg">Generating backgrounds with {selectedStyle?.name} style...</span>
+            <p className="text-blue-600 text-sm mt-1">This may take a few moments</p>
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {availableStyles.map((style) => (
           <div
             key={style.id}
-            className={`border rounded-lg p-4 cursor-pointer transition-all hover:border-blue-300 hover:shadow-md ${
+            className={`border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-blue-400 hover:shadow-lg hover:scale-[1.02] ${
               generatingBackgrounds ? 'opacity-50 pointer-events-none' : ''
             }`}
             onClick={() => !generatingBackgrounds && handleSelectStyle(style)}
           >
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium text-gray-900">{style.name}</h3>
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">🎨</span>
+            {/* Preview Image */}
+            <div 
+              className="h-40 bg-gray-200 bg-cover bg-center relative"
+              style={{ 
+                backgroundImage: (style.previewImage && !imageLoadErrors.has(style.id)) 
+                  ? `url(${style.previewImage})` 
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundColor: (style.previewImage && !imageLoadErrors.has(style.id)) ? 'transparent' : '#667eea'
+              }}
+            >
+              {/* Hidden image to detect load errors */}
+              {style.previewImage && !imageLoadErrors.has(style.id) && (
+                <img 
+                  src={style.previewImage} 
+                  alt={style.name}
+                  className="hidden"
+                  onError={() => handleImageError(style.id)}
+                />
+              )}
+              
+              {/* Gradient overlay for better text readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+              
+              {/* Fallback content when no image or load error */}
+              {(!style.previewImage || imageLoadErrors.has(style.id)) && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-white text-6xl opacity-30">{style.emoji || '🎨'}</div>
+                </div>
+              )}
+              
+              {/* Style name overlay */}
+              <div className="absolute bottom-3 left-3 right-3">
+                <h3 className="font-bold text-white text-lg drop-shadow-lg">{style.name}</h3>
+              </div>
+
+              {/* Art style icon */}
+              <div className="absolute top-3 right-3 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-xl">{style.emoji || '🎨'}</span>
+              </div>
+
+              {/* Hover effect overlay */}
+              <div className="absolute inset-0 bg-blue-600/20 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+            </div>
+
+            {/* Description */}
+            <div className="p-4">
+              <p className="text-sm text-gray-600 mb-3" style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}>{style.description}</p>
+              
+              {/* Generate button indicator */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Generate Backgrounds</span>
+                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <span className="text-blue-600 text-sm font-bold">→</span>
+                </div>
               </div>
             </div>
-            <p className="text-sm text-gray-600">{style.description}</p>
           </div>
         ))}
       </div>
@@ -244,7 +347,22 @@ export default function BackgroundPage() {
   );
 
   const renderBackgroundSelection = () => {
-    const backgroundsToShow = generatedBackgrounds.length > 0 ? generatedBackgrounds : filteredBackgrounds;
+    // Combine generated, uploaded, and default backgrounds
+    let backgroundsToShow: Background[] = [];
+    
+    if (generatedBackgrounds.length > 0) {
+      backgroundsToShow = [...generatedBackgrounds];
+    }
+    
+    // Add uploaded backgrounds
+    if (uploadedBackgrounds.length > 0) {
+      backgroundsToShow = [...uploadedBackgrounds, ...backgroundsToShow];
+    }
+    
+    // Add default backgrounds if no generated ones
+    if (generatedBackgrounds.length === 0) {
+      backgroundsToShow = [...backgroundsToShow, ...filteredBackgrounds];
+    }
 
     return (
       <div className="space-y-6">
@@ -256,17 +374,82 @@ export default function BackgroundPage() {
             <p className="text-sm text-gray-600">
               {generatedBackgrounds.length > 0
                 ? 'AI-generated backgrounds based on your script and selected style'
-                : 'Choose from our collection of backgrounds'}
+                : 'Choose from our collection or upload your own backgrounds'}
             </p>
             <p className="text-xs text-blue-600 mt-1">
               Select up to {MAX_SELECTIONS} backgrounds. Selected: {selectedBackgrounds.length}/{MAX_SELECTIONS}
             </p>
           </div>
 
-          {generatedBackgrounds.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleBackToStyles}>
-              Try Different Style
-            </Button>
+          <div className="flex space-x-3">
+            {generatedBackgrounds.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleBackToStyles}>
+                Try Different Style
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Upload Section */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload Your Own Background
+              </h3>
+              <p className="text-xs text-gray-500">Upload a custom image to use as your video background</p>
+            </div>
+            <div className="md:w-64">
+              <ImageUpload
+                onImageUploaded={handleImageUploaded}
+                disabled={generatingBackgrounds}
+              />
+            </div>
+          </div>
+          
+          {uploadedBackgrounds.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-green-600 font-medium">
+                  ✅ {uploadedBackgrounds.length} custom background{uploadedBackgrounds.length !== 1 ? 's' : ''} uploaded
+                </p>
+                <button
+                  onClick={() => {
+                    setUploadedBackgrounds([]);
+                    localStorage.removeItem('uploadedBackgrounds');
+                    // Remove from selected as well
+                    const updatedSelected = selectedBackgrounds.filter(bg => 
+                      !uploadedBackgrounds.some(uploaded => uploaded.id === bg.id)
+                    );
+                    setSelectedBackgrounds(updatedSelected);
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium underline"
+                >
+                  Clear all
+                </button>
+              </div>
+              
+              {/* Mini preview of uploaded backgrounds */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {uploadedBackgrounds.slice(0, 6).map((bg) => (
+                  <UploadedBackgroundItem
+                    key={bg.id}
+                    background={bg}
+                    onRemove={handleRemoveUploadedBackground}
+                    isSelected={selectedBackgrounds.some(selected => selected.id === bg.id)}
+                    onSelect={() => handleSelectBackground(bg)}
+                  />
+                ))}
+                {uploadedBackgrounds.length > 6 && (
+                  <div className="h-20 flex items-center justify-center bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg text-xs text-gray-500">
+                    +{uploadedBackgrounds.length - 6} more
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
@@ -297,10 +480,27 @@ export default function BackgroundPage() {
                       PREMIUM
                     </span>
                   )}
-                  {generatedBackgrounds.length > 0 && (
+                  {generatedBackgrounds.length > 0 && generatedBackgrounds.some(bg => bg.id === background.id) && (
                     <span className="absolute top-1 left-1 bg-green-500 text-white text-xs font-bold px-1 rounded">
                       AI
                     </span>
+                  )}
+                  {uploadedBackgrounds.some(bg => bg.id === background.id) && (
+                    <>
+                      <span className="absolute top-1 left-1 bg-purple-500 text-white text-xs font-bold px-1 rounded">
+                        UPLOADED
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveUploadedBackground(background.id);
+                        }}
+                        className="absolute top-1 right-7 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold transition-colors"
+                        title="Remove uploaded image"
+                      >
+                        ×
+                      </button>
+                    </>
                   )}
                   {isSelected && (
                     <div className="absolute inset-0 bg-blue-600 bg-opacity-20 flex items-center justify-center">

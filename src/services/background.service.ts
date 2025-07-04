@@ -10,27 +10,119 @@ const REQUEST_CACHE_DURATION = 10000; // 10 seconds for background requests
 
 // Available styles from backend text_to_image.py
 export const AVAILABLE_STYLES = [
-  { id: 'ghibli', name: 'Studio Ghibli', description: 'Anime, beautiful, detailed, magical, whimsical' },
-  { id: 'watercolor', name: 'Watercolor', description: 'Soft colors, artistic, painted with watercolors' },
-  { id: 'manga', name: 'Manga', description: 'Black and white, detailed lineart, Japanese comic' },
-  { id: 'pixar', name: 'Pixar', description: '3D rendered, colorful, cartoon, Disney style' },
-  { id: 'scifi', name: 'Sci-Fi', description: 'Futuristic, cyberpunk, neon colors, high-tech' },
-  { id: 'oilpainting', name: 'Oil Painting', description: 'Classical art, renaissance style, rich colors' },
-  { id: 'dark', name: 'Dark Art', description: 'Gothic, mysterious, dramatic lighting, shadows' },
-  { id: 'lego', name: 'LEGO', description: 'Made of LEGO bricks, blocky, colorful plastic' },
-  { id: 'realistic', name: 'Realistic', description: 'Photorealistic, highly detailed, 8k resolution' },
-  { id: 'cartoon', name: 'Cartoon', description: 'Colorful, fun, animated, simple shapes' },
-  { id: 'vintage', name: 'Vintage', description: 'Retro, old-fashioned, sepia tones, classic' },
-  { id: 'minimalist', name: 'Minimalist', description: 'Simple, clean lines, geometric, modern' },
-  { id: 'fantasy', name: 'Fantasy', description: 'Magical, mystical, dragons, medieval, epic' },
-  { id: 'popart', name: 'Pop Art', description: 'Bright colors, Andy Warhol inspired, bold graphics' },
-  { id: 'impressionist', name: 'Impressionist', description: 'Soft brushstrokes, light and color, Monet style' }
+  { 
+    id: 'ghibli', 
+    name: 'Studio Ghibli', 
+    description: 'Anime, beautiful, detailed, magical, whimsical',
+    previewImage: '/preview-style/gibli.png',
+    emoji: '🌸'
+  },
+  { 
+    id: 'watercolor', 
+    name: 'Watercolor', 
+    description: 'Soft colors, artistic, painted with watercolors',
+    previewImage: '/preview-style/water-color.png',
+    emoji: '🎨'
+  },
+  { 
+    id: 'manga', 
+    name: 'Manga', 
+    description: 'Black and white, detailed lineart, Japanese comic',
+    previewImage: '/preview-style/manga.png',
+    emoji: '📚'
+  },
+  { 
+    id: 'pixar', 
+    name: 'Pixar', 
+    description: '3D rendered, colorful, cartoon, Disney style',
+    previewImage: '/preview-style/pixar.png',
+    emoji: '🎬'
+  },
+  { 
+    id: 'scifi', 
+    name: 'Sci-Fi', 
+    description: 'Futuristic, cyberpunk, neon colors, high-tech',
+    previewImage: '/preview-style/sci-Fi.png',
+    emoji: '🚀'
+  },
+  { 
+    id: 'oilpainting', 
+    name: 'Oil Painting', 
+    description: 'Classical art, renaissance style, rich colors',
+    previewImage: '/preview-style/oil-painting.png',
+    emoji: '🖼️'
+  },
+  { 
+    id: 'dark', 
+    name: 'Dark Art', 
+    description: 'Gothic, mysterious, dramatic lighting, shadows',
+    previewImage: '/preview-style/minimalist.png',
+    emoji: '🌙'
+  },
+  { 
+    id: 'lego', 
+    name: 'LEGO', 
+    description: 'Made of LEGO bricks, blocky, colorful plastic',
+    previewImage: '/preview-style/LEGO.png',
+    emoji: '🧱'
+  },
+  { 
+    id: 'realistic', 
+    name: 'Realistic', 
+    description: 'Photorealistic, highly detailed, 8k resolution',
+    previewImage: '/preview-style/realistic.png',
+    emoji: '📷'
+  },
+  { 
+    id: 'cartoon', 
+    name: 'Cartoon', 
+    description: 'Colorful, fun, animated, simple shapes',
+    previewImage: '/preview-style/cartoon.png',
+    emoji: '🎭'
+  },
+  { 
+    id: 'vintage', 
+    name: 'Vintage', 
+    description: 'Retro, old-fashioned, sepia tones, classic',
+    previewImage: '/preview-style/vintage.png',
+    emoji: '📻'
+  },
+  { 
+    id: 'minimalist', 
+    name: 'Minimalist', 
+    description: 'Simple, clean lines, geometric, modern',
+    previewImage: '/preview-style/minimalist.png',
+    emoji: '⚪'
+  },
+  { 
+    id: 'fantasy', 
+    name: 'Fantasy', 
+    description: 'Magical, mystical, dragons, medieval, epic',
+    previewImage: '/preview-style/fantasy.png',
+    emoji: '🐉'
+  },
+  { 
+    id: 'popart', 
+    name: 'Pop Art', 
+    description: 'Bright colors, Andy Warhol inspired, bold graphics',
+    previewImage: '/preview-style/pop-art.png',
+    emoji: '🎯'
+  },
+  { 
+    id: 'impressionist', 
+    name: 'Impressionist', 
+    description: 'Soft brushstrokes, light and color, Monet style',
+    previewImage: '/preview-style/impressionist.png',
+    emoji: '🌅'
+  }
 ];
 
 export interface StyleOption {
   id: string;
   name: string;
   description: string;
+  previewImage?: string;
+  emoji?: string;
 }
 
 export interface GenerateBackgroundsRequest {
