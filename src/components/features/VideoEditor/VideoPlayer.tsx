@@ -78,7 +78,7 @@ const playerRef = useRef<ReactPlayer>(null)
 const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
-
+const [originalVideoSize, setOriginalVideoSize] = useState({ width: 0, height: 0 });
 const audioItems = timelineState.tracks.flatMap(track => 
     track.items.filter(item => item.type === 'audio')
 );
@@ -190,6 +190,7 @@ const handleReady = () => {
                 width: playerElement.videoWidth, 
                 height: playerElement.videoHeight 
             });
+            setOriginalVideoSize({width:playerElement.videoWidth, height: playerElement.videoHeight});
         }
     }
 };
@@ -414,6 +415,7 @@ useEffect(() => {
                         currentTime={currentTime}
                         videoWidth={videoSize.width}
                         videoHeight={videoSize.height}
+                        originalVideoSize={originalVideoSize}
                         onDoubleClick={handleTextOverlayDoubleClick}
                     />
                 ))}

@@ -8,6 +8,7 @@ interface TextOverlayProps {
   videoWidth: number;
   videoHeight: number;
   isPreviewMode?: boolean;
+  originalVideoSize?: { width: number; height: number }; 
   onDoubleClick?: (id: string) => void;
 }
 
@@ -17,6 +18,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
   videoWidth,
   videoHeight,
   isPreviewMode = false,
+  originalVideoSize = { width: 0, height: 0 }, 
   onDoubleClick,
 }) => {
   const { 
@@ -57,6 +59,29 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     x: (overlay.position.x / 100) * actualVideoWidth - pixelSize.width / 2,
     y: (overlay.position.y / 100) * actualVideoHeight - pixelSize.height / 2,
   };
+
+  // Calculate responsive font size based on video dimensions
+  // Use a base reference size (1920x1080) and scale font size proportionally
+  // This ensures text appears consistent across different video sizes
+  const baseVideoWidth = originalVideoSize.width || 1080; // Use original video size or fallback
+  const baseVideoHeight = originalVideoSize.height || 720; // Use original video
+  const scaleFactor = Math.min(actualVideoWidth / baseVideoWidth, actualVideoHeight / baseVideoHeight);
+  
+  // Ensure minimum scaling to keep text readable
+  const minScaleFactor = 0.3; // Minimum 30% of original size
+  const maxScaleFactor = 2.0; // Maximum 200% of original size
+  const clampedScaleFactor = Math.max(minScaleFactor, Math.min(maxScaleFactor, scaleFactor));
+  
+  const responsiveFontSize = overlay.style.fontSize * clampedScaleFactor;
+
+  // Calculate responsive shadow and outline based on scale factor
+  const responsiveShadow = overlay.shadow?.enabled 
+    ? `${overlay.shadow.offsetX * clampedScaleFactor}px ${overlay.shadow.offsetY * clampedScaleFactor}px ${overlay.shadow.blur * clampedScaleFactor}px ${overlay.shadow.color}`
+    : 'none';
+  
+  const responsiveOutline = overlay.outline?.enabled
+    ? `${overlay.outline.width * clampedScaleFactor}px ${overlay.outline.color}`
+    : 'none';
 
 
 
@@ -254,7 +279,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
           onKeyDown={handleKeyDown}
           className="w-full h-full bg-transparent border-none outline-none resize-none cursor-text"
           style={{
-            fontSize: overlay.style.fontSize,
+            fontSize: responsiveFontSize,
             fontFamily: overlay.style.fontFamily,
             color: overlay.style.color,
             fontWeight: overlay.style.fontWeight,
@@ -263,12 +288,8 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
             textDecoration: overlay.style.textDecoration,
             lineHeight: overlay.style.lineHeight,
             letterSpacing: overlay.style.letterSpacing,
-            textShadow: overlay.shadow?.enabled
-              ? `${overlay.shadow.offsetX}px ${overlay.shadow.offsetY}px ${overlay.shadow.blur}px ${overlay.shadow.color}`
-              : 'none',
-            WebkitTextStroke: overlay.outline?.enabled
-              ? `${overlay.outline.width}px ${overlay.outline.color}`
-              : 'none',
+            textShadow: responsiveShadow,
+            WebkitTextStroke: responsiveOutline,
           }}
           autoFocus
         />
@@ -278,7 +299,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
             !isPreviewMode ? 'cursor-default' : 'cursor-default'
           }`}
           style={{
-            fontSize: overlay.style.fontSize,
+            fontSize: responsiveFontSize,
             fontFamily: overlay.style.fontFamily,
             color: overlay.style.color,
             fontWeight: overlay.style.fontWeight,
@@ -287,12 +308,8 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
             textDecoration: overlay.style.textDecoration,
             lineHeight: overlay.style.lineHeight,
             letterSpacing: overlay.style.letterSpacing,
-            textShadow: overlay.shadow?.enabled
-              ? `${overlay.shadow.offsetX}px ${overlay.shadow.offsetY}px ${overlay.shadow.blur}px ${overlay.shadow.color}`
-              : 'none',
-            WebkitTextStroke: overlay.outline?.enabled
-              ? `${overlay.outline.width}px ${overlay.outline.color}`
-              : 'none',
+            textShadow: responsiveShadow,
+            WebkitTextStroke: responsiveOutline,
             userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
