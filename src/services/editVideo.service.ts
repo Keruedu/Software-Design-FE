@@ -402,7 +402,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         } = params;
         let font='';
         const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
-        
+        console.log("Debugg timing", timing)
         const x = Math.round((position.x / 100) * videoSize.width);
         const y = Math.round((position.y / 100) * videoSize.height);
         let textFilter = `drawtext=text='${escapedText}'`;

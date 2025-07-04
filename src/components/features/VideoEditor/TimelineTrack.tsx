@@ -288,7 +288,10 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             zoom={zoom}
             trackHeight={track.height}
             videoDuration={duration} // Pass duration as videoDuration constraint
-            onUpdateItem={(updates) => onUpdateItem(item.id, updates)}
+            onUpdateItem={(updates) => {
+              onUpdateItem(item.id, updates)
+            }
+            }
             onDeleteItem={() => onDeleteItem(item.id)}
             onSelect={() => onSelectItem(item.id)}
             isSelected={selectedItemId === item.id}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useReducer, useEffect, useRef } from 'react';
 import { 
   TextOverlayData, 
   TextOverlayState, 
@@ -29,7 +29,8 @@ type TextOverlayAction =
   | { type: 'SET_TEXT_OVERLAY_LOCK'; payload: { id: string; locked: boolean } }
   | { type: 'BRING_TO_FRONT'; payload: { id: string } }
   | { type: 'SEND_TO_BACK'; payload: { id: string } }
-  | { type: 'RESTORE_TEXT_OVERLAYS'; payload: { textOverlays: TextOverlayData[] } };
+  | { type: 'RESTORE_TEXT_OVERLAYS'; payload: { textOverlays: TextOverlayData[] } }
+  | { type: 'UPDATE_TEXT_TIMING_FROM_TIMELINE'; payload: { textOverlays: TextOverlayData[] } };
 
 const initialState: TextOverlayState = {
   textOverlays: [],
@@ -290,6 +291,13 @@ const textOverlayReducer = (state: TextOverlayState, action: TextOverlayAction):
       };
     }
 
+    case 'UPDATE_TEXT_TIMING_FROM_TIMELINE': {
+      return {
+        ...state,
+        textOverlays: action.payload.textOverlays,
+      };
+    }
+
     default:
       return state;
   }
@@ -307,6 +315,10 @@ export const useTextOverlayContext = () => {
 
 export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(textOverlayReducer, initialState);
+  
+  // Refs to prevent circular updates
+  const isUpdatingFromTimeline = useRef(false);
+  const isUpdatingFromTextOverlay = useRef(false);
   
   // Get timeline context if available (may not be available in all contexts)
   let timelineContext;
@@ -339,14 +351,15 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, []);
 
-  // Sync text overlays with timeline when they change
+  // Sync text overlays with timeline when they change (Text -> Timeline)
   useEffect(() => {
     console.log('Text overlay sync effect triggered', { 
       hasTimelineContext: !!timelineContext, 
-      textOverlayCount: state.textOverlays.length 
+      textOverlayCount: state.textOverlays.length,
+      isUpdatingFromTimeline: isUpdatingFromTimeline.current 
     });
     
-    if (!timelineContext) return;
+    if (!timelineContext || isUpdatingFromTimeline.current) return;
 
     const textTrack = timelineContext.timelineState.tracks.find(track => track.id === 'text-track');
     console.log('Text track found:', !!textTrack);
@@ -367,9 +380,63 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     
     if (JSON.stringify(currentItemIds) !== JSON.stringify(newItemIds)) {
       console.log('Updating timeline track with items:', textTrackItems);
+      isUpdatingFromTextOverlay.current = true;
       timelineContext.updateTrack('text-track', { items: textTrackItems });
+      // Reset flag after a short delay to allow the update to complete
+      setTimeout(() => {
+        isUpdatingFromTextOverlay.current = false;
+      }, 50);
     }
   }, [state.textOverlays, timelineContext, textOverlayToTimelineItem]);
+
+  // Sync timeline changes back to text overlays (Timeline -> Text)
+  // Only sync timing changes (startTime, duration) to avoid lag
+  useEffect(() => {
+    if (!timelineContext || isUpdatingFromTextOverlay.current) return;
+
+    const textTrack = timelineContext.timelineState.tracks.find(track => track.id === 'text-track');
+    if (!textTrack) return;
+
+    const timelineItems = textTrack.items.filter(item => item.type === 'text');
+    
+    // Only check for timing changes in existing items
+    let hasTimingChanges = false;
+    const updatedOverlays = state.textOverlays.map(overlay => {
+      const timelineItem = timelineItems.find(item => item.id === overlay.id);
+      if (!timelineItem) return overlay;
+
+      // Only check for timing changes
+      const timingChanged = 
+        overlay.timing.startTime !== timelineItem.startTime ||
+        overlay.timing.duration !== timelineItem.duration;
+
+      if (timingChanged) {
+        hasTimingChanges = true;
+        return {
+          ...overlay,
+          timing: {
+            startTime: timelineItem.startTime,
+            duration: timelineItem.duration,
+            endTime: timelineItem.startTime + timelineItem.duration,
+          },
+        };
+      }
+      return overlay;
+    });
+
+    if (hasTimingChanges) {
+      console.log('Updating text overlays with timeline timing changes');
+      isUpdatingFromTimeline.current = true;
+      dispatch({ type: 'UPDATE_TEXT_TIMING_FROM_TIMELINE', payload: { textOverlays: updatedOverlays } });
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isUpdatingFromTimeline.current = false;
+      }, 50);
+    }
+  }, [
+    timelineContext?.timelineState.tracks.find(track => track.id === 'text-track')?.items,
+    state.textOverlays.map(overlay => `${overlay.id}-${overlay.timing.startTime}-${overlay.timing.duration}`).join(',')
+  ]);
 
   const addTextOverlay = useCallback((text: string, position?: { x: number; y: number }) => {
     const id = generateId();
