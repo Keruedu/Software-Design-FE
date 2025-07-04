@@ -18,6 +18,11 @@ interface VideoCreationState {
     pitch: number; // -10 to 10
   };  
   generatedAudio: VoiceGenerationResult | null;
+  selectedUploadedAudio: {
+    id: string;
+    title: string;
+    audioUrl: string;
+  } | null; // New: for uploaded audio
   selectedBackground: Background | null; // Backward compatibility
   selectedBackgrounds: Background[]; // New multi-selection
   subtitleOptions: SubtitleOptions | null;
@@ -32,6 +37,7 @@ interface VideoCreationContextType {
   setScript: (script: Script | null) => void;
   setSelectedVoice: (voice: Voice | null) => void;
   setVoiceSettings: (settings: Partial<VideoCreationState['voiceSettings']>) => void;  setGeneratedAudio: (audio: VoiceGenerationResult | null) => void;
+  setSelectedUploadedAudio: (audio: VideoCreationState['selectedUploadedAudio']) => void;
   setSelectedBackground: (background: Background | null) => void;
   setSelectedBackgrounds: (backgrounds: Background[]) => void; // New method
   setSubtitleOptions: (options: SubtitleOptions | null) => void;
@@ -49,6 +55,7 @@ const initialState: VideoCreationState = {
     speed: 1.0,
     pitch: 0
   },  generatedAudio: null,
+  selectedUploadedAudio: null,
   selectedBackground: null,
   selectedBackgrounds: [], // Initialize empty array
   subtitleOptions: null,
@@ -109,6 +116,11 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   const setGeneratedAudio = (audio: VoiceGenerationResult | null) => {
     setState(prev => ({ ...prev, generatedAudio: audio }));
   };
+
+  const setSelectedUploadedAudio = (audio: VideoCreationState['selectedUploadedAudio']) => {
+    setState(prev => ({ ...prev, selectedUploadedAudio: audio }));
+  };
+
   const setSelectedBackground = (background: Background | null) => {
     setState(prev => ({ ...prev, selectedBackground: background }));
   };
@@ -144,6 +156,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setSelectedVoice,
     setVoiceSettings,
     setGeneratedAudio,
+    setSelectedUploadedAudio,
     setSelectedBackground,
     setSelectedBackgrounds, // Add new method
     setSubtitleOptions,

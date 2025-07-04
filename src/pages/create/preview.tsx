@@ -62,7 +62,11 @@ export default function EditPage() {
     try {      // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
-        voice_id: state.selectedVoice?.id || 'default',
+        // Use uploaded audio URL if available, otherwise use voice_id
+        ...(state.selectedUploadedAudio 
+          ? { audio_url: state.selectedUploadedAudio.audioUrl }
+          : { voice_id: state.selectedVoice?.id || 'default' }
+        ),
         background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
         background_image_ids: state.selectedBackgrounds?.length > 0 
           ? state.selectedBackgrounds.map(bg => bg.id)
@@ -73,6 +77,14 @@ export default function EditPage() {
           ? state.subtitleOptions.style 
           : 'default'
       };
+      
+      console.log('🎬 Video creation params:', params);
+      console.log('🎵 Audio source:', state.selectedUploadedAudio ? 'Uploaded' : 'AI Voice');
+      if (state.selectedUploadedAudio) {
+        console.log('📁 Uploaded audio URL:', state.selectedUploadedAudio.audioUrl);
+      } else {
+        console.log('🎤 Voice ID:', state.selectedVoice?.id);
+      }
       
       const result = await VideoService.createCompleteVideo(params);
       
@@ -161,7 +173,11 @@ export default function EditPage() {
     try {      // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
-        voice_id: state.selectedVoice?.id || 'default',
+        // Use uploaded audio URL if available, otherwise use voice_id
+        ...(state.selectedUploadedAudio 
+          ? { audio_url: state.selectedUploadedAudio.audioUrl }
+          : { voice_id: state.selectedVoice?.id || 'default' }
+        ),
         background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
         background_image_ids: state.selectedBackgrounds?.length > 0 
           ? state.selectedBackgrounds.map(bg => bg.id)

@@ -106,12 +106,17 @@ export interface VideoCreationParams {
 
 export interface CompleteVideoCreationParams {
   script_text: string;
-  voice_id: string;
+  voice_id?: string; // Optional for backward compatibility
+  audio_url?: string; // New: audio URL from upload or AI generation
   background_image_id: string; // Legacy single background
   background_image_ids?: string[]; // New multi-background support
   subtitle_enabled?: boolean;
   subtitle_language?: string;
   subtitle_style?: string;
+  voice_settings?: {
+    speed?: number;
+    pitch?: number;
+  };
 }
 
 export interface VideoFromComponentsParams {
