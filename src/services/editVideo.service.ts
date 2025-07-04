@@ -353,7 +353,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
              const fontsUsed = new Set<string>();
             await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
             const filterResults = textOverlayParams.map((params) => {
-            console.log("Duraaaaaaa",params.timing.duration)
             const { textFilter, font } = this.buildTextFilter(params, videoSize);
             if (font) fontsUsed.add(font); 
             return textFilter;
@@ -403,8 +402,8 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         let font='';
         const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
         console.log("Debugg timing", timing)
-        const x = Math.round((position.x / 100) * videoSize.width);
-        const y = Math.round((position.y / 100) * videoSize.height);
+        const x = Math.round(Math.min(Math.max(((position.x - 14)  / 100),0 ),1) * videoSize.width);
+        const y = Math.round(Math.min(Math.max(((position.y + 8)  / 100),0 ),1)* videoSize.height);
         let textFilter = `drawtext=text='${escapedText}'`;
         textFilter += `:x=${x}:y=${y}`;
         textFilter += `:fontsize=${style.fontSize}`;

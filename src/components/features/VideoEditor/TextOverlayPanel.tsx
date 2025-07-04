@@ -306,20 +306,7 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-lg">
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-            <FaFont className="mr-2" />
-            Text Overlays
-          </h2>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            {isExpanded ? '−' : '+'}
-          </button>
-        </div>
-      </div>
+     
 
       {isExpanded && (
         <div className="p-4">
@@ -368,37 +355,11 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({
           {selectedOverlay && (
             <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-200">
               <button
-                onClick={() => copyTextOverlay(selectedOverlay.id)}
-                className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
-              >
-                <FaCopy size={12} />
-                <span>Copy</span>
-              </button>
-              
-              {clipboard && (
-                <button
-                  onClick={() => pasteTextOverlay()}
-                  className="flex items-center space-x-1 px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600"
-                >
-                  <FaPaste size={12} />
-                  <span>Paste</span>
-                </button>
-              )}
-              
-              <button
                 onClick={() => duplicateTextOverlay(selectedOverlay.id)}
                 className="flex items-center space-x-1 px-3 py-1 bg-orange-500 text-white rounded text-sm hover:bg-orange-600"
               >
                 <FaCopy size={12} />
                 <span>Duplicate</span>
-              </button>
-              
-              <button
-                onClick={() => bringToFront(selectedOverlay.id)}
-                className="flex items-center space-x-1 px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
-              >
-                <FaLayerGroup size={12} />
-                <span>Front</span>
               </button>
             </div>
           )}

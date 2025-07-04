@@ -203,7 +203,7 @@ const VideoEditorContent: React.FC = () => {
   // Auto open media panel when no video is loaded
   useEffect(() => {
     if (!videoUrl && !isLoadingVideo) {
-      setActiveTab('media');
+      setActiveTab('text');
       setIsPropertiesPanelOpen(true);
     }
   }, [videoUrl, isLoadingVideo]);
@@ -1064,8 +1064,8 @@ const VideoEditorContent: React.FC = () => {
 
       // Bước 4: Xử lý audio tracks
       if (audioItems.length > 0) {
-        setExportStage(`Đang thêm ${audioItems.length} audio track(s)...`);
-        showNotification(`Đang thêm ${audioItems.length} audio track(s)...`, 'info');
+        setExportStage(`Adding ${audioItems.length} audio track(s)...`);
+        showNotification(`Adding${audioItems.length} audio track(s)...`, 'info');
         
         for (let i = 0; i < audioItems.length; i++) {
           const audioItem = audioItems[i];
@@ -1111,8 +1111,8 @@ const VideoEditorContent: React.FC = () => {
       }
       
       if (effectiveTextOverlays.length > 0) {
-        setExportStage(`Đang thêm ${effectiveTextOverlays.length} text overlay(s)...`);
-        showNotification(`Đang thêm ${effectiveTextOverlays.length} text overlay(s)...`, 'info');
+        setExportStage(`Adding ${effectiveTextOverlays.length} text overlay(s)...`);
+        showNotification(`Adding ${effectiveTextOverlays.length} text overlay(s)...`, 'info');
         
         console.log('Debug Export - Text overlays to process:', effectiveTextOverlays.map(overlay => ({
           id: overlay.id,
@@ -1818,9 +1818,9 @@ const VideoEditorContent: React.FC = () => {
         {showDownloadModal && downloadData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">Tải xuống video</h3>
+              <h3 className="text-lg font-semibold mb-4">Download video</h3>
               <p className="text-gray-600 mb-6">
-                Video đã được export thành công! Bạn muốn tải xuống như thế nào?
+                Video exported successfully! How do you want to download?
               </p>
               <div className="space-y-3">
                 {/* Default download option */}
@@ -1832,8 +1832,8 @@ const VideoEditorContent: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <div className="text-left">
-                    <div>Tải xuống nhanh</div>
-                    <div className="text-xs text-blue-100">Lưu vào thư mục Downloads</div>
+                    <div>Fast download</div>
+                    <div className="text-xs text-blue-100">Save in downloads folder</div>
                   </div>
                 </button>
                 
@@ -1852,7 +1852,7 @@ const VideoEditorContent: React.FC = () => {
                   </svg>
                   <div className="text-left">
                     <div>
-                      Chọn vị trí lưu
+                      Select folder
                       {!('showSaveFilePicker' in window) && (
                         <span className="text-xs block">Chỉ hỗ trợ Chrome/Edge</span>
                       )}
@@ -1873,7 +1873,7 @@ const VideoEditorContent: React.FC = () => {
                   onClick={handleCancelDownload}
                   className="w-full px-4 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Không tải xuống
+                  No download
                 </button>
               </div>
               
@@ -1881,11 +1881,11 @@ const VideoEditorContent: React.FC = () => {
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm text-gray-600">
                   <div className="flex justify-between">
-                    <span>Tên file:</span>
+                    <span>File name:</span>
                     <span className="font-medium">{downloadData.filename}</span>
                   </div>
                   <div className="flex justify-between mt-1">
-                    <span>Định dạng:</span>
+                    <span>File type:</span>
                     <span className="font-medium">MP4</span>
                   </div>
                 </div>

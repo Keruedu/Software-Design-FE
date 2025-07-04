@@ -224,7 +224,6 @@ const textOverlayReducer = (state: TextOverlayState, action: TextOverlayAction):
         zIndex: state.textOverlays.length,
         isSelected: false,
       };
-
       return {
         ...state,
         textOverlays: [...state.textOverlays, pastedOverlay],

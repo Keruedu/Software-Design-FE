@@ -44,27 +44,17 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
   const isSelected = selectedTextId === overlay.id;
   const isEditing = editingTextId === overlay.id;
 
-  // Calculate position and size based on video dimensions
-  // Position is calculated to center the text at the percentage point
-  const pixelSize = {
-    width: overlay.size.width,
-    height: overlay.size.height,
-  };
+  // Calculate responsive dimensions first
   console.log('videoWidth:', videoWidth, 'videoHeight:', videoHeight);
   // Use fallback dimensions if video dimensions are not available
   const actualVideoWidth = videoWidth || 640;
   const actualVideoHeight = videoHeight || 360;
 
-  const pixelPosition = {
-    x: (overlay.position.x / 100) * actualVideoWidth - pixelSize.width / 2,
-    y: (overlay.position.y / 100) * actualVideoHeight - pixelSize.height / 2,
-  };
-
   // Calculate responsive font size based on video dimensions
-  // Use a base reference size (1920x1080) and scale font size proportionally
+  // Use a base reference size and scale font size proportionally
   // This ensures text appears consistent across different video sizes
-  const baseVideoWidth = originalVideoSize.width || 1080; // Use original video size or fallback
-  const baseVideoHeight = originalVideoSize.height || 720; // Use original video
+  const baseVideoWidth = originalVideoSize.width || 1920; // Use original video size or fallback
+  const baseVideoHeight = originalVideoSize.height || 1080; // Use original video
   const scaleFactor = Math.min(actualVideoWidth / baseVideoWidth, actualVideoHeight / baseVideoHeight);
   
   // Ensure minimum scaling to keep text readable
@@ -73,6 +63,34 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
   const clampedScaleFactor = Math.max(minScaleFactor, Math.min(maxScaleFactor, scaleFactor));
   
   const responsiveFontSize = overlay.style.fontSize * clampedScaleFactor;
+
+  // Calculate responsive size - scale size with same factor as font
+  const responsiveSize = {
+    width: overlay.size.width * clampedScaleFactor,
+    height: overlay.size.height * clampedScaleFactor,
+  };
+
+  // Debug logs (can be removed in production)
+  console.log('Scale calculations:', {
+    originalVideoSize,
+    actualVideoSize: { width: actualVideoWidth, height: actualVideoHeight },
+    scaleFactor,
+    clampedScaleFactor,
+    responsiveSize
+  });
+
+  // Calculate position using direct method (most accurate for UI)
+  const responsivePosition = {
+    x: (overlay.position.x / 100) * actualVideoWidth - responsiveSize.width / 2,
+    y: (overlay.position.y / 100) * actualVideoHeight - responsiveSize.height / 2,
+  };
+
+  console.log('Position Debug:', {
+    overlayPosition: overlay.position,
+    actualVideoSize: { width: actualVideoWidth, height: actualVideoHeight },
+    responsivePosition,
+    responsiveSize
+  });
 
   // Calculate responsive shadow and outline based on scale factor
   const responsiveShadow = overlay.shadow?.enabled 
@@ -103,7 +121,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     const elementRect = e.currentTarget.getBoundingClientRect();
     
     // Calculate offset from mouse to element center for smoother dragging
-    const elementCenterX = elementRect.left + elementRect.width / 2;
+    const elementCenterX = elementRect.left + elementRect.width / 2 ;
     const elementCenterY = elementRect.top + elementRect.height / 2;
     
     setDragStart({
@@ -130,20 +148,19 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     const relativeY = newCenterY - containerRect.top;
 
     // Apply constraints to keep text center within container bounds
-    const minX = pixelSize.width / 2;
-    const maxX = containerRect.width - pixelSize.width / 2;
-    const minY = pixelSize.height / 2;
-    const maxY = containerRect.height - pixelSize.height / 2;
+    const minX = responsiveSize.width / 2;
+    const maxX = containerRect.width - responsiveSize.width / 2;
+    const minY = responsiveSize.height / 2;
+    const maxY = containerRect.height - responsiveSize.height / 2;
     
     const constrainedX = Math.max(minX, Math.min(maxX, relativeX));
     const constrainedY = Math.max(minY, Math.min(maxY, relativeY));
 
     // Convert to percentage based on center position
-    const percentageX = (constrainedX / containerRect.width) * 100;
+    const percentageX = (constrainedX  / containerRect.width) * 100;
     const percentageY = (constrainedY / containerRect.height) * 100;
-
-    moveTextOverlay(overlay.id, { x: percentageX, y: percentageY });
-  }, [isDragging, isPreviewMode, overlay.isLocked, dragStart, pixelSize, moveTextOverlay, overlay.id]);
+    moveTextOverlay(overlay.id, { x: percentageX  + 12, y: percentageY - 12 });
+  }, [isDragging, isPreviewMode, overlay.isLocked, dragStart, responsiveSize, moveTextOverlay, overlay.id]);
 
   // Handle mouse up for dragging
   const handleMouseUp = useCallback(() => {
@@ -180,8 +197,12 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     const newWidth = Math.max(50, Math.min(containerRect.width - (elementRect.left - containerRect.left), e.clientX - elementRect.left));
     const newHeight = Math.max(20, Math.min(containerRect.height - (elementRect.top - containerRect.top), e.clientY - elementRect.top));
 
-    resizeTextOverlay(overlay.id, { width: newWidth, height: newHeight });
-  }, [isResizing, isPreviewMode, overlay.isLocked, resizeTextOverlay, overlay.id]);
+    // Convert back to original size by dividing by scale factor
+    const originalWidth = newWidth / clampedScaleFactor;
+    const originalHeight = newHeight / clampedScaleFactor;
+
+    resizeTextOverlay(overlay.id, { width: originalWidth, height: originalHeight });
+  }, [isResizing, isPreviewMode, overlay.isLocked, clampedScaleFactor, resizeTextOverlay, overlay.id]);
 
   const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
@@ -248,10 +269,10 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
         isSelected && !isPreviewMode && !isDragging ? 'outline-2 outline-blue-500 outline-dashed' : ''
       } ${isDragging ? 'z-50' : ''}`}
       style={{
-        left: pixelPosition.x,
-        top: pixelPosition.y,
-        width: pixelSize.width,
-        height: pixelSize.height,
+        left: responsivePosition.x,
+        top: responsivePosition.y,
+        width: responsiveSize.width,
+        height: responsiveSize.height,
         zIndex: overlay.zIndex + 2,
         transform: `rotate(${overlay.rotation}deg)`,
         opacity: overlay.opacity,
