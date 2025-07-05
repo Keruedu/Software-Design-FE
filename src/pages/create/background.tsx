@@ -4,6 +4,7 @@ import Head from 'next/head';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
+import { Progress } from '../../components/common/Progress/Progress';
 import { ImageUpload, UploadedBackgroundItem } from '../../components/features/ImageUpload';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { Background } from '../../mockdata/backgrounds';
@@ -22,7 +23,7 @@ const getBackgrounds = async (): Promise<Background[]> => {
 
 export default function BackgroundPage() {
   const router = useRouter();
-  const { state, setSelectedBackgrounds, setStep } = useVideoCreation();
+  const { state, setSelectedBackgrounds, setGeneratedAudio, setStep } = useVideoCreation();
 
   const [backgrounds, setBackgrounds] = useState<Background[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,46 @@ export default function BackgroundPage() {
       router.replace('/create/voice');
     }
   }, [state.script, state.selectedVoice, router]);
+
+  // 🎵 Generate audio once when entering background step (if using AI voice and no audio yet)
+  useEffect(() => {
+    const generateAudioOnce = async () => {
+      // Skip if already generated, using uploaded audio, or missing requirements
+      if (hasGeneratedAudio.current || 
+          state.selectedUploadedAudio || 
+          state.generatedAudio?.audioUrl ||
+          !state.selectedVoice || 
+          !state.script?.content) {
+        return;
+      }
+
+      try {
+        console.log('🎤 Generating audio in background step...');
+        setGeneratingAudio(true);
+        hasGeneratedAudio.current = true; // Prevent multiple calls
+        
+        const result = await VoiceService.generateVoiceAudio({
+          text: state.script.content,
+          voiceId: state.selectedVoice.id,
+          settings: state.voiceSettings
+        });
+        
+        if (result?.audioUrl) {
+          setGeneratedAudio(result);
+          setAudioPreview(result);
+          console.log('✅ Audio generated successfully in background step:', result.audioUrl);
+        } else {
+          console.warn('⚠️ Audio generation failed in background step');
+        }
+      } catch (error) {
+        console.error('❌ Error generating audio in background step:', error);
+      } finally {
+        setGeneratingAudio(false);
+      }
+    };
+
+    generateAudioOnce();
+  }, [state.script, state.selectedVoice, state.voiceSettings, state.selectedUploadedAudio, state.generatedAudio, setGeneratedAudio]);
 
   useEffect(() => {
     setSelectedBackgrounds([]);
@@ -218,8 +259,8 @@ export default function BackgroundPage() {
   const uniqueCategories = [...new Set(backgrounds.map(bg => bg.category))];
 
   const handleContinue = () => {
-    setStep('preview');
-    router.push('/create/preview');
+    setStep('subtitle');
+    router.push('/create/subtitle');
   };
 
   const handleBack = () => {
@@ -229,20 +270,60 @@ export default function BackgroundPage() {
   const renderAudioPreview = () => {
     if (generatingAudio) {
       return (
-        <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg">
-          <div className="animate-spin mr-2 h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-          <span className="text-gray-600">Generating audio preview...</span>
+        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="animate-spin mr-3 h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+          <div className="text-center">
+            <span className="text-blue-700 font-medium">Generating audio from your script...</span>
+            <p className="text-blue-600 text-sm mt-1">Using {state.selectedVoice?.name} voice</p>
+          </div>
         </div>
       );
     }
 
-    if (audioPreview) {
+    // Show uploaded audio info
+    if (state.selectedUploadedAudio) {
       return (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-sm font-medium text-gray-700 mb-2">Audio Preview</p>
-          <audio controls className="w-full" src={audioPreview.audioUrl}>
-            Your browser does not support the audio element.
-          </audio>
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-800 mb-1">✅ Using Uploaded Audio</p>
+              <p className="text-green-700 font-medium">{state.selectedUploadedAudio.title}</p>
+            </div>
+            <audio controls className="h-8" src={state.selectedUploadedAudio.audioUrl}>
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        </div>
+      );
+    }
+
+    // Show generated audio preview
+    if (audioPreview || state.generatedAudio) {
+      const audio = audioPreview || state.generatedAudio;
+      return (
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-800 mb-1">🎤 AI Generated Audio</p>
+              <p className="text-blue-700">
+                Voice: {state.selectedVoice?.name} • Duration: {Math.round(audio?.duration || 0)}s
+              </p>
+            </div>
+            <audio controls className="h-8" src={audio?.audioUrl}>
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+        </div>
+      );
+    }
+
+    // No audio yet - will generate during video creation
+    if (state.selectedVoice && !generatingAudio) {
+      return (
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <p className="text-sm text-yellow-800">
+            🔄 Audio will be generated using <strong>{state.selectedVoice.name}</strong> voice
+          </p>
         </div>
       );
     }
@@ -567,6 +648,19 @@ export default function BackgroundPage() {
         <meta name="description" content="Choose a background for your video" />
       </Head>
       <div className="max-w-4xl mx-auto">
+        {/* Progress Indicator */}
+        <Progress 
+          steps={[
+            { id: 'topic', name: 'Topic' },
+            { id: 'script', name: 'Script' },
+            { id: 'voice', name: 'Voice' },
+            { id: 'background', name: 'Background' },
+            { id: 'subtitle', name: 'Subtitle' },
+            { id: 'preview', name: 'Preview' }
+          ]}
+          currentStep="background"
+        />
+
         <div className="bg-white rounded-lg shadow px-6 py-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">
             {currentStep === 'style' ? 'Select Background Style' : 'Select Background'}

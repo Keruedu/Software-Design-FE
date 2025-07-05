@@ -4,6 +4,7 @@ import Head from 'next/head';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
+import { Progress } from '../../components/common/Progress/Progress';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { VideoService } from '../../services/video.service';
 import { Modal } from '../../components/common/Modal/Modal';
@@ -21,9 +22,11 @@ export default function EditPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
   
-  const [subtitle, setSubtitle] = useState(true);
   const [musicVolume, setMusicVolume] = useState(50);
   const [hasBgMusic, setHasBgMusic] = useState(false);
+  
+  // Get subtitle enabled state from context
+  const subtitleEnabled = state.subtitleOptions?.enabled ?? true; // Default to true if not set
   // Check if we have all the required data
   useEffect(() => {
     if (!state.script || !state.selectedVoice || (!state.selectedBackgrounds || state.selectedBackgrounds.length === 0)) {
@@ -62,16 +65,32 @@ export default function EditPage() {
     try {      // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
-        // Use uploaded audio URL if available, otherwise use voice_id
+        // Priority: uploaded audio URL > generated audio URL > voice_id for generation
         ...(state.selectedUploadedAudio 
-          ? { audio_url: state.selectedUploadedAudio.audioUrl }
-          : { voice_id: state.selectedVoice?.id || 'default' }
+          ? { 
+              audio_url: state.selectedUploadedAudio.audioUrl,
+              // Include metadata for tracking
+              audio_source: 'uploaded' as const,
+              uploaded_audio_id: state.selectedUploadedAudio.id
+            }
+          : state.generatedAudio?.audioUrl 
+            ? { 
+                audio_url: state.generatedAudio.audioUrl,
+                audio_source: 'generated' as const,
+                voice_id: state.generatedAudio.voiceId,
+                voice_settings: state.generatedAudio.settings
+              }
+            : { 
+                voice_id: state.selectedVoice?.id || 'default',
+                audio_source: 'voice_generation' as const,
+                voice_settings: state.voiceSettings
+              }
         ),
         background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
         background_image_ids: state.selectedBackgrounds?.length > 0 
           ? state.selectedBackgrounds.map(bg => bg.id)
           : undefined, // Send multiple backgrounds if available
-        subtitle_enabled: subtitle,
+        subtitle_enabled: subtitleEnabled,
         subtitle_language: state.subtitleOptions?.language || 'en',
         subtitle_style: typeof state.subtitleOptions?.style === 'string' 
           ? state.subtitleOptions.style 
@@ -79,11 +98,20 @@ export default function EditPage() {
       };
       
       console.log('🎬 Video creation params:', params);
-      console.log('🎵 Audio source:', state.selectedUploadedAudio ? 'Uploaded' : 'AI Voice');
+      console.log('📝 Subtitle debug info:');
+      console.log('  - subtitleEnabled:', subtitleEnabled);
+      console.log('  - subtitleOptions:', state.subtitleOptions);
+      console.log('  - subtitle_enabled in params:', params.subtitle_enabled);
+      console.log('  - subtitle_language in params:', params.subtitle_language);
+      console.log('  - subtitle_style in params:', params.subtitle_style);
+      console.log('🎵 Audio source detection:');
       if (state.selectedUploadedAudio) {
-        console.log('📁 Uploaded audio URL:', state.selectedUploadedAudio.audioUrl);
+        console.log('  📁 Using uploaded audio:', state.selectedUploadedAudio.audioUrl);
+      } else if (state.generatedAudio?.audioUrl) {
+        console.log('  🎤 Using generated audio:', state.generatedAudio.audioUrl);
+        console.log('  🔊 Voice ID:', state.generatedAudio.voiceId);
       } else {
-        console.log('🎤 Voice ID:', state.selectedVoice?.id);
+        console.log('  � Will generate new audio with voice ID:', state.selectedVoice?.id);
       }
       
       const result = await VideoService.createCompleteVideo(params);
@@ -173,16 +201,31 @@ export default function EditPage() {
     try {      // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
-        // Use uploaded audio URL if available, otherwise use voice_id
+        // Priority: uploaded audio URL > generated audio URL > voice_id for generation
         ...(state.selectedUploadedAudio 
-          ? { audio_url: state.selectedUploadedAudio.audioUrl }
-          : { voice_id: state.selectedVoice?.id || 'default' }
+          ? { 
+              audio_url: state.selectedUploadedAudio.audioUrl,
+              audio_source: 'uploaded' as const,
+              uploaded_audio_id: state.selectedUploadedAudio.id
+            }
+          : state.generatedAudio?.audioUrl 
+            ? { 
+                audio_url: state.generatedAudio.audioUrl,
+                audio_source: 'generated' as const,
+                voice_id: state.generatedAudio.voiceId,
+                voice_settings: state.generatedAudio.settings
+              }
+            : { 
+                voice_id: state.selectedVoice?.id || 'default',
+                audio_source: 'voice_generation' as const,
+                voice_settings: state.voiceSettings
+              }
         ),
         background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
         background_image_ids: state.selectedBackgrounds?.length > 0 
           ? state.selectedBackgrounds.map(bg => bg.id)
           : undefined, // Send multiple backgrounds if available
-        subtitle_enabled: subtitle,
+        subtitle_enabled: subtitleEnabled,
         subtitle_language: state.subtitleOptions?.language || 'en',
         subtitle_style: typeof state.subtitleOptions?.style === 'string' 
           ? state.subtitleOptions.style 
@@ -317,6 +360,19 @@ export default function EditPage() {
       </Head>
       
       <div className="max-w-4xl mx-auto">
+        {/* Progress Indicator */}
+        <Progress 
+          steps={[
+            { id: 'topic', name: 'Topic' },
+            { id: 'script', name: 'Script' },
+            { id: 'voice', name: 'Voice' },
+            { id: 'background', name: 'Background' },
+            { id: 'subtitle', name: 'Subtitle' },
+            { id: 'preview', name: 'Preview' }
+          ]}
+          currentStep="preview"
+        />
+
         <div className="bg-white rounded-lg shadow p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Your Video</h1>
           
@@ -335,6 +391,27 @@ export default function EditPage() {
               <div className="mt-4">
                 <h2 className="font-medium text-gray-900 mb-1">{state.script?.title || 'Untitled Video'}</h2>
                 <p className="text-sm text-gray-500">Duration: ~30 seconds</p>
+                
+                {/* Audio Information */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Audio Source:</h3>
+                  {state.selectedUploadedAudio ? (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                      Uploaded: {state.selectedUploadedAudio.title}
+                    </div>
+                  ) : state.generatedAudio?.audioUrl ? (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="inline-block w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                      Ready: {state.selectedVoice?.name} ({Math.round(state.generatedAudio.duration || 0)}s)
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
+                      Will generate: {state.selectedVoice?.name}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             

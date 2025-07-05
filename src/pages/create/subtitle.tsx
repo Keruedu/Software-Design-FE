@@ -5,6 +5,7 @@ import Head from 'next/head';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
+import { Progress } from '../../components/common/Progress/Progress';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { SubtitleService } from '../../services/subtitle.service';
 import { SubtitleOptions, SubtitleStyle, SubtitleSegment, SUBTITLE_STYLES, SUPPORTED_LANGUAGES } from '../../types/subtitle';
@@ -90,12 +91,17 @@ export default function SubtitlePage() {
         });
       } else {
         // Generate from audio (more accurate timing)
-        if (!state.generatedAudio?.audioFile) {
+        if (!state.generatedAudio?.audioUrl) {
           throw new Error('Audio file not available. Please go back and generate audio first.');
         }
         
+        // Create a File object from audioUrl for the API
+        const response = await fetch(state.generatedAudio.audioUrl);
+        const audioBlob = await response.blob();
+        const audioFile = new File([audioBlob], 'generated_audio.wav', { type: 'audio/wav' });
+        
         result = await SubtitleService.generateSubtitlesFromAudio({
-          audioFile: state.generatedAudio.audioFile,
+          audioFile: audioFile,
           language: selectedLanguage,
           maxWordsPerSegment
         });
@@ -234,6 +240,19 @@ export default function SubtitlePage() {
       </Head>
 
       <div className="max-w-4xl mx-auto">
+        {/* Progress Indicator */}
+        <Progress 
+          steps={[
+            { id: 'topic', name: 'Topic' },
+            { id: 'script', name: 'Script' },
+            { id: 'voice', name: 'Voice' },
+            { id: 'background', name: 'Background' },
+            { id: 'subtitle', name: 'Subtitle' },
+            { id: 'preview', name: 'Preview' }
+          ]}
+          currentStep="subtitle"
+        />
+
         <div className="bg-white rounded-lg shadow p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Configure Subtitles</h1>
 
@@ -446,7 +465,6 @@ export default function SubtitlePage() {
                                 value={segment.startTime}
                                 onChange={(e) => handleSegmentEdit(segment.id, 'startTime', parseFloat(e.target.value))}
                                 placeholder="Start"
-                                size="sm"
                                 step="0.1"
                               />
                             </div>
@@ -456,7 +474,6 @@ export default function SubtitlePage() {
                                 value={segment.endTime}
                                 onChange={(e) => handleSegmentEdit(segment.id, 'endTime', parseFloat(e.target.value))}
                                 placeholder="End"
-                                size="sm"
                                 step="0.1"
                               />
                             </div>
@@ -465,7 +482,6 @@ export default function SubtitlePage() {
                                 value={segment.text}
                                 onChange={(e) => handleSegmentEdit(segment.id, 'text', e.target.value)}
                                 placeholder="Subtitle text"
-                                size="sm"
                               />
                             </div>
                           </div>
