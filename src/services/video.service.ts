@@ -107,7 +107,9 @@ export interface VideoCreationParams {
 export interface CompleteVideoCreationParams {
   script_text: string;
   voice_id?: string; // Optional for backward compatibility
-  audio_url?: string; // New: audio URL from upload or AI generation
+  audio_url?: string; // Audio URL from upload or AI generation
+  audio_source?: 'uploaded' | 'generated' | 'voice_generation'; // Track audio source
+  uploaded_audio_id?: string; // ID of uploaded audio file
   background_image_id: string; // Legacy single background
   background_image_ids?: string[]; // New multi-background support
   subtitle_enabled?: boolean;
