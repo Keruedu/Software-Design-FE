@@ -174,7 +174,7 @@ const VideoEditorContent: React.FC = () => {
       setGlobalMediaItems(prev => [...prev, mainVideoMediaItem]);
       setHasAddedMainVideo(true);
 
-      showNotification(`Đã thêm video "${generatedVideo.title}"`, 'success');
+      showNotification(`Video "${generatedVideo.title}" has been added`, 'success');
     }
   }, [videoUrl, videoDuration, generatedVideo, addItemToTrack, hasAddedMainVideo]);
 
@@ -268,7 +268,7 @@ const VideoEditorContent: React.FC = () => {
       
       console.log('Debug - Track', trackId, 'mute toggled to:', newMutedState);
       showNotification(
-        `Track "${track.name}" đã ${newMutedState ? 'tắt' : 'bật'} tiếng`, 
+        `Track "${track.name}" has been ${newMutedState ? 'muted' : 'unmuted'}`, 
         newMutedState ? 'warning' : 'success'
       );
     }
@@ -284,7 +284,7 @@ const VideoEditorContent: React.FC = () => {
     
     console.log('Debug - Global mute toggled to:', newMutedState);
     showNotification(
-      `Tất cả track đã ${newMutedState ? 'tắt' : 'bật'} tiếng`, 
+      `All tracks have been ${newMutedState ? 'muted' : 'unmuted'}`, 
       newMutedState ? 'warning' : 'success'
     );
   };
@@ -610,12 +610,10 @@ const VideoEditorContent: React.FC = () => {
 
   const handlePause = () => {
     setIsPlaying(false);
-    // FIXED: Đơn giản hóa - không cần logic phức tạp
     stopTimelineAudio();
   };
 
   const handleSeek = (time: number) => {
-    // FIXED: Giới hạn seek trong phạm vi trim boundaries
     let clampedTime = Math.max(0, Math.min(time, videoDuration));
     
     // Further restrict to trim boundaries if trim is set
@@ -688,7 +686,7 @@ const VideoEditorContent: React.FC = () => {
   const handleConfirmDownload = () => {
     if (downloadData) {
       videoProcessor.downloadCurrentVideo(downloadData.filename);
-      showNotification(`File đã được tải xuống: ${downloadData.filename}`, 'info');
+      showNotification(`File downloaded: ${downloadData.filename}`, 'info');
       setShowDownloadModal(false);
       setDownloadData(null);
     }
@@ -730,26 +728,26 @@ const VideoEditorContent: React.FC = () => {
           await writable.write(currentVideo.blob);
           await writable.close();
           
-          showNotification(`File đã được lưu thành công tại vị trí bạn chọn!`, 'success');
+          showNotification(`File successfully saved to the selected location!`, 'success');
         } else {
-          throw new Error('Không tìm thấy video để tải xuống');
+          throw new Error('No video found to download');
         }
       } else {
         // Fallback for browsers that don't support File System Access API
-        showNotification('Trình duyệt không hỗ trợ chọn vị trí tải. Sử dụng tải xuống mặc định...', 'warning');
+        showNotification('Browser does not support choosing a download location. Using default download...', 'warning');
         videoProcessor.downloadCurrentVideo(downloadData.filename);
-        showNotification(`File đã được tải xuống: ${downloadData.filename}`, 'info');
+        showNotification(`File downloaded: ${downloadData.filename}`, 'info');
       }
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         // User cancelled the save dialog
-        showNotification('Đã hủy tải xuống', 'info');
+        showNotification('Download canceled', 'info');
       } else {
         console.error('Error saving file:', error);
-        showNotification(`Lỗi khi lưu file: ${(error as Error).message}`, 'error');
+        showNotification(`Error saving file: ${(error as Error).message}`, 'error');
         // Fallback to default download
         videoProcessor.downloadCurrentVideo(downloadData.filename);
-        showNotification(`Đã chuyển sang tải xuống mặc định`, 'info');
+        showNotification('Switched to default download', 'info');
       }
     } finally {
       setShowDownloadModal(false);
@@ -770,7 +768,7 @@ const VideoEditorContent: React.FC = () => {
     if (!('showSaveFilePicker' in window)) {
       setTimeout(() => {
         showNotification(
-          'Trình duyệt này chưa hỗ trợ chọn vị trí lưu. Sử dụng Chrome/Edge mới nhất để có trải nghiệm tốt nhất.',
+          "Save location selection is not supported in this browser. Use the latest Chrome or Edge for the best experience.",
           'info'
         );
       }, 500);
@@ -805,14 +803,14 @@ const VideoEditorContent: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showNotification('Đang tải video gốc...', 'info');
+      showNotification('Downloading original video...', 'info');
     }
   };
 
   // Delete media function
   const handleDeleteMedia = (mediaId: string) => {
     setGlobalMediaItems(prev => prev.filter(item => item.id !== mediaId));
-    showNotification('Đã xóa media khỏi thư viện', 'success');
+    showNotification('Media removed from library', 'success');
   };
 
   // Properties panel helper functions
@@ -824,25 +822,6 @@ const VideoEditorContent: React.FC = () => {
     return [];
   };
 
-  /**
-   * LOGIC EXPORT VIDEO (Tiếng Việt)
-   * ================================
-   * 
-   * Quy trình export video hoàn chỉnh:
-   * 1. Thu thập tất cả timeline items từ các track
-   * 2. Xử lý video chính (main video) với các ràng buộc duration
-   * 3. Xử lý audio tracks (thêm, điều chỉnh volume, mute)
-   * 4. Áp dụng trim settings nếu có
-   * 5. Kết hợp tất cả thành video cuối cùng
-   * 6. Tải xuống file cho người dùng
-   * 
-   * Đặc điểm của hệ thống export:
-   * - Tất cả items bị giới hạn trong main video duration
-   * - Audio tracks có thể được mix với nhau
-   * - Volume và mute settings được áp dụng cho từng track
-   * - Trim settings được áp dụng cho toàn bộ video cuối cùng
-   * - Hỗ trợ multiple audio overlays
-   */
   const handleExportVideo = async () => {
     if (!generatedVideo || !videoUrl) {
       showNotification('Không có video để export!', 'error');
@@ -1065,8 +1044,20 @@ const VideoEditorContent: React.FC = () => {
       // Bước 4: Xử lý audio tracks
       if (audioItems.length > 0) {
         setExportStage(`Adding ${audioItems.length} audio track(s)...`);
-        showNotification(`Adding${audioItems.length} audio track(s)...`, 'info');
+        showNotification(`Adding ${audioItems.length} audio track(s)...`, 'info');
         
+        console.log(`Processing ${audioItems.length} audio tracks at once:`, 
+          audioItems.map((item, i) => ({
+            index: i,
+            name: item.url,
+            duration: item.duration,
+            startTime: item.startTime,
+            volume: item.volume
+          }))
+        );
+        
+        // Tạo audio tracks data
+        const audioTracks = [];
         for (let i = 0; i < audioItems.length; i++) {
           const audioItem = audioItems[i];
           
@@ -1079,25 +1070,28 @@ const VideoEditorContent: React.FC = () => {
           const audioResponse = await fetch(audioItem.url);
           const audioBlob = await audioResponse.blob();
           const audioFile = new File([audioBlob], `audio-${i}.mp3`, { type: 'audio/mpeg' });
-
-          // Thêm audio với volume và timing settings
+          
+          audioTracks.push({
+            audioFile: audioFile,
+            startTime: audioItem.startTime,
+            duration: audioItem.duration,
+            volume: audioItem.volume || 1
+          });
+        }
+        
+        // Thêm tất cả audio tracks cùng lúc
+        if (audioTracks.length > 0) {
           await videoProcessor.addProcessingStep({
-            type: 'addAudio',
+            type: 'addMultipleAudio',
             params: {
-              audioFile: audioFile,
-              options: {
-                volume: audioItem.volume || 1,
-                startTime: audioItem.startTime,
-                duration: audioItem.duration,
-                replaceOriginalAudio: false, // Giữ audio gốc
-                mixWithOriginal: true // Mix với audio hiện tại
-              }
+              audioTracks: audioTracks
             }
           });
-
-          // Cập nhật progress cho mỗi audio
-          setExportProgress(50 + (i + 1) / audioItems.length * 20);
+          
+          console.log(`Added ${audioTracks.length} audio tracks in one step`);
         }
+        
+        setExportProgress(70);
       }
 
       // Bước 5: Xử lý Text Overlays
@@ -1109,6 +1103,20 @@ const VideoEditorContent: React.FC = () => {
       } else {
         console.log('Debug Export - Using current text overlays:', effectiveTextOverlays.length);
       }
+
+      console.log('Text overlays analysis:', {
+        currentStateOverlays: textOverlayState.textOverlays.length,
+        currentVisibleOverlays: textOverlayState.textOverlays.filter(overlay => overlay.isVisible).length,
+        savedOverlays: savedTimelineData?.textOverlays?.length || 0,
+        effectiveOverlays: effectiveTextOverlays.length,
+        source: savedTimelineData?.textOverlays ? 'saved' : 'current',
+        allCurrentOverlays: textOverlayState.textOverlays.map(overlay => ({
+          id: overlay.id,
+          text: overlay.text,
+          isVisible: overlay.isVisible,
+          timing: overlay.timing
+        }))
+      });
       
       if (effectiveTextOverlays.length > 0) {
         setExportStage(`Adding ${effectiveTextOverlays.length} text overlay(s)...`);
@@ -1203,6 +1211,14 @@ const VideoEditorContent: React.FC = () => {
         throw new Error('Không thể tạo video cuối cùng');
       }
 
+      // Kiểm tra kích thước video trước khi upload
+      const videoSizeKB = Math.round(exportedVideo.blob.size / 1024);
+      console.log(`Video size: ${videoSizeKB}KB`);
+      
+      if (videoSizeKB > 800) {
+        showNotification(`Video có kích thước lớn (${videoSizeKB}KB). Hệ thống sẽ tự động nén để đảm bảo upload thành công.`, 'warning');
+      }
+
       // Bước 7: Upload video lên server và cập nhật database
       setExportStage('Đang upload video lên server...');
       showNotification('Đang upload video lên server...', 'info');
@@ -1243,7 +1259,7 @@ const VideoEditorContent: React.FC = () => {
       const uploadResult = await videoExportService.uploadEditedVideo(
         exportedVideo.blob, // Sử dụng blob từ ProcessedVideo
         {
-          originalVideoId: generatedVideo.id, // Sử dụng id thay vì _id
+          originalVideoId: generatedVideo.id, 
           title: `${generatedVideo.title} - Edited`,
           description: `Edited version of ${generatedVideo.title}`,
           processingSteps,
@@ -1301,6 +1317,17 @@ const VideoEditorContent: React.FC = () => {
           setTimeout(() => {
             showLoginExpiration();
           }, 2000);
+        } else if (error.message.includes('exceeded maximum size') || error.message.includes('quá lớn')) {
+          errorMessage = error.message;
+          // Show specific size error guidance
+          showNotification(
+            'Video hoặc dữ liệu quá lớn để upload. Vui lòng thử:\n' +
+            '• Giảm độ dài video bằng cách trim\n' +
+            '• Xóa bớt audio tracks không cần thiết\n' +
+            '• Giảm số lượng text overlays\n' +
+            '• Hệ thống đã tự động nén video nhưng vẫn chưa đủ',
+            'error'
+          );
         } else {
           errorMessage = error.message;
         }

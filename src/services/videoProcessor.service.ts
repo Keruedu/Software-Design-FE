@@ -2,7 +2,7 @@ import { ffmpegService,FFmpegService } from "./editVideo.service";
 
 export interface VideoProcessingStep{
   id: string;
-  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays';
+  type: 'trim' | 'addAudio' | 'addMultipleAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays';
   params: any;
   timestamp: number;
 }
@@ -139,6 +139,12 @@ export class VideoProcessor {
                         step.params.options
                     )
                     break;
+                case 'addMultipleAudio':
+                    resultBlob = await this.ffmpegService.addMultipleAudioToVideo(
+                        this.currentVideo.blob,
+                        step.params.audioTracks
+                    );
+                    break;
                 case 'adjustVolume':
                     // Temporarily skip volume adjustment as it is not implemented yet
                     resultBlob = this.currentVideo.blob;
@@ -149,6 +155,14 @@ export class VideoProcessor {
                         step.params.audioFile,
                         {...step.params.options, replaceOriginalAudio: true }
                     )
+                    break;
+                case 'addTextOverlay':
+                    // Convert single text overlay to multiple text overlays format
+                    resultBlob = await this.ffmpegService.addMultipleTextOverlays(
+                        this.currentVideo.blob,
+                        [step.params], // Wrap single overlay in array
+                        step.params.videoSize || { width: 1280, height: 720 }
+                    );
                     break;
                 case 'addMultipleTextOverlays':
                     resultBlob = await this.ffmpegService.addMultipleTextOverlays(
@@ -209,6 +223,13 @@ export class VideoProcessor {
                         );
                         break;
 
+                    case 'addMultipleAudio':
+                        currentBlob = await this.ffmpegService.addMultipleAudioToVideo(
+                            currentBlob,
+                            step.params.audioTracks
+                        );
+                        break;
+
                     case 'adjustVolume':
                         // Temporarily skip volume adjustment as it is not implemented yet
                         break;
@@ -221,9 +242,11 @@ export class VideoProcessor {
                         );
                         break;
                     case 'addTextOverlay':
-                        currentBlob = await this.ffmpegService.addTextOverlay(
+                        // Convert single text overlay to multiple text overlays format
+                        currentBlob = await this.ffmpegService.addMultipleTextOverlays(
                             currentBlob,
-                            step.params
+                            [step.params], // Wrap single overlay in array
+                            step.params.videoSize || { width: 1280, height: 720 }
                         );
                         break;
                     case 'addMultipleTextOverlays':
