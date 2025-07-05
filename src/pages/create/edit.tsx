@@ -1272,8 +1272,7 @@ const VideoEditorContent: React.FC = () => {
       // Bước 8: Thông báo thành công và tùy chọn tải xuống
       setExportStage('Hoàn thành export video!');
       showNotification(
-        `Video đã được export và lưu thành công! Video ID: ${uploadResult.video_id}`,
-        'success'
+        "Video export successfully! "
       );
 
       // Hiển thị thông tin chi tiết về export

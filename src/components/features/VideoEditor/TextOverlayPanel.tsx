@@ -214,48 +214,6 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({
             </button>
           </div>
         </div>
-
-        {/* Text Alignment */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Text Alignment
-          </label>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handleStyleUpdate({ textAlign: 'left' })}
-              className={`p-2 rounded ${
-                selectedOverlay.style.textAlign === 'left' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              <FaAlignLeft size={14} />
-            </button>
-            
-            <button
-              onClick={() => handleStyleUpdate({ textAlign: 'center' })}
-              className={`p-2 rounded ${
-                selectedOverlay.style.textAlign === 'center' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              <FaAlignCenter size={14} />
-            </button>
-            
-            <button
-              onClick={() => handleStyleUpdate({ textAlign: 'right' })}
-              className={`p-2 rounded ${
-                selectedOverlay.style.textAlign === 'right' 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              <FaAlignRight size={14} />
-            </button>
-          </div>
-        </div>
-
         {/* Text Color */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

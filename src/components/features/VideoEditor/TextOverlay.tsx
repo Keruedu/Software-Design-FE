@@ -2,6 +2,37 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { TextOverlayData } from '@/types/text';
 import { useTextOverlayContext } from '@/context/TextOverlayContext';
 
+// Helper function to handle Google Fonts with fallback
+const getFontFamilyWithFallback = (fontFamily: string) => {
+  // Các Google Fonts phổ biến với fallback
+  const fontFallbacks: { [key: string]: string } = {
+    'Roboto': 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Open Sans': 'Open Sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Montserrat': 'Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Lato': 'Lato, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Poppins': 'Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Nunito': 'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Inter': 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Playfair Display': '"Playfair Display", Georgia, serif',
+    'Source Sans Pro': '"Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Oswald': 'Oswald, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Raleway': 'Raleway, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'PT Sans': '"PT Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Merriweather': 'Merriweather, Georgia, serif',
+    'Ubuntu': 'Ubuntu, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+    'Noto Sans': '"Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+  };
+  if (fontFallbacks[fontFamily]) {
+    return fontFallbacks[fontFamily];
+  }
+  // Nếu không có trong danh sách, thêm fallback mặc định
+  if (fontFamily.includes('serif')) {
+    return `${fontFamily}, Georgia, serif`;
+  } else {
+    return `${fontFamily}, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif`;
+  }
+};
+
 interface TextOverlayProps {
   overlay: TextOverlayData;
   currentTime: number;
@@ -197,7 +228,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     const newWidth = Math.max(50, Math.min(containerRect.width - (elementRect.left - containerRect.left), e.clientX - elementRect.left));
     const newHeight = Math.max(20, Math.min(containerRect.height - (elementRect.top - containerRect.top), e.clientY - elementRect.top));
 
-    // Convert back to original size by dividing by scale factor
+    // Convert back to original size by dividing with scale factor
     const originalWidth = newWidth / clampedScaleFactor;
     const originalHeight = newHeight / clampedScaleFactor;
 
@@ -301,7 +332,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
           className="w-full h-full bg-transparent border-none outline-none resize-none cursor-text"
           style={{
             fontSize: responsiveFontSize,
-            fontFamily: overlay.style.fontFamily,
+            fontFamily: getFontFamilyWithFallback(overlay.style.fontFamily),
             color: overlay.style.color,
             fontWeight: overlay.style.fontWeight,
             fontStyle: overlay.style.fontStyle,
@@ -321,7 +352,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
           }`}
           style={{
             fontSize: responsiveFontSize,
-            fontFamily: overlay.style.fontFamily,
+            fontFamily: getFontFamilyWithFallback(overlay.style.fontFamily),
             color: overlay.style.color,
             fontWeight: overlay.style.fontWeight,
             fontStyle: overlay.style.fontStyle,

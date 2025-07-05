@@ -93,7 +93,7 @@ export interface TextOverlayContextType extends TextOverlayActions {
 
 export const DEFAULT_TEXT_STYLE: TextOverlayData['style'] = {
   fontSize: 32,
-  fontFamily: 'Arial',
+  fontFamily: 'Roboto',
   color: '#ffffff',
   fontWeight: 'normal',
   fontStyle: 'normal',
