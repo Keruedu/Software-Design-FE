@@ -88,7 +88,39 @@ export const VideoService = {
       backgroundName: v.metadata?.background_name || ''
     }));
   }, 
-    
+  getListVideoSocial: async (platform:string,video_id:string): Promise<any> => {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${API_BASE_URL}/social/social-video?platform=${platform}&video_id=${video_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch videos');
+    const data = await response.json();
+    if (typeof data === 'object' && data !== null) {
+    const list = data[platform==="google"?"youtube":platform];
+    if (Array.isArray(list)) {
+      return list;
+    }
+  }
+  return [];
+  }, 
+   getStatVideoSocial: async (platform: string, video_id: string, page_id?: string): Promise<any> => {
+  const token = localStorage.getItem('access_token');
+  const params = new URLSearchParams({
+    platform,
+    video_id
+  });
+
+  if (page_id) {
+    params.append('page_id', page_id);
+  }
+  const response = await fetch(`${API_BASE_URL}/social/video-stats?${params.toString()}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch videos');
+  const data = await response.json();
+  return data;
+},
+
   getVideoById: async (id: string): Promise<VideoWithDetails | null> => {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/media/${id}`, {
@@ -120,6 +152,9 @@ export const VideoService = {
       },
       relatedTopics: []
     };
+
+
+    
   },
   
   
