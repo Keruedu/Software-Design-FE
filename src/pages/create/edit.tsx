@@ -643,9 +643,7 @@ const VideoEditorContent: React.FC = () => {
   // Video save handler
   const videoPlayerRef = useRef<any>(null);
   const handleSaveVideo = () => {
-    if (videoPlayerRef.current && videoPlayerRef.current.handleSaveVideo) {
-      videoPlayerRef.current.handleSaveVideo();
-    }
+    handleOpenExportModal();
   };
 
   // Trạng thái export video
@@ -662,6 +660,10 @@ const VideoEditorContent: React.FC = () => {
 
   // Login expiration modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Export video modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportVideoTitle, setExportVideoTitle] = useState('');
 
   // Notification state
   const [notification, setNotification] = useState<{
@@ -784,6 +786,38 @@ const VideoEditorContent: React.FC = () => {
 
   const showLoginExpiration = () => {
     setShowLoginModal(true);
+  };
+
+  // Export modal handlers
+  const handleOpenExportModal = () => {
+    if (!generatedVideo || !videoUrl) {
+      showNotification('Không có video để export!', 'error');
+      return;
+    }
+
+    if (isExporting) {
+      showNotification('Đang export video, vui lòng đợi...', 'warning');
+      return;
+    }
+
+    // Set default title based on current video
+    const defaultTitle = generatedVideo.title || 'Edited Video';
+    setExportVideoTitle(defaultTitle);
+    setShowExportModal(true);
+  };
+
+  const handleConfirmExport = () => {
+    if (!exportVideoTitle.trim()) {
+      showNotification('Vui lòng nhập tên video!', 'error');
+      return;
+    }
+    setShowExportModal(false);
+    handleExportVideo();
+  };
+
+  const handleCancelExport = () => {
+    setShowExportModal(false);
+    setExportVideoTitle('');
   };
 
   // Download original video function
@@ -1191,7 +1225,7 @@ const VideoEditorContent: React.FC = () => {
         exportedVideo.blob, // Sử dụng blob từ ProcessedVideo
         {
           originalVideoId: generatedVideo.id, 
-          title: `${generatedVideo.title} - Edited`,
+          title: exportVideoTitle, // Sử dụng tên video từ user input
           description: `Edited version of ${generatedVideo.title}`,
           processingSteps,
           timelineData
@@ -1224,7 +1258,7 @@ const VideoEditorContent: React.FC = () => {
       setExportProgress(100);
 
       // Show download confirmation modal
-      const filename = `${generatedVideo.title.replace(/[^a-z0-9]/gi, '_')}_edited.mp4`;
+      const filename = `${exportVideoTitle.replace(/[<>:"/\\|?*]/g, '_')}.mp4`;
       showDownloadConfirmation(filename, uploadResult.video_id);
 
       // Log thông tin export để debug
@@ -1314,7 +1348,7 @@ const VideoEditorContent: React.FC = () => {
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    onClick={handleExportVideo}
+                    onClick={handleOpenExportModal}
                     disabled={isExporting}
                     className={`flex items-center space-x-2 text-sm px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
                       isExporting 
@@ -1677,6 +1711,50 @@ const VideoEditorContent: React.FC = () => {
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                 >
                   Đăng nhập lại
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Export Video Modal */}
+        {showExportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold mb-4">Export Video</h3>
+              <p className="text-gray-600 mb-4">
+                Nhập tên cho video sau khi chỉnh sửa:
+              </p>
+              <input
+                type="text"
+                value={exportVideoTitle}
+                onChange={(e) => setExportVideoTitle(e.target.value)}
+                placeholder="Nhập tên video..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleConfirmExport();
+                  }
+                }}
+              />
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={handleCancelExport}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirmExport}
+                  disabled={!exportVideoTitle.trim()}
+                  className={`px-4 py-2 rounded-lg ${
+                    exportVideoTitle.trim()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Export
                 </button>
               </div>
             </div>

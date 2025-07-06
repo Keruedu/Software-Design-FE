@@ -49,26 +49,6 @@ const DEFAULT_TRACKS: Track[] = [
     color: '#3B82F6'
   },
   {
-    id: 'track-3',
-    name: '',
-    type: 'mixed',
-    height: 40,
-    isVisible: true,
-    isLocked: false,
-    items: [],
-    color: '#3B82F6'
-  },
-  {
-    id: 'track-4',
-    name: '',
-    type: 'mixed',
-    height: 40,
-    isVisible: true,
-    isLocked: false,
-    items: [],
-    color: '#3B82F6'
-  },
-  {
     id: 'text-track',
     name: 'Text Overlays',
     type: 'text',

@@ -243,7 +243,7 @@ class VideoExportService {
       }
       
       // Add video file
-      const videoFile = new File([finalVideoBlob], `${exportData.title.replace(/[^a-z0-9]/gi, '_')}_edited.mp4`, {
+      const videoFile = new File([finalVideoBlob], `${exportData.title.replace(/[<>:"/\\|?*]/g, '_')}.mp4`, {
         type: 'video/mp4'
       });
       formData.append('video_file', videoFile);
