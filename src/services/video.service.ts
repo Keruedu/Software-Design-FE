@@ -67,7 +67,16 @@ export const VideoService = {
     });
     if (!response.ok) throw new Error('Failed to fetch videos');
     const data = await response.json();
+    
+    // Lọc bỏ các edit-session khỏi danh sách video
+    const filteredMedia = (data.media || []).filter((v: any) => {
+      // Loại bỏ video có metadata.is_editing_session = true
+      return !v.metadata?.is_editing_session;
+    });
+    
     return (data.media || []).map((v: any) => ({
+    // return filteredMedia.map((v: any) => ({
+    
       id: v.id,
       title: v.title,
       description: v.description,
@@ -283,35 +292,6 @@ export const VideoService = {
   getVideos: async (): Promise<Video[]> => {
     return mockApiCall(mockVideos);
   },
-
-  /**
-   * Get video by ID with detailed information (mock - for backward compatibility)
-   */
-  // getVideoById: async (id: string): Promise<VideoWithDetails | null> => {
-  //   const video = mockVideos.find(v => v.id === id);
-    
-  //   if (!video) {
-  //     return mockApiCall(null);
-  //   }
-    
-  //   const script = mockScripts.find(s => s.id === video.scriptId) || mockScripts[0];
-  //   const voice = mockVoices.find(v => v.id === video.voiceId) || mockVoices[0];
-  //   const background = mockBackgrounds.find(b => b.id === video.backgroundId) || mockBackgrounds[0];
-    
-  //   const relatedTopics = trendingTopics.filter(topic => 
-  //     video.topics.includes(topic.id)
-  //   );
-    
-  //   const videoWithDetails: VideoWithDetails = {
-  //     ...video,
-  //     script,
-  //     voice,
-  //     background,
-  //     relatedTopics
-  //   };
-    
-  //   return mockApiCall(videoWithDetails);
-  // },
 
   /**
    * Create a video from provided parameters (mock - for backward compatibility)

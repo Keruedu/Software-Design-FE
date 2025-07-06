@@ -363,9 +363,9 @@ const Timeline: React.FC<TimelineProps> = ({
                     {/* Current Time Display */}
                     <div className="text-xs text-gray-600 min-w-[80px] text-center">
                         <div>{formatTime(currentTime)} / {formatTime(duration)}</div>
-                        <div className="text-xs text-gray-500 mt-1">
+                        {/* <div className="text-xs text-gray-500 mt-1">
                             Trim: {formatTime(isDraggingTrimStart ? virtualTrimStart : trimStart)} - {formatTime(isDraggingTrimEnd ? virtualTrimEnd : trimEnd)}
-                        </div>
+                        </div> */}
                     </div>
 
                     {/* Volume Controls */}
@@ -461,21 +461,7 @@ const Timeline: React.FC<TimelineProps> = ({
                         </button>
                     </div>
                     
-                    {/* Save Video Button */}
-                    <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={onSaveVideo}
-                        disabled={isProcessing}
-                        className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm text-sm"
-                    >
-                        {isProcessing ? (
-                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <FaRegSave className="w-3 h-3" />
-                        )}
-                        <span>{isProcessing ? 'Processing...' : 'Export'}</span>
-                    </motion.button>
+                    
                 </div>
             </div>
 

@@ -11,7 +11,7 @@ import MediaLibrary from '@/components/features/VideoEditor/MediaLibrary'
 import ExportProgressModal from '@/components/features/VideoEditor/ExportProgressModal'
 import TextOverlayPanel from '@/components/features/VideoEditor/TextOverlayPanel'
 import { AudioTrackData } from '@/types/audio'
-import { FaRobot, FaVideo, FaMusic, FaCog, FaDownload, FaCut, FaUndo, FaSave } from 'react-icons/fa'
+import { FaRobot, FaVideo, FaMusic, FaCog, FaDownload, FaCut, FaUndo } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
 import { videoProcessor } from '@/services/videoProcessor.service'
 import { videoExportService } from '@/services/videoExport.service'
@@ -651,10 +651,6 @@ const VideoEditorContent: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStage, setExportStage] = useState('');
-  
-  // Trạng thái save timeline
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Download confirmation modal state
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -789,11 +785,6 @@ const VideoEditorContent: React.FC = () => {
     setShowLoginModal(true);
   };
 
-  // Export preview function
-  const showExportPreview = () => {
-    showNotification('Preview Export feature coming soon!', 'info');
-  };
-
   // Download original video function
   const handleDownloadOriginalVideo = () => {
     if (videoUrl) {
@@ -837,76 +828,22 @@ const VideoEditorContent: React.FC = () => {
     setExportProgress(0);
 
     try {
-      // Auto-save current timeline state before export
-      setExportStage('Đang lưu timeline trước khi export...');
-      showNotification('Đang lưu timeline hiện tại...', 'info');
-      try {
-        await handleSaveTimeline(true); // Silent save
-        console.log('Debug Export - Timeline auto-saved before export');
-      } catch (saveError) {
-        console.warn('Failed to auto-save timeline before export:', saveError);
-        // Continue with export even if save fails
-      }
-      setExportProgress(3);
-
-      // Load saved timeline data first
-      setExportStage('Đang tải trạng thái timeline đã lưu...');
-      showNotification('Đang tải trạng thái timeline đã lưu...', 'info');
-      const savedTimelineData = await loadSavedTimeline();
+      // Bước 1: Bắt đầu export với dữ liệu hiện tại
+      setExportStage('Bắt đầu export video...');
+      showNotification('Bắt đầu export video với dữ liệu hiện tại...', 'info');
       setExportProgress(5);
 
-      // Use saved data if available, otherwise use current state
+      // Use current state values directly (no save/load needed)
       let effectiveTrimStart = trimStart;
       let effectiveTrimEnd = trimEnd;
       let effectiveVideoVolume = videoVolume;
-      let currentTimeline = timelineState;
 
-      console.log('Debug Export - Current state before loading saved data:', {
-        currentTrimStart: trimStart,
-        currentTrimEnd: trimEnd,
-        currentVideoVolume: videoVolume,
-        savedTimelineData: savedTimelineData ? 'Found' : 'Not found'
+      console.log('Debug Export - Using current state for export:', {
+        trimStart: effectiveTrimStart,
+        trimEnd: effectiveTrimEnd,
+        videoVolume: effectiveVideoVolume,
+        trimmedDuration: effectiveTrimEnd - effectiveTrimStart
       });
-
-      if (savedTimelineData) {
-        // Sử dụng saved values, nhưng fallback về current state nếu saved values không có
-        effectiveTrimStart = savedTimelineData.trimStart !== undefined ? savedTimelineData.trimStart : trimStart;
-        effectiveTrimEnd = savedTimelineData.trimEnd !== undefined ? savedTimelineData.trimEnd : trimEnd;
-        effectiveVideoVolume = savedTimelineData.videoVolume !== undefined ? savedTimelineData.videoVolume : videoVolume;
-        
-        console.log('Debug Export - Using saved timeline data:', {
-          savedTrimStart: savedTimelineData.trimStart,
-          savedTrimEnd: savedTimelineData.trimEnd,
-          savedVideoVolume: savedTimelineData.videoVolume,
-          effectiveTrimStart,
-          effectiveTrimEnd,
-          effectiveVideoVolume,
-          fallbackUsed: {
-            trimStart: savedTimelineData.trimStart === undefined,
-            trimEnd: savedTimelineData.trimEnd === undefined,
-            videoVolume: savedTimelineData.videoVolume === undefined
-          }
-        });
-        
-        showNotification(
-          `Sử dụng timeline đã lưu: ${formatTime(effectiveTrimStart)} - ${formatTime(effectiveTrimEnd)}`,
-          'success'
-        );
-        console.log('Using saved timeline data:', {
-          trimStart: effectiveTrimStart,
-          trimEnd: effectiveTrimEnd,
-          trimmedDuration: effectiveTrimEnd - effectiveTrimStart,
-          videoVolume: effectiveVideoVolume,
-          lastSaved: savedTimelineData.lastSaved
-        });
-      } else {
-        console.log('Debug Export - No saved timeline, using current state:', {
-          currentTrimStart: trimStart,
-          currentTrimEnd: trimEnd,
-          currentVideoVolume: videoVolume
-        });
-        showNotification('Không tìm thấy timeline đã lưu, sử dụng trạng thái hiện tại', 'warning');
-      }
 
       // Bước 1: Thu thập tất cả timeline items và processing steps
       setExportStage('Đang chuẩn bị export video...');
@@ -917,11 +854,11 @@ const VideoEditorContent: React.FC = () => {
       const audioItems: TimelineItem[] = [];
       let mainVideoItem: TimelineItem | null = null;
 
-      // Use saved timeline tracks if available, otherwise use current state
-      const effectiveTimeline = savedTimelineData?.tracks || timelineState.tracks;
+      // Use current timeline state
+      const effectiveTimeline = timelineState.tracks;
       
       console.log('Debug Export - Using timeline tracks:', {
-        source: savedTimelineData ? 'saved' : 'current',
+        source: 'current',
         tracksCount: effectiveTimeline.length,
         totalItems: effectiveTimeline.reduce((sum: number, track: any) => sum + track.items.length, 0)
       });
@@ -1094,22 +1031,15 @@ const VideoEditorContent: React.FC = () => {
         setExportProgress(70);
       }
 
-      // Bước 5: Xử lý Text Overlays
-      // Get text overlays from saved data or current state
+      // Bước 5: Xử lý Text Overlays từ state hiện tại
       let effectiveTextOverlays = textOverlayState.textOverlays.filter(overlay => overlay.isVisible);
-      if (savedTimelineData?.textOverlays && Array.isArray(savedTimelineData.textOverlays)) {
-        effectiveTextOverlays = savedTimelineData.textOverlays.filter((overlay: any) => overlay.isVisible);
-        console.log('Debug Export - Using saved text overlays:', effectiveTextOverlays.length);
-      } else {
-        console.log('Debug Export - Using current text overlays:', effectiveTextOverlays.length);
-      }
+      console.log('Debug Export - Using current text overlays:', effectiveTextOverlays.length);
 
       console.log('Text overlays analysis:', {
         currentStateOverlays: textOverlayState.textOverlays.length,
         currentVisibleOverlays: textOverlayState.textOverlays.filter(overlay => overlay.isVisible).length,
-        savedOverlays: savedTimelineData?.textOverlays?.length || 0,
         effectiveOverlays: effectiveTextOverlays.length,
-        source: savedTimelineData?.textOverlays ? 'saved' : 'current',
+        source: 'current',
         allCurrentOverlays: textOverlayState.textOverlays.map(overlay => ({
           id: overlay.id,
           text: overlay.text,
@@ -1340,158 +1270,17 @@ const VideoEditorContent: React.FC = () => {
     }
   };
 
-  /**
-   * SAVE TIMELINE STATE
-   * Save current timeline configuration including trim settings
-   */
-  const handleSaveTimeline = async (silent: boolean = false) => {
-    if (!generatedVideo?.id) {
-      if (!silent) showNotification('Không thể lưu - không có thông tin video!', 'error');
-      return;
-    }
-
-    if (!silent) setIsSaving(true);
-    
-    try {
-      // Log current trim state for debugging from CONTEXT
-      console.log('Current trim state before save (FROM CONTEXT):', {
-        trimStart,
-        trimEnd,
-        videoDuration,
-        trimmedDuration: trimEnd - trimStart,
-        isMainVideoTrimmed: trimStart > 0 || trimEnd < videoDuration
-      });
-
-      // Collect current timeline state
-      const currentTimelineData = {
-        tracks: timelineState.tracks,
-        duration: videoDuration,
-        trimStart,
-        trimEnd,
-        trimmedDuration: trimEnd - trimStart,
-        videoVolume,
-        audioTracks: timelineState.tracks
-          .flatMap(track => track.items)
-          .filter(item => item.type === 'audio')
-          .map(item => ({
-            id: item.id,
-            url: item.url,
-            volume: item.volume,
-            startTime: item.startTime,
-            duration: item.duration
-          })),
-        textOverlays: textOverlayState.textOverlays.map(overlay => ({
-          id: overlay.id,
-          text: overlay.text,
-          position: overlay.position,
-          style: overlay.style,
-          timing: overlay.timing,
-          size: overlay.size,
-          opacity: overlay.opacity,
-          shadow: overlay.shadow,
-          outline: overlay.outline,
-          background: overlay.background,
-          isVisible: overlay.isVisible
-        })),
-        lastSaved: new Date().toISOString(),
-        isMainVideoTrimmed: trimStart > 0 || trimEnd < videoDuration
-      };
-
-      // Save to server
-      await videoExportService.saveEditSession({
-        videoId: generatedVideo.id,
-        timelineData: currentTimelineData
-      });
-
-      setLastSaved(new Date());
-      showNotification(
-        `Timeline đã được lưu! Trim: ${formatTime(trimStart)} - ${formatTime(trimEnd)} (${formatTime(trimEnd - trimStart)}), Text: ${currentTimelineData.textOverlays.length} overlay(s)`,
-        'success'
-      );
-
-      console.log('Timeline saved:', {
-        originalDuration: videoDuration,
-        trimmedDuration: trimEnd - trimStart,
-        trimStart,
-        trimEnd,
-        audioTracksCount: currentTimelineData.audioTracks.length,
-        textOverlaysCount: currentTimelineData.textOverlays.length
-      });
-
-    } catch (error) {
-      console.error('Error saving timeline:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
-      if (!silent) showNotification(`Lỗi khi lưu timeline: ${errorMessage}`, 'error');
-    } finally {
-      if (!silent) setIsSaving(false);
-    }
-  };
-
-  // Load saved timeline function
-  const loadSavedTimeline = async () => {
-    if (!generatedVideo?.id) return null;
-
-    try {
-      const savedSession = await videoExportService.getEditSession(generatedVideo.id);
-      console.log('Debug - Raw saved session response:', savedSession);
-      
-      if (savedSession?.session_data?.timeline_data) {
-        const timelineData = savedSession.session_data.timeline_data;
-        console.log('Debug - Extracted timeline data:', timelineData);
-        console.log('Debug - Timeline data trim values:', {
-          trimStart: timelineData.trimStart,
-          trimEnd: timelineData.trimEnd,
-          videoVolume: timelineData.videoVolume,
-          hasTracksData: !!timelineData.tracks
-        });
-        return timelineData;
-      } else {
-        console.log('Debug - No timeline_data found in session_data');
-      }
-    } catch (error) {
-      console.warn('No saved timeline found, using current state:', error);
-    }
-    return null;
-  };
-
-  // Load saved timeline on component mount
+  // Component mount effect (simplified - no save/load functionality)
   useEffect(() => {
-    const loadSavedState = async () => {
-      if (generatedVideo?.id && videoDuration > 0) {
-        try {
-          const savedData = await loadSavedTimeline();
-          if (savedData) {
-            // Restore saved trim settings
-            if (savedData.trimStart !== undefined) {
-              setTrimStart(savedData.trimStart);
-            }
-            if (savedData.trimEnd !== undefined) {
-              setTrimEnd(savedData.trimEnd);
-            }
-            if (savedData.videoVolume !== undefined) {
-              setVideoVolume(savedData.videoVolume);
-            }
-            
-            // Restore text overlays if available
-            if (savedData.textOverlays && Array.isArray(savedData.textOverlays)) {
-              restoreTextOverlays(savedData.textOverlays);
-              console.log('Debug - Restored text overlays:', savedData.textOverlays.length);
-            }
-            
-            showNotification(
-              `Đã khôi phục timeline đã lưu: ${formatTime(savedData.trimStart || 0)} - ${formatTime(savedData.trimEnd || videoDuration)} + ${savedData.textOverlays?.length || 0} text(s)`,
-              'success'
-            );
-            console.log('Restored saved timeline:', savedData);
-          }
-        } catch (error) {
-          console.log('No saved timeline to restore');
-        }
-      }
-    };
-
-    loadSavedState();
-  }, [generatedVideo?.id, videoDuration, setTrimStart, setTrimEnd, setVideoVolume, restoreTextOverlays]);
+    // Initialize with default values when video loads
+    if (generatedVideo?.id && videoDuration > 0) {
+      console.log('Video loaded, using default trim values:', {
+        trimStart: 0,
+        trimEnd: videoDuration,
+        videoVolume: 1
+      });
+    }
+  }, [generatedVideo?.id, videoDuration]);
 
   return (
     <AudioTracksContextProvider value={{audioTracks:uploadedAudios,setAudioTracks:setUploadedAudios}}>
@@ -1517,47 +1306,6 @@ const VideoEditorContent: React.FC = () => {
               
               {/* Action buttons */}
               <div className="flex items-center space-x-3">
-                {/* Save Timeline Button */}
-                {videoUrl && !isExporting && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onClick={() => handleSaveTimeline()}
-                    disabled={isSaving}
-                    className={`flex items-center space-x-2 text-sm px-3 py-2 rounded-lg transition-all duration-200 ${
-                      isSaving 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 hover:border-green-300'
-                    }`}
-                    title={lastSaved ? `Lần lưu cuối: ${lastSaved.toLocaleTimeString()}` : 'Lưu trạng thái timeline hiện tại'}
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
-                        <span>Đang lưu...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FaSave className="w-3 h-3" />
-                        <span>Save Timeline</span>
-                      </>
-                    )}
-                  </motion.button>
-                )}
-
-                {/* Export Preview Button */}
-                {videoUrl && !isExporting && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onClick={showExportPreview}
-                    className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors"
-                  >
-                    <FaCog className="w-3 h-3" />
-                    <span>Preview Export</span>
-                  </motion.button>
-                )}
-
                 {/* Export Video Button */}
                 {videoUrl && (
                   <motion.button
@@ -1582,19 +1330,6 @@ const VideoEditorContent: React.FC = () => {
                         <span>Export Video</span>
                       </>
                     )}
-                  </motion.button>
-                )}
-
-                {/* Download Original Button (for testing) */}
-                {videoProcessor.getCurrentVideo() && !isExporting && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onClick={handleDownloadOriginalVideo}
-                    className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-colors"
-                  >
-                    <FaDownload className="w-3 h-3" />
-                    <span>Tải Gốc</span>
                   </motion.button>
                 )}
               </div>
