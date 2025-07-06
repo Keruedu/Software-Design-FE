@@ -1,5 +1,6 @@
 import { Video, VideoWithDetails } from '../mockdata/videos';
 import { mockApiCall, mockBackgrounds, mockScripts, mockVideos, mockVoices, trendingTopics } from '../mockdata';
+import { SubtitleStyle } from '../types/subtitle';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -114,7 +115,7 @@ export interface CompleteVideoCreationParams {
   background_image_ids?: string[]; // New multi-background support
   subtitle_enabled?: boolean;
   subtitle_language?: string;
-  subtitle_style?: string;
+  subtitle_style?: string | SubtitleStyle; // Accept both string name and full style object
   voice_settings?: {
     speed?: number;
     pitch?: number;

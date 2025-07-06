@@ -8,6 +8,7 @@ import { Progress } from '../../components/common/Progress/Progress';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { VideoService } from '../../services/video.service';
 import { Modal } from '../../components/common/Modal/Modal';
+import { SUBTITLE_STYLES } from '../../types/subtitle';
 import {FaFacebook, FaYoutube,FaInstagram,FaTiktok } from 'react-icons/fa';
 import{HiDownload,HiPencil,HiLink} from 'react-icons/hi';
 export default function EditPage() {
@@ -91,10 +92,8 @@ export default function EditPage() {
           ? state.selectedBackgrounds.map(bg => bg.id)
           : undefined, // Send multiple backgrounds if available
         subtitle_enabled: subtitleEnabled,
-        subtitle_language: state.subtitleOptions?.language || 'en',
-        subtitle_style: typeof state.subtitleOptions?.style === 'string' 
-          ? state.subtitleOptions.style 
-          : 'default'
+        subtitle_language: state.subtitleOptions?.language || 'auto',
+        subtitle_style: state.subtitleOptions?.style || SUBTITLE_STYLES.default // Send full style object
       };
       
       console.log('🎬 Video creation params:', params);
@@ -107,11 +106,14 @@ export default function EditPage() {
       console.log('🎵 Audio source detection:');
       if (state.selectedUploadedAudio) {
         console.log('  📁 Using uploaded audio:', state.selectedUploadedAudio.audioUrl);
+        console.log('  📁 Uploaded audio ID:', state.selectedUploadedAudio.id);
       } else if (state.generatedAudio?.audioUrl) {
         console.log('  🎤 Using generated audio:', state.generatedAudio.audioUrl);
         console.log('  🔊 Voice ID:', state.generatedAudio.voiceId);
+        console.log('  ⚙️ Voice settings:', state.generatedAudio.settings);
       } else {
-        console.log('  � Will generate new audio with voice ID:', state.selectedVoice?.id);
+        console.log('  ⚠️ Will generate new audio with voice ID:', state.selectedVoice?.id);
+        console.log('  ⚙️ Voice settings:', state.voiceSettings);
       }
       
       const result = await VideoService.createCompleteVideo(params);
@@ -226,10 +228,8 @@ export default function EditPage() {
           ? state.selectedBackgrounds.map(bg => bg.id)
           : undefined, // Send multiple backgrounds if available
         subtitle_enabled: subtitleEnabled,
-        subtitle_language: state.subtitleOptions?.language || 'en',
-        subtitle_style: typeof state.subtitleOptions?.style === 'string' 
-          ? state.subtitleOptions.style 
-          : 'default'
+        subtitle_language: state.subtitleOptions?.language || 'auto',
+        subtitle_style: state.subtitleOptions?.style || SUBTITLE_STYLES.default // Send full style object
       };
       
       const result = await VideoService.createCompleteVideo(params);

@@ -55,12 +55,24 @@ export default function BackgroundPage() {
   // 🎵 Generate audio once when entering background step (if using AI voice and no audio yet)
   useEffect(() => {
     const generateAudioOnce = async () => {
+      // Reset flag if audio was cleared (to allow regeneration)
+      if (!state.generatedAudio) {
+        hasGeneratedAudio.current = false;
+      }
+      
       // Skip if already generated, using uploaded audio, or missing requirements
       if (hasGeneratedAudio.current || 
           state.selectedUploadedAudio || 
           state.generatedAudio?.audioUrl ||
           !state.selectedVoice || 
           !state.script?.content) {
+        
+        // If we have generated audio from localStorage, set it as preview
+        if (state.generatedAudio?.audioUrl && !audioPreview) {
+          setAudioPreview(state.generatedAudio);
+          console.log('🔄 Restored generated audio from localStorage:', state.generatedAudio.audioUrl);
+        }
+        
         return;
       }
 
