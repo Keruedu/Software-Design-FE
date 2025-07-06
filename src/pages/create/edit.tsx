@@ -78,6 +78,7 @@ const VideoEditorContent: React.FC = () => {
     console.log('Debug - Volume change requested:', newVolume);
     setVideoVolume(newVolume);
   };
+
   // Audio
   const [uploadedAudios, setUploadedAudios] = useState<AudioTrackData[]>([]);
   // Global media items state
@@ -829,8 +830,8 @@ const VideoEditorContent: React.FC = () => {
 
     try {
       // Bước 1: Bắt đầu export với dữ liệu hiện tại
-      setExportStage('Bắt đầu export video...');
-      showNotification('Bắt đầu export video với dữ liệu hiện tại...', 'info');
+      setExportStage('Bắt đầu export video (1080p)...');
+      showNotification('Bắt đầu export video với chất lượng 1080p...', 'info');
       setExportProgress(5);
 
       // Use current state values directly (no save/load needed)
@@ -1200,9 +1201,9 @@ const VideoEditorContent: React.FC = () => {
       setExportProgress(98);
 
       // Bước 8: Thông báo thành công và tùy chọn tải xuống
-      setExportStage('Hoàn thành export video!');
+      setExportStage('Hoàn thành export video (1080p)!');
       showNotification(
-        "Video export successfully! "
+        'Video export thành công với chất lượng 1080p!'
       );
 
       // Hiển thị thông tin chi tiết về export
@@ -1210,6 +1211,7 @@ const VideoEditorContent: React.FC = () => {
         originalVideoId: generatedVideo.id,
         newVideoId: uploadResult.video_id,
         videoUrl: uploadResult.video_url,
+        exportQuality: '1080p', // Fixed quality
         processingSteps: processingSteps.length,
         audioTracksAdded: audioItems.length,
         textOverlaysAdded: effectiveTextOverlays.length,
@@ -1231,6 +1233,7 @@ const VideoEditorContent: React.FC = () => {
         trimmedDuration: trimEnd - trimStart,
         audioTracksAdded: audioItems.length,
         textOverlaysAdded: effectiveTextOverlays.length,
+        exportQuality: '1080p',
         finalVolume: videoVolume,
         totalProcessingSteps: videoProcessor.getProcessingHistory().length
       });
@@ -1565,7 +1568,6 @@ const VideoEditorContent: React.FC = () => {
                 onToggleMute={handleToggleGlobalMute}
               />
             </div>
-          </div>
         </div>
 
         {/* Export Progress Modal */}
@@ -1707,6 +1709,7 @@ const VideoEditorContent: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
     </AudioTracksContextProvider>
   )
 }

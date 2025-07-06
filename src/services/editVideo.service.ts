@@ -536,8 +536,8 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
      */
     async compressVideo(
         videoFile: File | string | Blob,
-        bitrate: string = '500k',
-        scale: string = '854x480'
+        bitrate: string = '800k', // Increase bitrate
+        scale: string = '1280x720' // Increase resolution
     ): Promise<Blob> {
         if (!this.ffmpeg || !this.isLoaded) {
             throw new Error("FFmpeg is not initialized. Call initialize() first.");
@@ -562,19 +562,25 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             // Write input video to ffmpeg filesystem
             await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
 
-            console.log(`🗜️ Nén video với bitrate: ${bitrate}, scale: ${scale}`);
+            console.log(`Nén video với bitrate: ${bitrate}, scale: ${scale}`);
 
-            // Build FFmpeg command for compression
+            // Build FFmpeg command for high-quality compression
             const ffmpegCommand = [
                 '-i', inputVideoName,
                 '-vf', `scale=${scale}`,
-                '-b:v', bitrate,
                 '-c:v', 'libx264',
-                '-preset', 'fast',
+                '-b:v', bitrate,
+                '-maxrate', bitrate,
+                '-bufsize', '2M', // Buffer size for better quality
+                '-preset', 'medium', // Better quality preset
+                '-profile:v', 'high', // High profile for better compression
+                '-level:v', '4.0',
                 '-c:a', 'aac',
-                '-b:a', '64k', // Giảm bitrate audio để tiết kiệm dung lượng
+                '-b:a', '128k', // Tăng audio bitrate để giữ chất lượng
+                '-ar', '44100', // Standard audio sample rate
                 '-movflags', '+faststart',
                 '-avoid_negative_ts', 'make_zero',
+                '-pix_fmt', 'yuv420p', // Ensure compatibility
                 outputVideoName
             ];
 

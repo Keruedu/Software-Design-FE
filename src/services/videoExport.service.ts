@@ -79,26 +79,73 @@ class VideoExportService {
     if (!timelineData) return timelineData;
     
     try {
-      const optimized = { ...timelineData };
+      const optimized: any = {
+        duration: timelineData.duration || 0,
+        currentTime: timelineData.currentTime || 0,
+        trimStart: timelineData.trimStart || 0,
+        trimEnd: timelineData.trimEnd || 0,
+        videoVolume: timelineData.videoVolume || 1
+      };
       
-      // Remove preview/thumbnail data if exists
-      if (optimized.elements) {
-        optimized.elements = optimized.elements.map((element: any) => {
-          const optimizedElement = { ...element };
-          
-          // Remove preview thumbnails, large binary data
-          delete optimizedElement.preview;
-          delete optimizedElement.thumbnail;
-          delete optimizedElement.waveform;
-          delete optimizedElement.tempBlob;
+      if (timelineData.tracks && Array.isArray(timelineData.tracks)) {
+        optimized.tracks = timelineData.tracks.map((track: any) => ({
+          id: track.id,
+          type: track.type,
+          volume: track.volume || 1,
+          isMuted: track.isMuted || false,
+          items: track.items?.map((item: any) => ({
+            id: item.id,
+            type: item.type,
+            startTime: item.startTime || 0,
+            duration: item.duration || 0,
+            volume: item.volume || 1,
+            isMainVideoUnit: item.isMainVideoUnit || false,
+            // Dramatically reduce URL size - keep only filename or identifier
+            url: item.url ? (item.url.length > 50 ? item.url.split('/').pop() || item.url.substring(0, 50) : item.url) : undefined,
+            // Only include text data for text items
+            ...(item.type === 'text' && {
+              text: item.text,
+              style: item.style ? {
+                fontSize: item.style.fontSize,
+                color: item.style.color,
+                fontFamily: item.style.fontFamily
+              } : undefined,
+              position: item.position
+            })
+          })) || []
+        }));
+      }
+      
+      // Minimal text overlays
+      if (timelineData.textOverlays && Array.isArray(timelineData.textOverlays)) {
+        optimized.textOverlays = timelineData.textOverlays.map((overlay: any) => ({
+          id: overlay.id,
+          text: overlay.text,
+          timing: overlay.timing,
+          position: overlay.position,
+          style: overlay.style ? {
+            fontSize: overlay.style.fontSize,
+            color: overlay.style.color,
+            fontFamily: overlay.style.fontFamily
+          } : undefined,
+          isVisible: overlay.isVisible
+        }));
+      }
+      
+      // Remove any elements or other large data
+      if (timelineData.elements) {
+        optimized.elements = timelineData.elements.map((element: any) => {
+          const optimizedElement = {
+            id: element.id,
+            type: element.type,
+            startTime: element.startTime,
+            duration: element.duration,
+            volume: element.volume
+          };
           
           return optimizedElement;
         });
       }
-      
-      // Remove any large binary data fields
-      delete optimized.canvasData;
-      delete optimized.previewData;
       
       return optimized;
     } catch (error) {
@@ -147,41 +194,52 @@ class VideoExportService {
 
       const formData = new FormData();
       
+      // Fixed 1080p quality settings - always use high quality
+      const qualitySettings = {
+        bitrate: '1500k',
+        resolution: '1920x1080',
+        maxSize: 15 * 1024 * 1024, // 15MB for 1080p quality
+        fallbackBitrate: '1200k',
+        fallbackResolution: '1920x1080' // Keep 1080p even in fallback
+      };
+      
       // Check if video file is too large and compress if needed
       let finalVideoBlob = videoBlob;
-      const maxVideoSize = 500 * 1024; // 500KB for video file
       
-      if (videoBlob.size > maxVideoSize) {
+      // Smart compression - only compress if video is large
+      if (videoBlob.size > qualitySettings.maxSize) {
         console.log(`Video file is too large (${Math.round(videoBlob.size / 1024)}KB). Compressing...`);
         
         try {
           // Initialize FFmpeg if not already done
           await ffmpegService.initialize();
           
-          // Compress video with reduced quality
+          // Apply 1080p compression
           finalVideoBlob = await ffmpegService.compressVideo(
             videoBlob,
-            '300k', // Lower bitrate
-            '640x360' // Lower resolution
+            qualitySettings.bitrate,
+            qualitySettings.resolution
           );
           
-          console.log(`Video compressed: ${Math.round(videoBlob.size / 1024)}KB → ${Math.round(finalVideoBlob.size / 1024)}KB`);
+          console.log(`Video compressed (1080p): ${Math.round(videoBlob.size / 1024)}KB → ${Math.round(finalVideoBlob.size / 1024)}KB`);
           
-          // If still too large, try more aggressive compression
-          if (finalVideoBlob.size > maxVideoSize) {
-            console.log('Still too large, applying more aggressive compression...');
+          // Apply fallback compression if still too large
+          if (finalVideoBlob.size > qualitySettings.maxSize) {
+            console.log('Still too large, applying fallback compression...');
             finalVideoBlob = await ffmpegService.compressVideo(
               videoBlob,
-              '200k', // Very low bitrate
-              '480x270' // Even lower resolution
+              qualitySettings.fallbackBitrate,
+              qualitySettings.fallbackResolution
             );
-            console.log(`Second compression: ${Math.round(finalVideoBlob.size / 1024)}KB`);
+            console.log(`Fallback compression: ${Math.round(finalVideoBlob.size / 1024)}KB`);
           }
           
         } catch (compressionError) {
           console.warn('Video compression failed, using original video:', compressionError);
           // Continue with original video if compression fails
         }
+      } else {
+        console.log(`Video size (${Math.round(videoBlob.size / 1024)}KB) is acceptable for 1080p quality. No compression needed.`);
       }
       
       // Add video file
@@ -198,6 +256,8 @@ class VideoExportService {
       if (exportData.originalVideoId) {
         formData.append('original_video_id', exportData.originalVideoId);
       }
+      // Always use high quality (1080p)
+      formData.append('quality', 'high');
       
       // Optimize data before sending
       const optimizedProcessingSteps = this.optimizeProcessingSteps(exportData.processingSteps);
@@ -213,38 +273,55 @@ class VideoExportService {
       console.log('- Timeline data:', Math.round(timelineDataJson.length / 1024), 'KB');
       console.log('- Total estimated:', Math.round((videoFile.size + processingStepsJson.length + timelineDataJson.length) / 1024), 'KB');
       
-      // Check if data is too large (approaching 1024KB limit)
+      // Check if data is too large (approaching upload limit)
       const totalSize = videoFile.size + processingStepsJson.length + timelineDataJson.length;
-      const maxTotalSize = 900 * 1024; // 900KB limit to be safe
+      const maxTotalSize = qualitySettings.maxSize + (2 * 1024 * 1024); // Add 2MB buffer for metadata
       
       if (totalSize > maxTotalSize) {
-        console.warn(`Upload data is too large (${Math.round(totalSize / 1024)}KB). Attempting further optimization...`);
+        console.warn(`Upload data is too large (${Math.round(totalSize / 1024)}KB) for 1080p quality. Attempting aggressive optimization...`);
         
         // Further optimize timeline data if needed
         const minimalTimelineData = {
           duration: optimizedTimelineData.duration || 0,
-          elements: optimizedTimelineData.elements?.map((el: any) => ({
-            id: el.id,
-            type: el.type,
-            startTime: el.startTime,
-            duration: el.duration,
-            src: el.src ? (el.src.length > 100 ? el.src.substring(0, 100) + '...' : el.src) : undefined,
-            volume: el.volume,
-            // Keep only essential properties
-          })) || [],
           currentTime: optimizedTimelineData.currentTime || 0,
+          trimStart: optimizedTimelineData.trimStart || 0,
+          trimEnd: optimizedTimelineData.trimEnd || 0,
+          videoVolume: optimizedTimelineData.videoVolume || 1,
+          // Only essential track info
+          tracks: optimizedTimelineData.tracks?.map((track: any) => ({
+            id: track.id,
+            type: track.type,
+            volume: track.volume || 1,
+            isMuted: track.isMuted || false,
+            items: track.items?.map((item: any) => ({
+              id: item.id,
+              type: item.type,
+              startTime: item.startTime || 0,
+              duration: item.duration || 0,
+              volume: item.volume || 1,
+              isMainVideoUnit: item.isMainVideoUnit || false
+            })) || []
+          })) || [],
+          // Minimal text overlays
+          textOverlays: optimizedTimelineData.textOverlays?.map((overlay: any) => ({
+            id: overlay.id,
+            text: overlay.text?.substring(0, 100) || '', // Limit text length
+            timing: overlay.timing,
+            isVisible: overlay.isVisible
+            // Remove style and position to save space
+          })) || []
         };
         
         // Minimal processing steps
         const minimalProcessingSteps = optimizedProcessingSteps.map((step: any) => ({
           type: step.type,
+          timestamp: step.timestamp,
+          // Keep only essential options
           options: step.options ? {
             startTime: step.options.startTime,
             duration: step.options.duration,
-            volume: step.options.volume,
-            src: step.options.src ? (step.options.src.length > 100 ? step.options.src.substring(0, 100) + '...' : step.options.src) : undefined,
-            // Keep only essential options
-          } : {},
+            volume: step.options.volume
+          } : {}
         }));
         
         const minimalTimelineJson = JSON.stringify(minimalTimelineData);
@@ -266,8 +343,8 @@ class VideoExportService {
       const finalSize = this.estimateFormDataSize(formData);
       console.log(`Final upload size: ${Math.round(finalSize / 1024)}KB`);
       
-      if (finalSize > 1000 * 1024) { // 1000KB warning
-        console.warn('Final upload size is very close to 1024KB limit. Upload may fail.');
+      if (finalSize > 20 * 1024 * 1024) { // 20MB warning threshold
+        console.warn('Final upload size is very large. Upload may take longer.');
       }
 
       const response = await fetch(`${API_BASE_URL}/api/video/upload-edited`, {
@@ -285,11 +362,11 @@ class VideoExportService {
         
         // Handle specific size limit errors
         if (errorData.detail && errorData.detail.includes('exceeded maximum size')) {
-          throw new Error('Video file quá lớn để upload. Hệ thống đã cố gắng nén video nhưng vẫn vượt quá giới hạn 1024KB. Vui lòng thử:\n1. Giảm độ dài video\n2. Xóa bớt audio tracks\n3. Giảm chất lượng video');
+          throw new Error('Video file quá lớn để upload. Vui lòng thử:\n1. Giảm độ dài video\n2. Xóa bớt audio tracks\n3. Giảm số lượng text overlays');
         }
         
         if (errorData.detail && errorData.detail.includes('multipart')) {
-          throw new Error('Dữ liệu upload quá lớn. Hệ thống đã cố gắng tối ưu hóa nhưng vẫn vượt quá giới hạn cho phép.');
+          throw new Error('Dữ liệu upload quá lớn. Hệ thống đang cố gắng tối ưu hóa để giữ chất lượng video tốt nhất.');
         }
         
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
