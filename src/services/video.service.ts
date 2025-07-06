@@ -62,21 +62,12 @@ export interface VideoEditParams {
 export const VideoService = {  
    getUserVideos: async (): Promise<Video[]> => {
     const token = localStorage.getItem('access_token');
-    const response = await fetch(`${API_BASE_URL}/media/?page=1&size=20&media_type=video`, {
+    const response = await fetch(`${API_BASE_URL}/media/?page=1&size=100&media_type=video`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch videos');
     const data = await response.json();
-    
-    // Lọc bỏ các edit-session khỏi danh sách video
-    const filteredMedia = (data.media || []).filter((v: any) => {
-      // Loại bỏ video có metadata.is_editing_session = true
-      return !v.metadata?.is_editing_session;
-    });
-    
     return (data.media || []).map((v: any) => ({
-    // return filteredMedia.map((v: any) => ({
-    
       id: v.id,
       title: v.title,
       description: v.description,
@@ -360,6 +351,51 @@ export const VideoService = {
     return {
       url: video.videoUrl,
       downloadUrl: '/download/exported-video.mp4'
+    };
+  },
+
+  /**
+   * Get paginated videos for the current user
+   */
+  getUserVideosPaginated: async (page: number = 1, size: number = 20): Promise<{videos: Video[], total: number, page: number, size: number}> => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/media/?page=${page}&size=${size}&media_type=video`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch videos');
+    const data = await response.json();
+    
+    // Process videos
+    const processedVideos = (data.media || []).map((v: any) => ({
+      id: v.id,
+      title: v.title || 'Untitled Video',
+      description: v.content || v.description || '',
+      scriptId: v.metadata?.script_id || '',
+      voiceId: v.metadata?.voice_id || '',
+      backgroundId: v.metadata?.background_image_id || '',
+      duration: v.metadata?.duration || v.duration || 0,
+      thumbnailUrl: v.thumbnail_url,
+      videoUrl: v.url,
+      status: v.status || 'completed',
+      createdAt: v.created_at,
+      updatedAt: v.updated_at,
+      topics: v.metadata?.topics || [],
+      tags: v.tags || [],
+      views: v.views || 0,
+      url: v.url,
+      voiceName: v.metadata?.voice_name || '',
+      backgroundName: v.metadata?.background_name || ''
+    }));
+    
+    return {
+      videos: processedVideos,
+      total: data.total || processedVideos.length,
+      page: data.page || page,
+      size: data.size || size
     };
   },
 

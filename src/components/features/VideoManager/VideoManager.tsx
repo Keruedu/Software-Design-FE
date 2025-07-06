@@ -130,13 +130,6 @@ const VideoManager: React.FC<VideoManagerProps> = ({
                         <FiPlay className="mr-3 h-4 w-4" />
                         View Video
                       </Link>
-                      <Link
-                        href={`/create/edit?videoId=${video.id}`}
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <FiEdit2 className="mr-3 h-4 w-4" />
-                        Edit Video
-                      </Link>
                       <button
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                       >
