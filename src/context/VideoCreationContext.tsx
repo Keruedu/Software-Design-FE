@@ -18,6 +18,11 @@ interface VideoCreationState {
     pitch: number; // -10 to 10
   };  
   generatedAudio: VoiceGenerationResult | null;
+  selectedUploadedAudio: {
+    id: string;
+    title: string;
+    audioUrl: string;
+  } | null; // New: for uploaded audio
   selectedBackground: Background | null; // Backward compatibility
   selectedBackgrounds: Background[]; // New multi-selection
   subtitleOptions: SubtitleOptions | null;
@@ -32,6 +37,7 @@ interface VideoCreationContextType {
   setScript: (script: Script | null) => void;
   setSelectedVoice: (voice: Voice | null) => void;
   setVoiceSettings: (settings: Partial<VideoCreationState['voiceSettings']>) => void;  setGeneratedAudio: (audio: VoiceGenerationResult | null) => void;
+  setSelectedUploadedAudio: (audio: VideoCreationState['selectedUploadedAudio']) => void;
   setSelectedBackground: (background: Background | null) => void;
   setSelectedBackgrounds: (backgrounds: Background[]) => void; // New method
   setSubtitleOptions: (options: SubtitleOptions | null) => void;
@@ -49,6 +55,7 @@ const initialState: VideoCreationState = {
     speed: 1.0,
     pitch: 0
   },  generatedAudio: null,
+  selectedUploadedAudio: null,
   selectedBackground: null,
   selectedBackgrounds: [], // Initialize empty array
   subtitleOptions: null,
@@ -63,20 +70,86 @@ const initialState: VideoCreationState = {
 const VideoCreationContext = createContext<VideoCreationContextType | undefined>(undefined);
 
 export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
-  const [state, setState] = useState<VideoCreationState>(initialState);
+  // Initialize state with persistence from localStorage
+  const [state, setState] = useState<VideoCreationState>(() => {
+    if (typeof window === 'undefined') return initialState;
+    
+    try {
+      const savedState = localStorage.getItem('videoCreationState');
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        console.log('🔄 Restoring state from localStorage:', {
+          hasGeneratedAudio: !!parsed.generatedAudio,
+          hasUploadedAudio: !!parsed.selectedUploadedAudio,
+          hasVoice: !!parsed.selectedVoice,
+          hasScript: !!parsed.script,
+          step: parsed.step
+        });
+        return {
+          ...initialState,
+          // Only restore critical data that should persist across refreshes
+          generatedAudio: parsed.generatedAudio || null,
+          selectedUploadedAudio: parsed.selectedUploadedAudio || null,
+          selectedVoice: parsed.selectedVoice || null,
+          voiceSettings: parsed.voiceSettings || initialState.voiceSettings,
+          script: parsed.script || null,
+          selectedTopic: parsed.selectedTopic || null,
+          keyword: parsed.keyword || '',
+          selectedBackgrounds: parsed.selectedBackgrounds || [],
+          selectedBackground: parsed.selectedBackground || null,
+          subtitleOptions: parsed.subtitleOptions || null,
+          step: parsed.step || 'topic'
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to load saved state from localStorage:', error);
+    }
+    
+    return initialState;
+  });
+
+  // Persist critical state changes to localStorage
+  const persistState = (newState: VideoCreationState) => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const stateToPersist = {
+        generatedAudio: newState.generatedAudio,
+        selectedUploadedAudio: newState.selectedUploadedAudio,
+        selectedVoice: newState.selectedVoice,
+        voiceSettings: newState.voiceSettings,
+        script: newState.script,
+        selectedTopic: newState.selectedTopic,
+        keyword: newState.keyword,
+        selectedBackgrounds: newState.selectedBackgrounds,
+        selectedBackground: newState.selectedBackground,
+        subtitleOptions: newState.subtitleOptions,
+        step: newState.step
+      };
+      localStorage.setItem('videoCreationState', JSON.stringify(stateToPersist));
+    } catch (error) {
+      console.warn('Failed to save state to localStorage:', error);
+    }
+  };
   
   const setStep = (step: VideoCreationState['step']) => {
-    setState(prev => ({ ...prev, step }));
+    setState(prev => {
+      const newState = { ...prev, step };
+      persistState(newState);
+      return newState;
+    });
   };
     const setSelectedTopic = (topic: TrendingTopic | null) => {
     setState(prev => {
       // If topic changed, reset script to force regeneration
       const shouldResetScript = prev.selectedTopic?.id !== topic?.id;
-      return {
+      const newState = {
         ...prev,
         selectedTopic: topic,
         script: shouldResetScript ? null : prev.script
       };
+      persistState(newState);
+      return newState;
     });
   };
   
@@ -84,56 +157,103 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setState(prev => {
       // If keyword changed, reset script to force regeneration
       const shouldResetScript = prev.keyword !== keyword;
-      return {
+      const newState = {
         ...prev,
         keyword,
         script: shouldResetScript ? null : prev.script
       };
+      persistState(newState);
+      return newState;
     });
   };
   
   const setScript = (script: Script | null) => {
-    setState(prev => ({ ...prev, script }));
+    setState(prev => {
+      const newState = { ...prev, script };
+      persistState(newState);
+      return newState;
+    });
   };
   
   const setSelectedVoice = (voice: Voice | null) => {
-    setState(prev => ({ ...prev, selectedVoice: voice }));
+    setState(prev => {
+      const newState = { ...prev, selectedVoice: voice };
+      persistState(newState);
+      return newState;
+    });
   };
     const setVoiceSettings = (settings: Partial<VideoCreationState['voiceSettings']>) => {
-    setState(prev => ({
-      ...prev,
-      voiceSettings: { ...prev.voiceSettings, ...settings }
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        voiceSettings: { ...prev.voiceSettings, ...settings }
+      };
+      persistState(newState);
+      return newState;
+    });
   };
   
   const setGeneratedAudio = (audio: VoiceGenerationResult | null) => {
-    setState(prev => ({ ...prev, generatedAudio: audio }));
+    setState(prev => {
+      const newState = { ...prev, generatedAudio: audio };
+      persistState(newState);
+      return newState;
+    });
   };
+
+  const setSelectedUploadedAudio = (audio: VideoCreationState['selectedUploadedAudio']) => {
+    setState(prev => {
+      const newState = { ...prev, selectedUploadedAudio: audio };
+      persistState(newState);
+      return newState;
+    });
+  };
+
   const setSelectedBackground = (background: Background | null) => {
-    setState(prev => ({ ...prev, selectedBackground: background }));
+    setState(prev => {
+      const newState = { ...prev, selectedBackground: background };
+      persistState(newState);
+      return newState;
+    });
   };
   
   const setSelectedBackgrounds = (backgrounds: Background[]) => {
-    setState(prev => ({ 
-      ...prev, 
-      selectedBackgrounds: backgrounds,
-      selectedBackground: backgrounds.length > 0 ? backgrounds[0] : null // Sync with main selection
-    }));
+    setState(prev => {
+      const newState = { 
+        ...prev, 
+        selectedBackgrounds: backgrounds,
+        selectedBackground: backgrounds.length > 0 ? backgrounds[0] : null // Sync with main selection
+      };
+      persistState(newState);
+      return newState;
+    });
   };
   
   const setSubtitleOptions = (options: SubtitleOptions | null) => {
-    setState(prev => ({ ...prev, subtitleOptions: options }));
+    setState(prev => {
+      const newState = { ...prev, subtitleOptions: options };
+      persistState(newState);
+      return newState;
+    });
   };
   
   const setEditSettings = (settings: Partial<VideoEditParams>) => {
-    setState(prev => ({
-      ...prev,
-      editSettings: { ...prev.editSettings, ...settings }
-    }));
+    setState(prev => {
+      const newState = {
+        ...prev,
+        editSettings: { ...prev.editSettings, ...settings }
+      };
+      // Don't persist editSettings as they're temporary
+      return newState;
+    });
   };
   
   const resetState = () => {
     setState(initialState);
+    // Clear persisted state
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('videoCreationState');
+    }
   };
   const value = {
     state,
@@ -144,6 +264,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setSelectedVoice,
     setVoiceSettings,
     setGeneratedAudio,
+    setSelectedUploadedAudio,
     setSelectedBackground,
     setSelectedBackgrounds, // Add new method
     setSubtitleOptions,

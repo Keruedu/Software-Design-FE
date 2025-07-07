@@ -115,7 +115,16 @@ export const SubtitleService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/subtitles/generate-from-script?script_text=${encodeURIComponent(params.scriptText)}&language=${params.language || 'en'}&max_words_per_segment=${params.maxWordsPerSegment || 5}`);
+      const formData = new FormData();
+      formData.append('script_text', params.scriptText);
+      formData.append('language', params.language || 'en');
+      formData.append('max_words_per_segment', String(params.maxWordsPerSegment || 5));
+      formData.append('estimated_duration', String(30.0)); // Default 30 seconds
+      
+      const response = await fetch(`${API_BASE_URL}/subtitles/generate-from-script`, {
+        method: 'POST',
+        body: formData
+      });
       
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -133,6 +142,7 @@ export const SubtitleService = {
         })),
         language: data.language,
         totalDuration: data.total_duration,
+        srtUrl: data.srt_url,
         source: 'script'
       };
       

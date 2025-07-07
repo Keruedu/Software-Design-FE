@@ -1,10 +1,100 @@
 import { Video, VideoWithDetails } from '../mockdata/videos';
 import { mockApiCall, mockBackgrounds, mockScripts, mockVideos, mockVoices, trendingTopics } from '../mockdata';
+import { SubtitleStyle } from '../types/subtitle';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Request cache for deduplication
 const requestCache = new Map<string, Promise<any>>();
+
+// Thumbnail cache to avoid regenerating
+const thumbnailCache = new Map<string, string>();
+
+/**
+ * Generate thumbnail from video URL using canvas
+ */
+const generateThumbnailFromVideo = (videoUrl: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    video.muted = true; // Ensure video can play without user interaction
+    
+    video.onloadedmetadata = () => {
+      // Set canvas size to match video aspect ratio
+      canvas.width = 320; // Standard thumbnail width
+      canvas.height = Math.round((video.videoHeight / video.videoWidth) * 320);
+      
+      // Seek to 10% of video duration for a good thumbnail frame
+      video.currentTime = Math.min(video.duration * 0.1, 3); // Max 3 seconds to avoid long seeks
+    };
+    
+    video.onseeked = () => {
+      if (ctx) {
+        try {
+          // Draw video frame to canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          
+          // Convert canvas to data URL
+          const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+          
+          // Cache the thumbnail
+          thumbnailCache.set(videoUrl, thumbnailUrl);
+          
+          resolve(thumbnailUrl);
+        } catch (error) {
+          reject(new Error('Failed to draw video frame to canvas'));
+        }
+      } else {
+        reject(new Error('Canvas context not available'));
+      }
+    };
+    
+    video.onerror = () => {
+      reject(new Error('Failed to load video for thumbnail generation'));
+    };
+    
+    // Set timeout to avoid hanging
+    setTimeout(() => {
+      reject(new Error('Thumbnail generation timeout'));
+    }, 10000); // 10 second timeout
+    
+    video.src = videoUrl;
+  });
+};
+
+/**
+ * Get or generate thumbnail URL
+ */
+const getThumbnailUrl = async (videoData: any): Promise<string> => {
+  // If thumbnail already exists, use it
+  if (videoData.thumbnail_url && videoData.thumbnail_url !== '') {
+    return videoData.thumbnail_url;
+  }
+  
+  // Check cache first
+  if (videoData.url && thumbnailCache.has(videoData.url)) {
+    return thumbnailCache.get(videoData.url)!;
+  }
+  
+  // If video URL exists, try to generate thumbnail
+  if (videoData.url) {
+    try {
+      const generatedThumbnail = await generateThumbnailFromVideo(videoData.url);
+      return generatedThumbnail;
+    } catch (error) {
+      console.warn('Failed to generate thumbnail from video:', error);
+      // Fallback to default thumbnail
+      return '/assets/images/thumbnails/default-video-thumbnail.svg';
+    }
+  }
+  
+  // Default fallback
+  return '/assets/images/thumbnails/default-video-thumbnail.svg';
+};
 
 export interface VideoCreationParams {
   title: string;
@@ -17,12 +107,19 @@ export interface VideoCreationParams {
 
 export interface CompleteVideoCreationParams {
   script_text: string;
-  voice_id: string;
+  voice_id?: string; // Optional for backward compatibility
+  audio_url?: string; // Audio URL from upload or AI generation
+  audio_source?: 'uploaded' | 'generated' | 'voice_generation'; // Track audio source
+  uploaded_audio_id?: string; // ID of uploaded audio file
   background_image_id: string; // Legacy single background
   background_image_ids?: string[]; // New multi-background support
   subtitle_enabled?: boolean;
   subtitle_language?: string;
-  subtitle_style?: string;
+  subtitle_style?: string | SubtitleStyle; // Accept both string name and full style object
+  voice_settings?: {
+    speed?: number;
+    pitch?: number;
+  };
 }
 
 export interface VideoFromComponentsParams {
@@ -59,7 +156,25 @@ export interface VideoEditParams {
 /**
  * Service for video creation and management
  */
-export const VideoService = {  
+export const VideoService = {
+  /**
+   * Generate thumbnail from video URL (exposed for external use)
+   */
+  generateThumbnail: async (videoUrl: string): Promise<string> => {
+    try {
+      return await generateThumbnailFromVideo(videoUrl);
+    } catch (error) {
+      console.warn('Failed to generate thumbnail:', error);
+      return '/assets/images/thumbnails/default-video-thumbnail.svg';
+    }
+  },
+
+  /**
+   * Get thumbnail URL with fallback generation
+   */
+  getThumbnail: async (videoData: any): Promise<string> => {
+    return await getThumbnailUrl(videoData);
+  },  
    getUserVideos: async (): Promise<Video[]> => {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/media/?page=1&size=20&media_type=video`, {
@@ -67,26 +182,34 @@ export const VideoService = {
     });
     if (!response.ok) throw new Error('Failed to fetch videos');
     const data = await response.json();
-    return (data.media || []).map((v: any) => ({
-      id: v.id,
-      title: v.title,
-      description: v.description,
-      scriptId: v.metadata?.script_id || '',
-      voiceId: v.metadata?.voice_id || '',
-      backgroundId: v.metadata?.background_image_id || '',
-      duration: v.duration,
-      thumbnailUrl: v.thumbnail_url,
-      videoUrl: v.url,
-      status: v.status,
-      createdAt: v.created_at,
-      updatedAt: v.updated_at,
-      topics: v.metadata?.topics || [],
-      tags: v.tags || [],
-      views: v.views || 0,
-      url: v.url,
-      voiceName: v.metadata?.voice_name || '',
-      backgroundName: v.metadata?.background_name || ''
+    
+    // Process videos and generate thumbnails if needed
+    const processedVideos = await Promise.all((data.media || []).map(async (v: any) => {
+      const thumbnailUrl = await getThumbnailUrl(v);
+      
+      return {
+        id: v.id,
+        title: v.title || 'Untitled Video',
+        description: v.content || v.description || '',
+        scriptId: v.metadata?.script_id || '',
+        voiceId: v.metadata?.voice_id || '',
+        backgroundId: v.metadata?.background_image_id || '',
+        duration: v.metadata?.duration || v.duration || 0,
+        thumbnailUrl: thumbnailUrl,
+        videoUrl: v.url,
+        status: v.status || 'completed',
+        createdAt: v.created_at,
+        updatedAt: v.updated_at,
+        topics: v.metadata?.topics || [],
+        tags: v.tags || [],
+        views: v.views || 0,
+        url: v.url,
+        voiceName: v.metadata?.voice_name || '',
+        backgroundName: v.metadata?.background_name || ''
+      };
     }));
+    
+    return processedVideos;
   }, 
     
   getVideoById: async (id: string): Promise<VideoWithDetails | null> => {

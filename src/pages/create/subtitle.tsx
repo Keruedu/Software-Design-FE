@@ -4,10 +4,9 @@ import Head from 'next/head';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
-import { Input } from '../../components/common/Input/Input';
+import { Progress } from '../../components/common/Progress/Progress';
 import { useVideoCreation } from '../../context/VideoCreationContext';
-import { SubtitleService } from '../../services/subtitle.service';
-import { SubtitleOptions, SubtitleStyle, SubtitleSegment, SUBTITLE_STYLES, SUPPORTED_LANGUAGES } from '../../types/subtitle';
+import { SubtitleOptions, SubtitleStyle, SUBTITLE_STYLES } from '../../types/subtitle';
 
 export default function SubtitlePage() {
   const router = useRouter();
@@ -15,144 +14,34 @@ export default function SubtitlePage() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
   
-  // Subtitle configuration
+  // Subtitle configuration - only style selection
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [selectedStyleName, setSelectedStyleName] = useState('default');
-  const [generationType, setGenerationType] = useState<'script' | 'audio'>('script');
-  const [maxWordsPerSegment, setMaxWordsPerSegment] = useState(5);
-  
-  // Generated subtitle data
-  const [subtitleResult, setSubtitleResult] = useState<any>(null);
-  const [editableSegments, setEditableSegments] = useState<SubtitleSegment[]>([]);
-  const [showSegmentEditor, setShowSegmentEditor] = useState(false);
   
   // Preview
   const [previewHtml, setPreviewHtml] = useState('');
   
-  // Available options
-  const [availableStyles, setAvailableStyles] = useState<SubtitleStyle[]>([]);
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+  // Available styles - get from predefined styles
+  const availableStyles = Object.keys(SUBTITLE_STYLES).map(key => ({
+    ...SUBTITLE_STYLES[key],
+    name: key
+  }));
 
   // Check if we have required data
   useEffect(() => {
-    if (!state.script || !state.selectedVoice || !state.selectedBackground) {
+    if (!state.script || !state.selectedVoice || (!state.selectedBackgrounds || state.selectedBackgrounds.length === 0)) {
       router.replace('/create/background');
     }
-  }, [state.script, state.selectedVoice, state.selectedBackground, router]);
+  }, [state.script, state.selectedVoice, state.selectedBackgrounds, router]);
 
-  // Load subtitle options
+  // Generate preview when style changes
   useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        setLoading(true);
-        const options = await SubtitleService.getSubtitleOptions();
-        setAvailableStyles(options.styles);
-        setAvailableLanguages(options.languages);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading subtitle options:', err);
-        // Fallback to default options
-        setAvailableStyles(Object.values(SUBTITLE_STYLES));
-        setAvailableLanguages(SUPPORTED_LANGUAGES.map(l => l.code));
-      } finally {
-        setLoading(false);
-      }
-    };
+    generateStylePreview(selectedStyleName);
+  }, [selectedStyleName]);
 
-    loadOptions();
-  }, []);
-
-  // Auto-generate subtitles when script is available
-  useEffect(() => {
-    if (state.script && subtitlesEnabled && !subtitleResult && !generating) {
-      handleGenerateSubtitles();
-    }
-  }, [state.script, subtitlesEnabled]);
-
-  const handleGenerateSubtitles = async () => {
-    if (!state.script) return;
-
-    setGenerating(true);
-    setError(null);
-
+  const generateStylePreview = (styleName: string) => {
     try {
-      let result;
-      
-      if (generationType === 'script') {
-        // Generate from script text (faster)
-        result = await SubtitleService.generateSubtitlesFromScript({
-          scriptText: state.script.content,
-          language: selectedLanguage,
-          maxWordsPerSegment
-        });
-      } else {
-        // Generate from audio (more accurate timing)
-        if (!state.generatedAudio?.audioFile) {
-          throw new Error('Audio file not available. Please go back and generate audio first.');
-        }
-        
-        result = await SubtitleService.generateSubtitlesFromAudio({
-          audioFile: state.generatedAudio.audioFile,
-          language: selectedLanguage,
-          maxWordsPerSegment
-        });
-      }
-
-      setSubtitleResult(result);
-      setEditableSegments(result.segments);
-      
-      console.log('✅ Subtitles generated:', result);
-
-    } catch (err) {
-      setError(`Failed to generate subtitles: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      console.error('Subtitle generation error:', err);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleSegmentEdit = (segmentId: number, field: keyof SubtitleSegment, value: any) => {
-    setEditableSegments(prev => 
-      prev.map(seg => 
-        seg.id === segmentId 
-          ? { ...seg, [field]: value }
-          : seg
-      )
-    );
-  };
-
-  const handleSaveSegments = async () => {
-    if (!subtitleResult) return;
-
-    try {
-      setLoading(true);
-      const updated = await SubtitleService.updateSubtitleSegments(
-        subtitleResult.id,
-        editableSegments
-      );
-      setSubtitleResult(updated);
-      setShowSegmentEditor(false);
-      setError(null);
-    } catch (err) {
-      setError('Failed to save subtitle edits.');
-      console.error('Error saving segments:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStylePreview = async (styleName: string) => {
-    if (!subtitleResult) return;
-
-    try {
-      const preview = await SubtitleService.getSubtitlePreview(subtitleResult.id, styleName);
-      setPreviewHtml(preview.previewHtml);
-    } catch (err) {
-      console.error('Error getting style preview:', err);
-      // Fallback preview
       const style = SUBTITLE_STYLES[styleName] || SUBTITLE_STYLES.default;
       setPreviewHtml(`
         <div style="
@@ -165,42 +54,38 @@ export default function SubtitlePage() {
           border-radius: 4px;
           text-align: center;
           ${style.outline ? `text-shadow: 1px 1px 2px ${style.outlineColor};` : ''}
+          margin: 8px 0;
         ">
-          Sample subtitle text
+          Sample subtitle text - ${style.name || styleName}
         </div>
       `);
+    } catch (err) {
+      console.error('Error generating style preview:', err);
     }
   };
-
-  useEffect(() => {
-    if (subtitleResult) {
-      handleStylePreview(selectedStyleName);
-    }
-  }, [selectedStyleName, subtitleResult]);
 
   const handleContinue = () => {
     // Save subtitle options to context
     const subtitleOptions: SubtitleOptions = {
       enabled: subtitlesEnabled,
-      language: selectedLanguage,
+      language: 'auto', // Will be detected from audio
       style: SUBTITLE_STYLES[selectedStyleName] || SUBTITLE_STYLES.default,
-      autoGenerate: generationType === 'script',
-      segments: editableSegments
+      autoGenerate: false // Always generate from audio
     };
 
     setSubtitleOptions(subtitleOptions);
-    setStep('edit');
+    setStep('preview');
     router.push('/create/preview');
   };
 
   const handleSkip = () => {
     setSubtitleOptions({
       enabled: false,
-      language: 'en',
+      language: 'auto',
       style: SUBTITLE_STYLES.default,
       autoGenerate: false
     });
-    setStep('edit');
+    setStep('preview');
     router.push('/create/preview');
   };
 
@@ -208,297 +93,173 @@ export default function SubtitlePage() {
     router.push('/create/background');
   };
 
-  if (loading && !availableStyles.length) {
-    return (
-      <Layout>
-        <Head>
-          <title>Loading Subtitle Options - VideoAI</title>
-        </Head>
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-lg shadow px-6 py-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Loading Subtitle Options</h1>
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  // Check if we have audio available for subtitle generation
+  const hasAudio = state.selectedUploadedAudio || state.generatedAudio?.audioUrl;
+  const audioSource = state.selectedUploadedAudio ? 'uploaded' : 'generated';
 
   return (
     <Layout>
       <Head>
-        <title>Configure Subtitles - VideoAI</title>
-        <meta name="description" content="Configure subtitles for your video" />
+        <title>Subtitle Settings - VideoAI</title>
+        <meta name="description" content="Configure subtitle style for your video" />
       </Head>
-
+      
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Configure Subtitles</h1>
+        {/* Progress Indicator */}
+        <Progress 
+          steps={[
+            { id: 'topic', name: 'Topic' },
+            { id: 'script', name: 'Script' },
+            { id: 'voice', name: 'Voice' },
+            { id: 'background', name: 'Background' },
+            { id: 'subtitle', name: 'Subtitle' },
+            { id: 'preview', name: 'Preview' }
+          ]}
+          currentStep="subtitle"
+        />
 
+        <div className="bg-white rounded-lg shadow p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Subtitle Settings</h1>
+          
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
           )}
 
-          {/* Enable/Disable Subtitles */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Add Subtitles to Video</h2>
-              <label className="flex items-center cursor-pointer">
-                <div className="relative">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only" 
-                    checked={subtitlesEnabled}
-                    onChange={() => setSubtitlesEnabled(!subtitlesEnabled)} 
-                  />
-                  <div className={`block w-14 h-8 rounded-full transition-colors ${subtitlesEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition transform ${subtitlesEnabled ? 'translate-x-6' : ''}`}></div>
-                </div>
-                <span className="ml-3 text-sm font-medium text-gray-700">
-                  {subtitlesEnabled ? 'Enabled' : 'Disabled'}
-                </span>
-              </label>
-            </div>
-
-            {subtitlesEnabled && (
-              <p className="text-sm text-gray-600">
-                Subtitles will help make your video more accessible and engaging for viewers.
-              </p>
+          {/* Audio Source Info */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-medium text-blue-900 mb-2">📤 Subtitle Source</h3>
+            {hasAudio ? (
+              <div className="text-blue-700">
+                <p className="mb-2">✅ Subtitles will be generated from {audioSource} audio</p>
+                {state.selectedUploadedAudio && (
+                  <p className="text-sm">Audio: {state.selectedUploadedAudio.title}</p>
+                )}
+                {state.generatedAudio && !state.selectedUploadedAudio && (
+                  <p className="text-sm">Voice: {state.selectedVoice?.name}</p>
+                )}
+                <p className="text-xs mt-1 text-blue-600">
+                  💡 Language will be automatically detected from audio
+                </p>
+              </div>
+            ) : (
+              <div className="text-yellow-700">
+                <p>⚠️ No audio available. Please go back and select/generate audio first.</p>
+              </div>
             )}
           </div>
 
-          {subtitlesEnabled && (
-            <>
-              {/* Generation Options */}
-              <div className="mb-6">
-                <h3 className="text-md font-medium text-gray-900 mb-3">Generation Method</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                      generationType === 'script'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setGenerationType('script')}
-                  >
-                    <div className="font-medium text-gray-900">From Script</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Faster generation, estimated timing
-                    </div>
-                  </button>
-                  <button
-                    className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                      generationType === 'audio'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => setGenerationType('audio')}
-                  >
-                    <div className="font-medium text-gray-900">From Audio</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Accurate timing, requires audio processing
-                    </div>
-                  </button>
-                </div>
+          <div className="space-y-6">
+            {/* Enable/Disable Subtitles */}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Enable Subtitles</h2>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="subtitles"
+                    checked={subtitlesEnabled}
+                    onChange={() => setSubtitlesEnabled(true)}
+                    className="form-radio h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-gray-700">Enable subtitles</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="subtitles"
+                    checked={!subtitlesEnabled}
+                    onChange={() => setSubtitlesEnabled(false)}
+                    className="form-radio h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2 text-gray-700">No subtitles</span>
+                </label>
               </div>
+            </div>
 
-              {/* Language and Settings */}
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
+            {/* Style Selection */}
+            {subtitlesEnabled && (
+              <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
-                  <select
-                    value={selectedLanguage}
-                    onChange={(e) => setSelectedLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {SUPPORTED_LANGUAGES.map(lang => (
-                      <option key={lang.code} value={lang.code}>{lang.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Words per Segment</label>
-                  <select
-                    value={maxWordsPerSegment}
-                    onChange={(e) => setMaxWordsPerSegment(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={3}>3 words</option>
-                    <option value={5}>5 words</option>
-                    <option value={7}>7 words</option>
-                    <option value={10}>10 words</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Style Selection */}
-              <div className="mb-6">
-                <h3 className="text-md font-medium text-gray-900 mb-3">Subtitle Style</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {Object.keys(SUBTITLE_STYLES).map(styleName => (
-                    <button
-                      key={styleName}
-                      className={`p-3 border-2 rounded-lg text-left transition-colors capitalize ${
-                        selectedStyleName === styleName
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => setSelectedStyleName(styleName)}
-                    >
-                      {styleName}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Style Preview */}
-              {previewHtml && (
-                <div className="mb-6">
-                  <h3 className="text-md font-medium text-gray-900 mb-3">Style Preview</h3>
-                  <div className="bg-black rounded-lg p-8 flex items-center justify-center">
-                    <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Generate Subtitles Button */}
-              {!subtitleResult && (
-                <div className="mb-6">
-                  <Button
-                    onClick={handleGenerateSubtitles}
-                    disabled={generating}
-                    className="w-full"
-                    variant="primary"
-                  >
-                    {generating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Generating Subtitles...
-                      </>
-                    ) : (
-                      'Generate Subtitles'
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {/* Generated Subtitles */}
-              {subtitleResult && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-md font-medium text-gray-900">Generated Subtitles</h3>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setShowSegmentEditor(!showSegmentEditor)}
-                        variant="outline"
-                        size="sm"
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Subtitle Style</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {availableStyles.map((style) => (
+                      <div
+                        key={style.name}
+                        className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                          selectedStyleName === style.name
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedStyleName(style.name || 'default')}
                       >
-                        {showSegmentEditor ? 'Hide Editor' : 'Edit Segments'}
-                      </Button>
-                      <Button
-                        onClick={handleGenerateSubtitles}
-                        variant="outline"
-                        size="sm"
-                        disabled={generating}
-                      >
-                        Regenerate
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      {editableSegments.length} segments • {Math.round(subtitleResult.totalDuration)}s duration • {subtitleResult.source} generated
-                    </p>
-                    
-                    {/* Preview first few segments */}
-                    <div className="space-y-2">
-                      {editableSegments.slice(0, 3).map(segment => (
-                        <div key={segment.id} className="text-sm">
-                          <span className="text-gray-500">{Math.round(segment.startTime)}s-{Math.round(segment.endTime)}s:</span>
-                          <span className="ml-2">{segment.text}</span>
-                        </div>
-                      ))}
-                      {editableSegments.length > 3 && (
-                        <div className="text-sm text-gray-500">
-                          ... and {editableSegments.length - 3} more segments
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Segment Editor */}
-                  {showSegmentEditor && (
-                    <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
-                      <h4 className="font-medium text-gray-900 mb-3">Edit Subtitle Segments</h4>
-                      <div className="space-y-3">
-                        {editableSegments.map(segment => (
-                          <div key={segment.id} className="grid grid-cols-12 gap-2 items-center">
-                            <div className="col-span-1 text-sm text-gray-500">#{segment.id}</div>
-                            <div className="col-span-2">
-                              <Input
-                                type="number"
-                                value={segment.startTime}
-                                onChange={(e) => handleSegmentEdit(segment.id, 'startTime', parseFloat(e.target.value))}
-                                placeholder="Start"
-                                size="sm"
-                                step="0.1"
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <Input
-                                type="number"
-                                value={segment.endTime}
-                                onChange={(e) => handleSegmentEdit(segment.id, 'endTime', parseFloat(e.target.value))}
-                                placeholder="End"
-                                size="sm"
-                                step="0.1"
-                              />
-                            </div>
-                            <div className="col-span-7">
-                              <Input
-                                value={segment.text}
-                                onChange={(e) => handleSegmentEdit(segment.id, 'text', e.target.value)}
-                                placeholder="Subtitle text"
-                                size="sm"
-                              />
+                        <div className="text-center">
+                          <h3 className="font-medium text-gray-900 mb-2 capitalize">
+                            {style.name || 'Default'}
+                          </h3>
+                          
+                          {/* Style Preview */}
+                          <div className="bg-gray-900 p-3 rounded">
+                            <div
+                              style={{
+                                backgroundColor: style.backgroundColor,
+                                color: style.fontColor,
+                                fontFamily: style.fontFamily,
+                                fontSize: `${Math.max(12, style.fontSize - 2)}px`,
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                textAlign: 'center',
+                                opacity: style.backgroundOpacity,
+                                textShadow: style.outline ? `1px 1px 1px ${style.outlineColor}` : 'none'
+                              }}
+                            >
+                              Sample Text
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      <div className="mt-4 flex justify-end">
-                        <Button
-                          onClick={handleSaveSegments}
-                          disabled={loading}
-                          size="sm"
-                        >
-                          {loading ? 'Saving...' : 'Save Changes'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
 
-          {/* Navigation */}
-          <div className="flex justify-between">
+                          {/* Style Info */}
+                          <div className="mt-2 text-xs text-gray-500">
+                            <div>{style.fontFamily}</div>
+                            <div>Size: {style.fontSize}px</div>
+                            <div>Position: {style.position}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Selected Style Preview */}
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Preview</h2>
+                  <div className="bg-gray-900 p-6 rounded-lg">
+                    <div 
+                      className="flex justify-center"
+                      dangerouslySetInnerHTML={{ __html: previewHtml }}
+                    />
+                    <p className="text-center text-gray-400 text-sm mt-2">
+                      Preview of "{selectedStyleName}" style
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-between mt-8">
             <Button variant="outline" onClick={handleBack}>
               Back
             </Button>
-            <div className="flex gap-3">
+            <div className="space-x-4">
               <Button variant="outline" onClick={handleSkip}>
                 Skip Subtitles
               </Button>
               <Button 
                 onClick={handleContinue}
-                disabled={subtitlesEnabled && !subtitleResult && !generating}
+                disabled={!hasAudio && subtitlesEnabled}
+                isLoading={loading}
               >
                 Continue
               </Button>
