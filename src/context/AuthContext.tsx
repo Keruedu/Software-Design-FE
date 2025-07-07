@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         loading: false
       });
     }
-  };
+  }
   
   const value = {
     auth,
@@ -123,3 +123,4 @@ export const useAuth = (): AuthContextType => {
   
   return context;
 };
+
