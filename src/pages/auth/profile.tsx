@@ -279,11 +279,11 @@ export default function ProfilePage() {
 
               {/* Google Account Section */}
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-700">
                   <FaGoogle className="text-red-500" />
                   Google Account
                 </h3>
-                {user?.social_credentials?.google ? (
+                {user?.social_credentials?.google.email ? (
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 text-green-700">
                       <span className="font-medium">✓ Google account linked</span>
@@ -310,11 +310,11 @@ export default function ProfilePage() {
 
               {/* Facebook Account Section */}
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-700">
                   <FaFacebook className="text-blue-600" />
                   Facebook Account
                 </h3>
-                {user?.social_credentials?.facebook ? (
+                {user?.social_credentials?.facebook.email ? (
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <div className="flex items-center gap-2 text-green-700">
                       <span className="font-medium">✓ Facebook account linked</span>
