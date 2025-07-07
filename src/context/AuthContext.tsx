@@ -13,7 +13,7 @@ export interface AuthContextType {
   auth: AuthState;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, fullName: string, password: string) => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -73,9 +73,9 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, email: string, password: string): Promise<void> => {
+  const register = async (username: string, email: string, fullName: string, password: string): Promise<void> => {
     try {
-      await authService.register({ username, email, password, fullName: username });
+      await authService.register({ username, email, fullName, password });
       // Auto login after register
       // await login(email, password);
     } catch (error) {

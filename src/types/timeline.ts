@@ -1,6 +1,6 @@
 export interface TimelineItem {
   id: string;
-  type: 'video' | 'audio' | 'image' | 'text' | 'effect';
+  type: 'video' | 'audio' | 'image' | 'text' | 'effect' | 'sticker';
   name: string;
   startTime: number;
   duration: number;
@@ -24,12 +24,25 @@ export interface TimelineItem {
     fontFamily?: string;
     fontWeight?: string;
   };
+  // Sticker specific properties
+  stickerId?: string;
+  stickerUrl?: string;
+  rotation?: number;
+  animation?: {
+    type: 'none' | 'bounce' | 'pulse' | 'fade' | 'slide';
+    duration?: number;
+    delay?: number;
+    repeat?: boolean;
+  };
+  isMainVideoUnit?: boolean;
+  isLocked?: boolean; 
+  maxDuration?: number; 
 }
 
 export interface Track {
   id: string;
   name: string;
-  type: 'video' | 'audio' | 'overlay' | 'text' | 'effect';
+  type: 'video' | 'audio' | 'overlay' | 'text' | 'effect' | 'mixed' | 'sticker';
   height: number;
   isVisible: boolean;
   isLocked: boolean;

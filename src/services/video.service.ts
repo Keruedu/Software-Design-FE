@@ -177,7 +177,7 @@ export const VideoService = {
   },  
    getUserVideos: async (): Promise<Video[]> => {
     const token = localStorage.getItem('access_token');
-    const response = await fetch(`${API_BASE_URL}/media/?page=1&size=20&media_type=video`, {
+    const response = await fetch(`${API_BASE_URL}/media/?page=1&size=100&media_type=video`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch videos');
@@ -211,7 +211,39 @@ export const VideoService = {
     
     return processedVideos;
   }, 
-    
+  getListVideoSocial: async (platform:string,video_id:string): Promise<any> => {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${API_BASE_URL}/social/social-video?platform=${platform}&video_id=${video_id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch videos');
+    const data = await response.json();
+    if (typeof data === 'object' && data !== null) {
+    const list = data[platform==="google"?"youtube":platform];
+    if (Array.isArray(list)) {
+      return list;
+    }
+  }
+  return [];
+  }, 
+   getStatVideoSocial: async (platform: string, video_id: string, page_id?: string): Promise<any> => {
+  const token = localStorage.getItem('access_token');
+  const params = new URLSearchParams({
+    platform,
+    video_id
+  });
+
+  if (page_id) {
+    params.append('page_id', page_id);
+  }
+  const response = await fetch(`${API_BASE_URL}/social/video-stats?${params.toString()}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch videos');
+  const data = await response.json();
+  return data;
+},
+
   getVideoById: async (id: string): Promise<VideoWithDetails | null> => {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/media/${id}`, {
@@ -243,6 +275,9 @@ export const VideoService = {
       },
       relatedTopics: []
     };
+
+
+    
   },
   
   
@@ -373,35 +408,6 @@ export const VideoService = {
   },
 
   /**
-   * Get video by ID with detailed information (mock - for backward compatibility)
-   */
-  // getVideoById: async (id: string): Promise<VideoWithDetails | null> => {
-  //   const video = mockVideos.find(v => v.id === id);
-    
-  //   if (!video) {
-  //     return mockApiCall(null);
-  //   }
-    
-  //   const script = mockScripts.find(s => s.id === video.scriptId) || mockScripts[0];
-  //   const voice = mockVoices.find(v => v.id === video.voiceId) || mockVoices[0];
-  //   const background = mockBackgrounds.find(b => b.id === video.backgroundId) || mockBackgrounds[0];
-    
-  //   const relatedTopics = trendingTopics.filter(topic => 
-  //     video.topics.includes(topic.id)
-  //   );
-    
-  //   const videoWithDetails: VideoWithDetails = {
-  //     ...video,
-  //     script,
-  //     voice,
-  //     background,
-  //     relatedTopics
-  //   };
-    
-  //   return mockApiCall(videoWithDetails);
-  // },
-
-  /**
    * Create a video from provided parameters (mock - for backward compatibility)
    */
   createVideo: async (params: VideoCreationParams): Promise<Video> => {
@@ -468,6 +474,51 @@ export const VideoService = {
     return {
       url: video.videoUrl,
       downloadUrl: '/download/exported-video.mp4'
+    };
+  },
+
+  /**
+   * Get paginated videos for the current user
+   */
+  getUserVideosPaginated: async (page: number = 1, size: number = 20): Promise<{videos: Video[], total: number, page: number, size: number}> => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/media/?page=${page}&size=${size}&media_type=video`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch videos');
+    const data = await response.json();
+    
+    // Process videos
+    const processedVideos = (data.media || []).map((v: any) => ({
+      id: v.id,
+      title: v.title || 'Untitled Video',
+      description: v.content || v.description || '',
+      scriptId: v.metadata?.script_id || '',
+      voiceId: v.metadata?.voice_id || '',
+      backgroundId: v.metadata?.background_image_id || '',
+      duration: v.metadata?.duration || v.duration || 0,
+      thumbnailUrl: v.thumbnail_url,
+      videoUrl: v.url,
+      status: v.status || 'completed',
+      createdAt: v.created_at,
+      updatedAt: v.updated_at,
+      topics: v.metadata?.topics || [],
+      tags: v.tags || [],
+      views: v.views || 0,
+      url: v.url,
+      voiceName: v.metadata?.voice_name || '',
+      backgroundName: v.metadata?.background_name || ''
+    }));
+    
+    return {
+      videos: processedVideos,
+      total: data.total || processedVideos.length,
+      page: data.page || page,
+      size: data.size || size
     };
   },
 

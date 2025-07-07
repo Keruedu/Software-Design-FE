@@ -10,7 +10,8 @@ interface MediaItem {
   thumbnail?: string;
   duration?: number;
   size: number;
-  uploadedAt: Date;
+  uploadedAt?: Date;
+  isMainVideo?: boolean; // Flag to identify main video
 }
 
 interface MediaLibraryProps {
@@ -151,7 +152,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   };
 
   const filteredMedia = mediaItems.filter(item => 
-    selectedType === 'all' || item.type === selectedType
+    (selectedType === 'all' || item.type === selectedType) && !item.isMainVideo
   );
 
   const getMediaIcon = (type: MediaItem['type']) => {
@@ -186,7 +187,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
       onDeleteMedia?.(itemToDelete.id);
       
       // Show success notification
-      showNotification?.(`Đã xóa ${itemToDelete.name}`, 'success');
+      showNotification?.(`${itemToDelete.name} has been deleted`, 'success');
       
       // Close modal
       setDeleteModalOpen(false);
@@ -218,8 +219,8 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
           {/* Filter Tabs */}
           <div className="flex space-x-1">
             {[
-              { key: 'all', label: 'Tất cả', icon: <FaFolder className="w-3 h-3" /> },
-              { key: 'image', label: 'Hình ảnh', icon: <FaImage className="w-3 h-3" /> },
+              { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
+              { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
               { key: 'video', label: 'Video', icon: <FaVideo className="w-3 h-3" /> },
               { key: 'audio', label: 'Audio', icon: <FaMusic className="w-3 h-3" /> }
             ].map(tab => (
@@ -260,15 +261,15 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                 </span>
                 <button
                   onClick={() => {
-                    if (window.confirm('Bạn có chắc chắn muốn xóa tất cả media không?')) {
+                    if (window.confirm('Are you sure you want to delete all media?')) {
                       setMediaItems([]);
                       // Call delete for each item individually since onDeleteMedia expects single id
                       mediaItems.forEach(item => onDeleteMedia?.(item.id));
-                      showNotification?.('Đã xóa tất cả media', 'success');
+                      showNotification?.('All media have been deleted.', 'success');
                     }
                   }}
                   className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                  title="Xóa tất cả media"
+                  title="Delete all media"
                 >
                   <FaTrash className="w-2.5 h-2.5" />
                 </button>
@@ -279,8 +280,8 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
           {/* Filter Tabs */}
           <div className="flex space-x-1">
             {[
-              { key: 'all', label: 'Tất cả', icon: <FaFolder className="w-3 h-3" /> },
-              { key: 'image', label: 'Hình ảnh', icon: <FaImage className="w-3 h-3" /> },
+              { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
+              { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
               { key: 'video', label: 'Video', icon: <FaVideo className="w-3 h-3" /> },
               { key: 'audio', label: 'Audio', icon: <FaMusic className="w-3 h-3" /> }
             ].map(tab => (
@@ -315,14 +316,14 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             {isDragging ? (
               <>
                 <FaUpload className="w-12 h-12 mb-4 text-blue-500" />
-                <p className="text-blue-600 font-medium">Thả file vào đây để upload</p>
+                <p className="text-blue-600 font-medium">Drop files here to upload</p>
               </>
             ) : (
               <>
                 <FaFolder className="w-12 h-12 mb-4" />
-                <p className="font-medium mb-2">Chưa có media nào</p>
+                <p className="font-medium mb-2">No media yet.</p>
                 <p className="text-sm text-center">
-                  Kéo thả file vào đây hoặc click nút Upload để thêm media
+                  Drag files here or click Upload to add media.
                 </p>
               </>
             )}
@@ -346,22 +347,34 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                   onMouseLeave={() => setHoveredItem(null)}
                   title={`Kéo thả ${item.name} vào timeline`}
                 >
-                {/* Delete button */}
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: hoveredItem === item.id ? 1 : 0, scale: hoveredItem === item.id ? 1 : 0.8 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteMedia(item);
-                  }}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 z-10 shadow-lg"
-                  title="Xóa media"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <FaTrash className="w-2.5 h-2.5" />
-                </motion.button>
+                {/* Delete Button - Hide for main video */}
+                {!item.isMainVideo && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: hoveredItem === item.id ? 1 : 0, scale: hoveredItem === item.id ? 1 : 0.8 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteMedia(item);
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 z-10 shadow-lg"
+                    title="Xóa media"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <FaTrash className="w-2.5 h-2.5" />
+                  </motion.button>
+                )}
+
+                {/* Main Video Indicator */}
+                {item.isMainVideo && (
+                  <div
+                    className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1.5 z-10 shadow-lg"
+                    title="Video chính - không thể xóa"
+                  >
+                    <FaVideo className="w-2.5 h-2.5" />
+                  </div>
+                )}
 
                 {/* Thumbnail */}
                 <div className="aspect-video bg-gray-200 rounded-md mb-2 flex items-center justify-center overflow-hidden relative">
@@ -394,13 +407,20 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
 
                 {/* Info */}
                 <div className="space-y-1">
-                  <div className="flex items-center space-x-1">
-                    <div className="text-gray-600">
-                      {getMediaIcon(item.type)}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1 min-w-0">
+                      <div className="text-gray-600">
+                        {getMediaIcon(item.type)}
+                      </div>
+                      <span className="text-xs font-medium text-gray-900 truncate">
+                        {item.name}
+                      </span>
                     </div>
-                    <span className="text-xs font-medium text-gray-900 truncate">
-                      {item.name}
-                    </span>
+                    {item.isMainVideo && (
+                      <span className="text-xs font-bold text-blue-600 bg-blue-100 px-1 py-0.5 rounded flex-shrink-0">
+                        CHÍNH
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">
                     {formatFileSize(item.size)}
@@ -417,14 +437,14 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-4 max-w-sm w-full">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h4>
+              <h4 className="text-lg font-semibold text-gray-900">Confirm delete</h4>
               <button onClick={cancelDeleteMedia} className="text-gray-500 hover:text-gray-700">
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
             <div className="mb-4">
               <p className="text-gray-700 text-sm">
-                Bạn có chắc chắn muốn xóa media <strong>"{itemToDelete.name}"</strong>? Hành động này không thể hoàn tác.
+                Are you sure you want to delete the media <strong>"{itemToDelete.name}"</strong>?  This action cannot be undone.
               </p>
             </div>
             <div className="flex justify-end space-x-2">
@@ -432,13 +452,13 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                 onClick={cancelDeleteMedia}
                 className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={confirmDeleteMedia}
                 className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
               >
-                Xóa
+                Delete
               </button>
             </div>
           </div>
@@ -465,7 +485,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Confirm delete</h3>
               <button
                 onClick={cancelDeleteMedia}
                 className="text-gray-400 hover:text-gray-600"
@@ -476,7 +496,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             
             <div className="mb-6">
               <p className="text-gray-600 mb-3">
-                Bạn có chắc chắn muốn xóa media này không?
+                Are you sure you want to delete the media?
               </p>
               <div className="bg-gray-50 rounded-lg p-3 border">
                 <div className="flex items-center space-x-2">
@@ -496,13 +516,13 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                 onClick={cancelDeleteMedia}
                 className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={confirmDeleteMedia}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
-                Xóa
+                Delete
               </button>
             </div>
           </motion.div>

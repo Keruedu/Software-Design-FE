@@ -7,12 +7,12 @@ import {
   FaMusic,
   FaImages,
   FaFilter,
-  FaLayerGroup,
+  FaSmile,
   FaCog,
   FaAlignJustify 
 } from 'react-icons/fa';
 import { useState } from "react";
-type ActiveTab = 'text' | 'media' | 'effects' | 'layers' | null
+type ActiveTab = 'text' | 'media' | 'effects' | 'stickers' | null
 interface SidebarProps {
     activeTab: ActiveTab;
     setActiveTab: (tab: ActiveTab) => void;
@@ -28,7 +28,7 @@ const Sidebar:React.FC<SidebarProps>=({
     const sidebarItems = [
     {
       id: 'text',
-      label: 'Text & Titles',
+      label: 'Text',
       icon: FaFont,
       description: 'Add text overlays and titles'
     },
@@ -40,18 +40,12 @@ const Sidebar:React.FC<SidebarProps>=({
       description: 'Images, videos, and assets'
     },
     {
-      id: 'effects',
-      label: 'Effects',
-      icon: FaFilter,
-      description: 'Visual effects and filters'
-    },
-    {
-      id: 'layers',
-      label: 'Layers',
-      icon: FaLayerGroup,
-      description: 'Manage video layers'
-    },
-  ];
+      id: 'stickers',
+      label: 'Stickers',
+      icon: FaSmile,
+      description: 'Add stickers to video'
+    }
+];
 
 
   return (

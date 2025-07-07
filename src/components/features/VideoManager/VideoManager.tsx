@@ -193,16 +193,121 @@ const VideoManager: React.FC<VideoManagerProps> = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {videos.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            onDelete={(videoId) => {
-              handleDeleteClick(video);
-              setActiveDropdown(null);
-            }}
-            onDropdownToggle={toggleDropdown}
-            activeDropdown={activeDropdown}
-          />
+          <div key={video.id} className="bg-white rounded-lg shadow overflow-hidden">
+            <div 
+              className="relative h-40 bg-gray-200 bg-cover bg-center cursor-pointer" 
+              style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
+            >
+              <Link 
+                href={`/dashboard/video/${video.id}`} 
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="bg-black bg-opacity-40 rounded-full p-3 hover:bg-opacity-60 transition">
+                  <FiPlay className="text-white h-6 w-6" />
+                </div>
+              </Link>
+              {video.status === 'processing' && (
+                <div className="absolute top-0 inset-x-0 bg-blue-500 text-white text-xs font-medium text-center p-1">
+                  Processing
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4">
+              <div className="flex justify-between items-start">
+                <Link 
+                  href={`/dashboard/video/${video.id}`}
+                  className="font-medium text-gray-900 hover:text-blue-600 truncate block"
+                >
+                  {video.title}
+                </Link>
+                
+                <div className="relative">
+                  <button 
+                    onClick={() => toggleDropdown(video.id)}
+                    className="p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <FiMoreVertical className="h-5 w-5 text-gray-500" />
+                  </button>
+                  
+                  {activeDropdown === video.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 py-1 ring-1 ring-black ring-opacity-5">
+                      <Link 
+                        href={`/dashboard/video/${video.id}`}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <FiPlay className="mr-3 h-4 w-4" />
+                        View Video
+                      </Link>
+                      <button
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FiShare2 className="mr-3 h-4 w-4" />
+                        Share
+                      </button>
+                      <button
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                      >
+                        <FiDownload className="mr-3 h-4 w-4" />
+                        Download
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteClick(video);
+                          toggleDropdown(video.id);
+                        }}
+                        className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                      >
+                        <FiTrash2 className="mr-3 h-4 w-4" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-1 flex items-center text-sm text-gray-500">
+                <p>
+                  {new Date(video.createdAt).toLocaleDateString()}
+                  &nbsp;&bull;&nbsp;
+                  {video.duration} sec
+                </p>
+              </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                {video.tags && video.tags.length > 0 ? (
+                  <>
+                    {video.tags.slice(0, 2).map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {video.tags.length > 2 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        +{video.tags.length - 2}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                    No tags
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          // <VideoCard
+          //   key={video.id}
+          //   video={video}
+          //   onDelete={(videoId) => {
+          //     handleDeleteClick(video);
+          //     setActiveDropdown(null);
+          //   }}
+          //   onDropdownToggle={toggleDropdown}
+          //   activeDropdown={activeDropdown}
+          // />
         ))}
       </div>
       

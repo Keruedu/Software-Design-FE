@@ -18,6 +18,9 @@ export default function Dashboard() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalVideos, setTotalVideos] = useState(0);
+  const [videosPerPage] = useState(20);
   
   const [stats, setStats] = useState({
     totalVideos: 0,
@@ -30,11 +33,11 @@ export default function Dashboard() {
     const fetchVideos = async () => {
       try {
         setLoading(true);
-        // const data = await VideoService.getAllVideos();
-        // setVideos(data);
-        
+        // For now, we'll get all videos at once with size=100
+        // In the future, we can use getUserVideosPaginated for true pagination
         const data = await VideoService.getUserVideos();
         setVideos(data);
+        setTotalVideos(data.length);
         
         // Calculate stats
         setStats({
@@ -61,7 +64,7 @@ export default function Dashboard() {
     };
     
     fetchVideos();
-  }, []);
+  }, [currentPage]);
   
   const handleDeleteVideo = async (id: string) => {
     try {
@@ -166,21 +169,20 @@ export default function Dashboard() {
           </div>
           
           {/* Videos Section */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Your Videos</h2>
-              <div className="flex items-center">
-                <span className="text-gray-500 text-sm mr-4">{videos.length} videos</span>
-                <select 
-                  className="border border-gray-300 rounded-md text-sm py-1.5 px-3 text-gray-800"
-                  defaultValue="recent"
-                >
-                  <option value="recent">Most Recent</option>
-                  <option value="popular">Most Popular</option>
-                  <option value="oldest">Oldest First</option>
-                </select>
+          <div className="mb-8">              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">Your Videos</h2>
+                <div className="flex items-center">
+                  <span className="text-gray-500 text-sm mr-4">{totalVideos} videos total</span>
+                  <select 
+                    className="border border-gray-300 rounded-md text-sm py-1.5 px-3 text-gray-800"
+                    defaultValue="recent"
+                  >
+                    <option value="recent">Most Recent</option>
+                    <option value="popular">Most Popular</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
               </div>
-            </div>
             
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
@@ -193,10 +195,37 @@ export default function Dashboard() {
               onDelete={handleDeleteVideo}
               isLoading={loading}
             />
+            
+            {/* Pagination - Optional for future use */}
+            {totalVideos > videosPerPage && (
+              <div className="mt-6 flex justify-center">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  
+                  <span className="text-sm text-gray-700">
+                    Page {currentPage} of {Math.ceil(totalVideos / videosPerPage)}
+                  </span>
+                  
+                  <button
+                    onClick={() => setCurrentPage(Math.min(Math.ceil(totalVideos / videosPerPage), currentPage + 1))}
+                    disabled={currentPage === Math.ceil(totalVideos / videosPerPage)}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Usage Limits Section */}
-          <div className="bg-white rounded-lg shadow p-6">
+          {/* <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Plan Usage</h2>
             
             <div className="mb-6">
@@ -228,7 +257,7 @@ export default function Dashboard() {
               </div>
               <Button variant="outline" size="sm">Upgrade Plan</Button>
             </div>
-          </div>
+          </div> */}
         </div>
       </Layout>
     </ProtectedRoute>
