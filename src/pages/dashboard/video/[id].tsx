@@ -11,6 +11,7 @@ import { Modal } from '../../../components/common/Modal/Modal';
 import { toast } from 'react-toastify';
 import { SocialService } from '@/services/social.service';
 import { useAuth } from '@/context/AuthContext';
+import { platform } from 'os';
 
 // Interface for social media statistics
 interface YouTubeStats {
@@ -454,14 +455,12 @@ useEffect(() => {
         privacy_status: 'public'
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/facebook-pages/upload-video`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(uploadData),
-      });
+      const response = await SocialService.uploadVideoToFacebook(
+        video.id,
+        fbTitle,
+        fbDesc,
+        selectedPageId
+      )
 
       if (!response.ok) {
         const errorData = await response.json();
