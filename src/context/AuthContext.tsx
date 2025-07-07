@@ -143,6 +143,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       });
       router.push('/auth/login');
     }
+  }
   
   const value = {
     auth,
@@ -174,3 +175,4 @@ export const useAuth = (): AuthContextType => {
   
   return context;
 };
+
