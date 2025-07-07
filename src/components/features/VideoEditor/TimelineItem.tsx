@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TimelineItem } from '@/types/timeline';
-import { FaImage, FaMusic, FaVideo, FaFont, FaMagic, FaVolumeUp, FaVolumeMute, FaEye, FaEyeSlash, FaTrash } from 'react-icons/fa';
+import { FaImage, FaMusic, FaVideo, FaFont, FaMagic, FaVolumeUp, FaVolumeMute, FaEye, FaEyeSlash, FaTrash, FaSmile } from 'react-icons/fa';
 
 interface TimelineItemComponentProps {
   item: TimelineItem;
@@ -126,6 +126,7 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
       case 'image': return <FaImage className="w-3 h-3" />;
       case 'text': return <FaFont className="w-3 h-3" />;
       case 'effect': return <FaMagic className="w-3 h-3" />;
+      case 'sticker': return <FaSmile className="w-3 h-3" />;
       default: return <FaVideo className="w-3 h-3" />;
     }
   };
@@ -142,6 +143,7 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
       case 'image': return 'bg-purple-500';
       case 'text': return 'bg-red-500';
       case 'effect': return 'bg-yellow-500';
+      case 'sticker': return 'bg-orange-500';
       default: return 'bg-gray-500';
     }
   };

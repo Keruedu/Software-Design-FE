@@ -1,10 +1,28 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Track, TimelineItem } from '@/types/timeline';
-import { FaEye, FaEyeSlash, FaLock, FaUnlock, FaVolumeUp, FaVolumeMute, FaTrash, FaGripLines } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaLock, FaUnlock, FaVolumeUp, FaVolumeMute, FaTrash, FaGripLines, FaVideo, FaMusic, FaImage, FaFont, FaSmile } from 'react-icons/fa';
 import { audioManager } from '@/services/audioManager';
 import { useTimelineContext } from '@/context/TimelineContext';
 import TimelineItemComponent from './TimelineItem';
+
+// Helper function to get track icon based on type
+const getTrackIcon = (type: string) => {
+  switch (type) {
+    case 'video':
+      return <FaVideo className="w-3 h-3" />;
+    case 'audio':
+      return <FaMusic className="w-3 h-3" />;
+    case 'image':
+      return <FaImage className="w-3 h-3" />;
+    case 'text':
+      return <FaFont className="w-3 h-3" />;
+    case 'sticker':
+      return <FaSmile className="w-3 h-3" />;
+    default:
+      return <FaGripLines className="w-3 h-3" />;
+  }
+};
 
 interface TimelineTrackProps {
   track: Track;
@@ -173,7 +191,19 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
         style={{ width: '180px', minWidth: '180px' }}
       >
         <div className="flex items-center space-x-2 min-w-0">
+          {/* Track icon */}
+          <div className="flex-shrink-0 text-gray-600">
+            {getTrackIcon(track.type)}
+          </div>
+          
           <div className="min-w-0 flex-1">
+            {/* Track name if exists */}
+            {track.name && (
+              <div className="text-xs font-medium text-gray-700 truncate" style={{ fontSize: '11px' }}>
+                {track.name}
+              </div>
+            )}
+            
             {/* Chỉ hiển thị thông tin số lượng items */}
             <div className="text-xs text-gray-500" style={{ fontSize: '11px' }}>
               {track.items.length} item{track.items.length !== 1 ? 's' : ''}

@@ -272,7 +272,6 @@ const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({
           <div className="space-y-4 mb-6">
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-gray-700">Add New Text Overlay</h3>
-              
               {/* Text Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

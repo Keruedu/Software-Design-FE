@@ -71,7 +71,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         options:{
             audioVolume?:number;
             audioStartTime?:number;
-            duration?:number; // Thêm tham số duration để trim audio theo duration
+            duration?:number; 
             replaceOriginalAudio?:boolean;
         } ={}
     ): Promise<Blob> {
@@ -82,10 +82,10 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const {
         audioVolume = 0.5,
         audioStartTime = 0,
-        duration: audioDuration, // Sử dụng duration từ options, alias thành audioDuration
+        duration: audioDuration, 
         replaceOriginalAudio = false} = options;
         
-        console.log("🎵 Adding audio to video:", {
+        console.log("Adding audio to video:", {
             audioVolume,
             audioStartTime,
             audioDuration: audioDuration ? `${audioDuration}s` : 'full duration',
@@ -114,7 +114,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             ? `,adelay=${audioStartTime * 1000}|${audioStartTime * 1000}`
             : "";
             
-            // Thêm trim audio nếu có audioDuration (trim trước, sau đó mới áp volume và delay)
+            
             const audioTrim = audioDuration 
             ? `atrim=duration=${audioDuration},`
             : "";
@@ -198,7 +198,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             const ffmpegCommand = [
                 '-i', inputVideoName,
                 '-ss', startTime.toString(),
-                '-t', (endTime - startTime).toString(), // Sử dụng -t thay vì -to
+                '-t', (endTime - startTime).toString(), 
                 '-c:v', 'libx264', // Re-encode video để đảm bảo trim chính xác
                 '-c:a', 'aac',     // Re-encode audio
                 '-preset', 'fast', // Tăng tốc encode
@@ -350,7 +350,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             throw new Error("FFmpeg is not initialized. Call initialize() first.");
         }
 
-        console.log("📝 Adding multiple text overlays:", {
+        console.log("Adding multiple text overlays:", {
             overlayCount: textOverlayParams.length,
             videoSize,
             overlays: textOverlayParams.map((p, i) => ({
@@ -391,7 +391,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             try {
                 await Promise.all(Array.from(fontsUsed).map(async (font) => {
                     if (!this.ffmpeg) return;
-                    console.log(`📄 Loading font: ${font}`);
+                    console.log(`Loading font: ${font}`);
                     try {
                         const fontResponse = await fetch(`/fonts/${font}`);
                         if (!fontResponse.ok) {
@@ -400,7 +400,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                         }
                         const fontBuffer = await fontResponse.arrayBuffer();
                         await this.ffmpeg.writeFile(`${font}`, new Uint8Array(fontBuffer));
-                        console.log(`✅ Font loaded: ${font}`);
+                        console.log(`Font loaded: ${font}`);
                     } catch (fontError) {
                         console.warn(`Failed to load font ${font}:`, fontError);
                         // Continue without font - FFmpeg will use default
@@ -420,9 +420,9 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             
             try {
                 await this.ffmpeg.exec(ffmpegCommand);
-                console.log("✅ Text overlay FFmpeg command completed successfully");
+                console.log("Text overlay FFmpeg command completed successfully");
             } catch (ffmpegError) {
-                console.error("❌ FFmpeg text overlay command failed:", ffmpegError);
+                console.error("FFmpeg text overlay command failed:", ffmpegError);
                 throw new Error(`FFmpeg text overlay failed: ${ffmpegError}`);
             }
             const data = await this.ffmpeg.readFile(outputName);
@@ -462,7 +462,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             opacity = 1,
         } = params;
         
-        console.log("🎯 Building text filter for:", {
+        console.log("Building text filter for:", {
             text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
             position,
             style,
@@ -477,7 +477,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const x = Math.round(Math.min(Math.max(((position.x - 14)  / 100),0 ),1) * videoSize.width);
         const y = Math.round(Math.min(Math.max(((position.y + 8)  / 100),0 ),1)* videoSize.height);
         
-        console.log("📍 Text position calculated:", { x, y, originalPosition: position });
+        console.log("Text position calculated:", { x, y, originalPosition: position });
         
         let textFilter = `drawtext=text='${escapedText}'`;
         textFilter += `:x=${x}:y=${y}`;
@@ -525,15 +525,14 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             textFilter += `:enable='between(t,0,${timing.duration})'`;
         }
         
-        console.log("📝 Generated text filter:", textFilter);
-        console.log("📄 Font file:", font);
+        console.log("Generated text filter:", textFilter);
+        console.log("Font file:", font);
         
         return { textFilter, font };
     }
 
-    /**
-     * Nén video để giảm kích thước file
-     */
+    
+    // Nén video để giảm kích thước file
     async compressVideo(
         videoFile: File | string | Blob,
         bitrate: string = '800k', // Increase bitrate
@@ -598,12 +597,12 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
 
             const originalSizeMB = videoData.byteLength / (1024 * 1024);
             const compressedSizeMB = (compressedData as Uint8Array).byteLength / (1024 * 1024);
-            console.log(`✅ Nén hoàn tất: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB`);
+            console.log(`Nén hoàn tất: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB`);
             
             return new Blob([compressedData], { type: 'video/mp4' });
 
         } catch (error) {
-            console.error("❌ Lỗi khi nén video:", error);
+            console.error("Lỗi khi nén video:", error);
             throw new Error(`Failed to compress video: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
@@ -618,10 +617,10 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         return fontMap[fontFamily] || null;
     }
 
-    /**
-     * Add multiple audio tracks to video at once
-     * This method handles multiple audio files with different timings and volumes
-     */
+    
+    // Add multiple audio tracks to video at once
+    // This method handles multiple audio files with different timings and volumes
+    
     async addMultipleAudioToVideo(
         videoFile: File | string | Blob,
         audioTracks: Array<{
@@ -731,8 +730,8 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 filterComplex += `${audioInputs[0]}aformat=sample_fmts=fltp:sample_rates=44100[audio_processed]`;
             }
 
-            console.log("🎵 Multiple audio filter complex:", filterComplex);
-            console.log("🎵 Audio inputs:", audioInputs);
+            console.log("Multiple audio filter complex:", filterComplex);
+            console.log("Audio inputs:", audioInputs);
 
             // Build FFmpeg command
             const command = [
@@ -766,14 +765,14 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         }
     }
 
-    /**
-     * Helper method to test if multiple audio processing works correctly
-     */
+    
+    // Helper method to test if multiple audio processing works correctly
+    
     async testMultipleAudioProcessing(
         videoFile: File | string | Blob,
         audioFiles: (File | Blob)[]
     ): Promise<Blob> {
-        console.log(`🧪 Testing multiple audio processing with ${audioFiles.length} files`);
+        console.log(`Testing multiple audio processing with ${audioFiles.length} files`);
         
         // Simple test: just mix all audio with equal volume and no timing
         const audioTracks = audioFiles.map((file, i) => ({
@@ -784,6 +783,371 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         }));
         
         return this.addMultipleAudioToVideo(videoFile, audioTracks);
+    }
+
+    // Add multiple sticker overlays to video
+    async addMultipleStickerOverlays(
+        videoFile: File | string | Blob,
+        stickerOverlayParams: Array<{
+            stickerId: string;
+            stickerUrl: string;
+            stickerName: string;
+            position: { x: number; y: number };
+            size: { width: number; height: number };
+            rotation: number;
+            opacity: number;
+            timing: {
+                startTime: number;
+                endTime: number;
+            };
+            animation?: {
+                type: string;
+                duration: number;
+            };
+        }>,
+        videoSize: { width: number; height: number }
+    ): Promise<Blob> {
+        if (!this.ffmpeg || !this.isLoaded) {
+            throw new Error("FFmpeg is not initialized. Call initialize() first.");
+        }
+
+        if (stickerOverlayParams.length === 0) {
+            console.log("No sticker overlays to add");
+            if (videoFile instanceof File || videoFile instanceof Blob) {
+                return videoFile;
+            } else {
+                const response = await fetch(videoFile as string);
+                return new Blob([await response.arrayBuffer()], { type: 'video/mp4' });
+            }
+        }
+
+        console.log("Adding multiple sticker overlays:", {
+            stickerCount: stickerOverlayParams.length,
+            videoSize,
+            stickers: stickerOverlayParams.map((p, i) => ({
+                index: i,
+                name: p.stickerName,
+                timing: p.timing,
+                position: p.position,
+                size: p.size,
+                opacity: p.opacity,
+                rotation: p.rotation
+            }))
+        });
+
+        try {
+            // Prepare video data
+            let videoData: ArrayBuffer;
+            if (videoFile instanceof File || videoFile instanceof Blob) {
+                videoData = await videoFile.arrayBuffer();
+            } else {
+                const response = await fetch(videoFile);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch video file: ${response.statusText}`);
+                }
+                videoData = await response.arrayBuffer();
+            }
+
+            const timestamp = Date.now();
+            const inputVideoName = `input_video_${timestamp}.mp4`;
+            const outputName = `output_${timestamp}.mp4`;
+            const stickerInputNames: string[] = [];
+
+            // Write video file
+            await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
+
+            // Download and write all sticker files
+            for (let i = 0; i < stickerOverlayParams.length; i++) {
+                const sticker = stickerOverlayParams[i];
+                const stickerInputName = `sticker_${i}_${timestamp}.png`;
+                stickerInputNames.push(stickerInputName);
+
+                try {
+                    console.log(`Downloading sticker ${i + 1}: ${sticker.stickerName}`);
+                    const stickerResponse = await fetch(sticker.stickerUrl);
+                    if (!stickerResponse.ok) {
+                        throw new Error(`Failed to fetch sticker: ${stickerResponse.statusText}`);
+                    }
+                    const stickerData = await stickerResponse.arrayBuffer();
+                    await this.ffmpeg.writeFile(stickerInputName, new Uint8Array(stickerData));
+                    console.log(`Sticker ${i + 1} downloaded successfully`);
+                } catch (error) {
+                    console.error(`Failed to download sticker ${i + 1}:`, error);
+                    throw new Error(`Failed to download sticker "${sticker.stickerName}": ${error}`);
+                }
+            }
+
+            // Build filter complex for all stickers
+            let filterComplex = '';
+            let currentVideoInput = '[0:v]';
+
+            for (let i = 0; i < stickerOverlayParams.length; i++) {
+                const sticker = stickerOverlayParams[i];
+                const stickerInputIndex = i + 1; // Input indices start from 1 (0 is video)
+                
+                // Default coordinate system used by the web UI
+                const DEFAULT_COORDINATE_SIZE = { width: 1280, height: 720 };
+                
+                // Scale position from the default coordinate system to actual video size
+                const scaleX = videoSize.width / DEFAULT_COORDINATE_SIZE.width;
+                const scaleY = videoSize.height / DEFAULT_COORDINATE_SIZE.height;
+                
+                const scaledX = sticker.position.x * scaleX;
+                const scaledY = sticker.position.y * scaleY;
+                
+                // Scale size from default coordinate system to actual video size first
+                // This is needed to calculate proper position adjustments
+                const scaledSizeWidth = sticker.size.width * scaleX;
+                const scaledSizeHeight = sticker.size.height * scaleY;
+                
+                // Apply size scaling factor to match UI appearance
+                const sizeFactor = this.calculateStickerSizeFactor({ width: scaledSizeWidth, height: scaledSizeHeight });
+                const adjustedSizeFactor = Math.max(sizeFactor * 1.5, 0.8);
+                
+                const width = Math.max(20, Math.round(scaledSizeWidth * adjustedSizeFactor));
+                const height = Math.max(20, Math.round(scaledSizeHeight * adjustedSizeFactor));
+                
+                // Calculate position offsets to align with Web UI
+                // These offsets compensate for the difference between Web UI and FFmpeg positioning
+                const positionOffsetX = -width / 2; 
+                const positionOffsetY = -height / 2; 
+                
+                const finetuneOffsetX = -width * 1.6; // Move slightly left (adjust based on testing)
+                const finetuneOffsetY = height * 1.3; // Move slightly up (adjust based on testing)
+                
+                // Calculate final position
+                const x = Math.max(0, Math.round(scaledX + positionOffsetX + finetuneOffsetX));
+                const y = Math.max(0, Math.round(scaledY + positionOffsetY + finetuneOffsetY));
+                
+                // Ensure sticker doesn't go outside video bounds
+                const maxX = Math.max(0, videoSize.width - width);
+                const maxY = Math.max(0, videoSize.height - height);
+                const finalX = Math.min(x, maxX);
+                const finalY = Math.min(y, maxY);
+
+                console.log(`Sticker ${i + 1} calculations:`, {
+                    name: sticker.stickerName,
+                    coordinateSystem: 'Scaled from default coordinate system (1280x720) to actual video size',
+                    defaultCoordinateSize: DEFAULT_COORDINATE_SIZE,
+                    actualVideoSize: videoSize,
+                    scaleFactors: { scaleX, scaleY },
+                    originalPosition: sticker.position,
+                    originalSize: sticker.size,
+                    scaledPosition: { x: scaledX, y: scaledY },
+                    scaledSize: { width: scaledSizeWidth, height: scaledSizeHeight },
+                    positionOffsets: { 
+                        centerOffset: { x: positionOffsetX, y: positionOffsetY },
+                        finetuneOffset: { x: finetuneOffsetX, y: finetuneOffsetY }
+                    },
+                    calculatedPosition: { x, y },
+                    finalPosition: { x: finalX, y: finalY },
+                    finalSize: { width, height },
+                    sizeFactor: `original: ${sizeFactor} (${(sizeFactor*100).toFixed(0)}%) → adjusted: ${adjustedSizeFactor} (${(adjustedSizeFactor*100).toFixed(0)}%)`,
+                    timing: sticker.timing,
+                    boundsCheck: {
+                        withinX: finalX >= 0 && finalX + width <= videoSize.width,
+                        withinY: finalY >= 0 && finalY + height <= videoSize.height
+                    },
+                    positioningNotes: {
+                        webUIToFFmpegAlignment: 'Applied center-based positioning offset',
+                        webUIExpected: `Should be at (${sticker.position.x}, ${sticker.position.y}) scaled to video size`,
+                        ffmpegActual: `Will be at (${finalX}, ${finalY}) in video`,
+                        percentageInVideo: `${((finalX/videoSize.width)*100).toFixed(1)}%, ${((finalY/videoSize.height)*100).toFixed(1)}%`
+                    }
+                });
+
+                // Build sticker processing filter
+                let stickerFilter = `[${stickerInputIndex}:v]`;
+                
+                // Scale sticker to desired size
+                stickerFilter += `scale=${width}:${height}`;
+                
+                // Add rotation if specified
+                if (sticker.rotation && sticker.rotation !== 0) {
+                    const rotationRad = (sticker.rotation * Math.PI) / 180;
+                    stickerFilter += `,rotate=${rotationRad}:fillcolor=black@0`;
+                }
+                
+                // Add opacity if specified
+                if (sticker.opacity && sticker.opacity < 1) {
+                    const alphaValue = sticker.opacity;
+                    stickerFilter += `,format=rgba,colorchannelmixer=aa=${alphaValue}`;
+                }
+                
+                stickerFilter += `[sticker${i}]`;
+
+                // Build overlay filter with proper timing
+                const overlayFilter = `${currentVideoInput}[sticker${i}]overlay=${finalX}:${finalY}:enable='between(t,${sticker.timing.startTime},${sticker.timing.endTime})'`;
+                
+                if (i === stickerOverlayParams.length - 1) {
+                    // Last sticker - output final result
+                    filterComplex += `${i === 0 ? '' : ';'}${stickerFilter};${overlayFilter}`;
+                } else {
+                    // Not last sticker - output intermediate result
+                    filterComplex += `${i === 0 ? '' : ';'}${stickerFilter};${overlayFilter}[v${i}]`;
+                    currentVideoInput = `[v${i}]`;
+                }
+
+                console.log(`Processing sticker ${i + 1}: ${sticker.stickerName} at (${finalX},${finalY}) size ${width}x${height}`);
+                console.log(`Sticker filter: ${stickerFilter}`);
+                console.log(`Overlay filter: ${overlayFilter}`);
+            }
+
+            console.log(`Complete filter complex: ${filterComplex}`);
+
+            // Build FFmpeg command
+            const command = [
+                "-i", inputVideoName,
+                ...stickerInputNames.map(name => ["-i", name]).flat(),
+                "-filter_complex", filterComplex,
+                "-map", "0:a?", // Copy audio if exists
+                "-c:a", "copy",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+                "-avoid_negative_ts", "make_zero",
+                outputName
+            ];
+
+            console.log("FFmpeg sticker overlay command:", command.join(" "));
+
+            try {
+                await this.ffmpeg.exec(command);
+                console.log("Sticker overlay FFmpeg command completed successfully");
+            } catch (ffmpegError) {
+                console.error("FFmpeg sticker overlay command failed:", ffmpegError);
+                throw new Error(`FFmpeg sticker overlay failed: ${ffmpegError}`);
+            }
+
+            // Read result
+            const data = await this.ffmpeg.readFile(outputName);
+            const resultBlob = new Blob([data], { type: 'video/mp4' });
+
+            // Cleanup files
+            await this.ffmpeg.deleteFile(inputVideoName);
+            await this.ffmpeg.deleteFile(outputName);
+            
+            for (const stickerInputName of stickerInputNames) {
+                try {
+                    await this.ffmpeg.deleteFile(stickerInputName);
+                } catch (cleanupError) {
+                    console.warn(`Failed to cleanup sticker file ${stickerInputName}:`, cleanupError);
+                }
+            }
+
+            console.log(`🎉 Successfully added ${stickerOverlayParams.length} sticker overlays to video`);
+            return resultBlob;
+
+        } catch (error) {
+            console.error("Error adding multiple sticker overlays:", error);
+            throw new Error(`Failed to add multiple sticker overlays: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+
+    
+    // Test method to debug sticker overlay with simple case
+    
+    async testSimpleStickerOverlay(
+        videoFile: File | string | Blob,
+        stickerUrl: string,
+        position: { x: number; y: number } = { x: 50, y: 50 }, // Center of video
+        size: { width: number; height: number } = { width: 20, height: 20 }, // 20% size
+        timing: { startTime: number; endTime: number } = { startTime: 0, endTime: 5 }
+    ): Promise<Blob> {
+        console.log('🧪 Testing simple sticker overlay:', {
+            stickerUrl,
+            position,
+            size,
+            timing,
+            note: 'Position 50,50 should place sticker at center of video'
+        });
+
+        const testParams = [{
+            stickerId: 'test-sticker',
+            stickerUrl,
+            stickerName: 'Test Sticker (Center)',
+            position,
+            size,
+            rotation: 0,
+            opacity: 1,
+            timing
+        }];
+
+        return this.addMultipleStickerOverlays(
+            videoFile,
+            testParams,
+            { width: 1280, height: 720 }
+        );
+    }
+
+    
+    // Calculate optimal size factor for sticker based on UI size in pixels
+     
+    private calculateStickerSizeFactor(uiSizePixels: { width: number; height: number }): number {
+        const avgSizePixels = (uiSizePixels.width + uiSizePixels.height) / 2;
+        
+        // Size factor calculation based on pixel sizes
+        if (avgSizePixels <= 50) {
+            return 1.0; // Very small stickers, keep actual size
+        } else if (avgSizePixels <= 100) {
+            return 0.8; // Small stickers, slight reduction
+        } else if (avgSizePixels <= 150) {
+            return 0.7; // Medium-small stickers
+        } else if (avgSizePixels <= 200) {
+            return 0.6; // Medium stickers
+        } else if (avgSizePixels <= 300) {
+            return 0.5; // Large stickers
+        } else {
+            return 0.4; // Very large stickers, scale down more
+        }
+    }
+
+    private calculateStickerPositionWithDebug(
+        sticker: any,
+        videoSize: { width: number; height: number },
+        customOffsets?: { x: number; y: number }
+    ): { x: number; y: number; width: number; height: number } {
+        const DEFAULT_COORDINATE_SIZE = { width: 1280, height: 720 };
+        
+        const scaleX = videoSize.width / DEFAULT_COORDINATE_SIZE.width;
+        const scaleY = videoSize.height / DEFAULT_COORDINATE_SIZE.height;
+        
+        const scaledX = sticker.position.x * scaleX;
+        const scaledY = sticker.position.y * scaleY;
+        
+        const scaledSizeWidth = sticker.size.width * scaleX;
+        const scaledSizeHeight = sticker.size.height * scaleY;
+        
+        const sizeFactor = this.calculateStickerSizeFactor({ width: scaledSizeWidth, height: scaledSizeHeight });
+        const adjustedSizeFactor = Math.max(sizeFactor * 1.5, 0.8);
+        
+        const width = Math.max(20, Math.round(scaledSizeWidth * adjustedSizeFactor));
+        const height = Math.max(20, Math.round(scaledSizeHeight * adjustedSizeFactor));
+        
+        // Use custom offsets if provided, otherwise use default positioning logic
+        let positionOffsetX, positionOffsetY;
+        
+        if (customOffsets) {
+            positionOffsetX = customOffsets.x;
+            positionOffsetY = customOffsets.y;
+        } else {
+            positionOffsetX = -width / 2;
+            positionOffsetY = -height / 2;
+        }
+        
+        const finetuneOffsetX = -width * 0.1;
+        const finetuneOffsetY = -height * 0.1;
+        
+        const x = Math.max(0, Math.round(scaledX + positionOffsetX + finetuneOffsetX));
+        const y = Math.max(0, Math.round(scaledY + positionOffsetY + finetuneOffsetY));
+        
+        const maxX = Math.max(0, videoSize.width - width);
+        const maxY = Math.max(0, videoSize.height - height);
+        const finalX = Math.min(x, maxX);
+        const finalY = Math.min(y, maxY);
+        
+        return { x: finalX, y: finalY, width, height };
     }
 
 }

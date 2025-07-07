@@ -7,9 +7,11 @@ import { ffmpegService } from '@/services/editVideo.service';
 import { useAudioTracksContext } from '@/context/AudioTracks';
 import { useTimelineContext } from '@/context/TimelineContext';
 import { useTextOverlayContext } from '@/context/TextOverlayContext';
+import { useStickerContext } from '@/context/StickerContext';
 import { audioManager } from '@/services/audioManager';
 import { AudioTrackData } from '@/types/audio';
 import TextOverlay from './TextOverlay';
+import StickerOverlay from './StickerOverlay';
 
 interface VideoPlayerProps {
     videoUrl: string;
@@ -69,6 +71,11 @@ const {
     stopEditing,
     getTextOverlayAtTime 
 } = useTextOverlayContext();
+const { 
+    state: { stickerOverlays }, 
+    getStickerOverlayAtTime,
+    selectStickerOverlay 
+} = useStickerContext();
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
@@ -144,9 +151,6 @@ useEffect(() => {
     // console.log('Debug - VideoPlayer received external volume:', externalVolume);
 }, [externalVolume]);
 
-// Notify parent about volume changes - Remove this since we're using external volume
-// The parent controls the volume state now
-
 // Update video container size when video loads
 useEffect(() => {
     if (videoContainerRef && playerRef.current) {
@@ -196,6 +200,14 @@ const handleReady = () => {
 };
 // Get visible text overlays for current time
 const visibleTextOverlays = getTextOverlayAtTime(currentTime);
+
+// Get visible sticker overlays for current time
+const visibleStickerOverlays = getStickerOverlayAtTime(currentTime);
+
+// Handle sticker overlay click
+const handleStickerOverlayClick = useCallback((stickerId: string) => {
+    selectStickerOverlay(stickerId);
+}, [selectStickerOverlay]);
 
 // Handle text overlay processing
 const addTextOverlayToVideo = async () => {
@@ -419,34 +431,32 @@ useEffect(() => {
                         onDoubleClick={handleTextOverlayDoubleClick}
                     />
                 ))}
+
+                {/* Sticker Overlays */}
+                {visibleStickerOverlays.map((stickerOverlay) => {
+                    // Debug log for sticker rendering
+                    console.log('Rendering sticker overlay:', {
+                        stickerId: stickerOverlay.id,
+                        stickerName: stickerOverlay.stickerName,
+                        position: stickerOverlay.position,
+                        videoSize: { width: videoSize.width, height: videoSize.height },
+                        originalVideoSize: originalVideoSize
+                    });
+                    
+                    return (
+                        <StickerOverlay
+                            key={stickerOverlay.id}
+                            overlay={stickerOverlay}
+                            currentTime={currentTime}
+                            videoWidth={videoSize.width}
+                            videoHeight={videoSize.height}
+                            originalVideoSize={originalVideoSize}
+                            onClick={handleStickerOverlayClick}
+                        />
+                    );
+                })}
                 
             </div>
-            {/* Video Control - Disabled (chỉ hiển thị) */}
-            {/* <div className="p-2">
-                <div className="flex items-center justify-center space-x-5">
-                     <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        <FaBackward className="w-4 h-4" />
-                    </motion.button>
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        {isPlaying ? <FaPause className="w-4 h-4" /> : <FaPlay className="w-4 h-4 ml-0.5" />}
-                    </motion.button>
-                     <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        <FaForward className="w-4 h-4" />
-                    </motion.button>
-                </div>
-            </div> */}
         </div>
     )
 });

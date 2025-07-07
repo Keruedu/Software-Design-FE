@@ -2,7 +2,7 @@ import { ffmpegService,FFmpegService } from "./editVideo.service";
 
 export interface VideoProcessingStep{
   id: string;
-  type: 'trim' | 'addAudio' | 'addMultipleAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays';
+  type: 'trim' | 'addAudio' | 'addMultipleAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays' | 'addStickerOverlay' | 'addMultipleStickerOverlays';
   params: any;
   timestamp: number;
 }
@@ -51,6 +51,25 @@ export interface TextOverlayParams {
     opacity: number;
     borderRadius: number;
     padding: number;
+  };
+}
+
+export interface StickerOverlayParams {
+  stickerId: string;
+  stickerUrl: string;
+  stickerName: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  rotation: number;
+  opacity: number;
+  timing: {
+    startTime: number;
+    endTime: number;
+  };
+  animation?: {
+    type: 'none' | 'bounce' | 'pulse' | 'fade' | 'slide';
+    duration: number;
+    delay: number;
   };
 }
 
@@ -170,6 +189,56 @@ export class VideoProcessor {
                         step.params.overlays,
                         step.params.videoSize
                     );
+                    break;
+                case 'addStickerOverlay':
+                    // Convert single sticker overlay to multiple sticker overlays format
+                    resultBlob = await this.ffmpegService.addMultipleStickerOverlays(
+                        this.currentVideo.blob,
+                        [step.params], // Wrap single overlay in array
+                        step.params.videoSize || { width: 1280, height: 720 }
+                    );
+                    break;
+                case 'addMultipleStickerOverlays':
+                    try {
+                        console.log(`Starting sticker overlay processing...`);
+                        console.log(`Input video size: ${Math.round(this.currentVideo.blob.size / 1024)}KB`);
+                        
+                        resultBlob = await this.ffmpegService.addMultipleStickerOverlays(
+                            this.currentVideo.blob,
+                            step.params.overlays,
+                            step.params.videoSize
+                        );
+                        
+                        console.log(`Sticker processing completed`);
+                        console.log(`Output video size: ${Math.round(resultBlob.size / 1024)}KB`);
+                        
+                        // Check if result is empty
+                        if (!resultBlob || resultBlob.size === 0) {
+                            console.error('Sticker processing returned empty blob');
+                            console.warn('Using original video instead');
+                            resultBlob = this.currentVideo.blob;
+                        } else {
+                            console.log(`Sticker processing successful: ${Math.round(resultBlob.size / 1024)}KB`);
+                        }
+                        
+                        const originalStickerCount = step.params.overlays.length;
+                        console.log(`Processed ${originalStickerCount} sticker(s) for video export`);
+                        
+                    } catch (stickerError) {
+                        console.error('Failed to add sticker overlays:', stickerError);
+                        console.error('Error details:', stickerError);
+                        
+                        // Continue with original video if stickers fail
+                        resultBlob = this.currentVideo.blob;
+                        console.warn('Continuing export without stickers due to processing errors');
+                        console.log(`Fallback video size: ${Math.round(resultBlob.size / 1024)}KB`);
+                        
+                        // Ensure fallback video is not empty
+                        if (!resultBlob || resultBlob.size === 0) {
+                            console.error('Fallback video is also empty, this should not happen');
+                            throw new Error('Both sticker processing and fallback failed');
+                        }
+                    }
                     break;
                 default:
                     throw new Error(`Unsupported step type: ${step.type}`);

@@ -13,6 +13,7 @@ interface TimelineContextType {
   setDuration: (duration: number) => void;
   setZoom: (zoom: number) => void;
   moveItem: (itemId: string, fromTrackId: string, toTrackId: string, newStartTime: number) => void;
+  findOrCreateStickerTrack: () => string;
 }
 
 const TimelineContext = createContext<TimelineContextType | null>(null);
@@ -50,13 +51,23 @@ const DEFAULT_TRACKS: Track[] = [
   },
   {
     id: 'text-track',
-    name: 'Text Overlays',
+    name: '',
     type: 'text',
     height: 50,
     isVisible: true,
     isLocked: false,
     items: [],
-    color: '#8B5CF6'
+    color: '#3B82F6'
+  },
+  {
+    id: 'overlay-track',
+    name: '',
+    type: 'overlay',
+    height: 50,
+    isVisible: true,
+    isLocked: false,
+    items: [],
+    color: '#3B82F6'
   }
 ];
 
@@ -74,9 +85,7 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     const newTrack: Track = { 
       ...track, 
-      id, 
-      name: '', 
-      type: 'mixed'
+      id
     };
     
     setTimelineState(prev => ({
@@ -207,6 +216,27 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
+  const findOrCreateStickerTrack = useCallback(() => {
+    const existingStickerTrack = timelineState.tracks.find(track => track.type === 'sticker');
+    
+    if (existingStickerTrack) {
+      return existingStickerTrack.id;
+    }
+    
+    // Create new sticker track
+    const stickerTrackId = addTrack({
+      name: 'Stickers',
+      type: 'sticker',
+      height: 50,
+      isVisible: true,
+      isLocked: false,
+      items: [],
+      color: '#F59E0B'
+    });
+    
+    return stickerTrackId;
+  }, [timelineState.tracks, addTrack]);
+
   const contextValue: TimelineContextType = {
     timelineState,
     addTrack,
@@ -218,7 +248,8 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrentTime,
     setDuration,
     setZoom,
-    moveItem
+    moveItem,
+    findOrCreateStickerTrack
   };
 
   return (
