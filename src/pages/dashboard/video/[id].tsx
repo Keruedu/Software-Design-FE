@@ -44,6 +44,83 @@ interface FacebookStats {
 }
 
 type SocialMediaStats = YouTubeStats | FacebookStats;
+interface FacebookPage {
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+  category?: string;
+  about?: string;
+  picture_url?: string;
+  is_published: boolean;
+}
+
+interface FacebookPageSelectorProps {
+  onPageSelect: (page: FacebookPage | null) => void;
+  selectedPageId?: string;
+}
+
+const FacebookPageSelector: React.FC<FacebookPageSelectorProps> = ({
+  onPageSelect,
+  selectedPageId
+}) => {
+  const [pages, setPages] = useState<FacebookPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { auth } = useAuth();
+
+  useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/facebook-pages/`, {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPages(data.pages || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch Facebook pages:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPages();
+  }, [auth.token]);
+
+  if (loading) {
+    return <div className="text-sm text-gray-500">Loading Facebook Pages...</div>;
+  }
+
+  if (pages.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+        No Facebook Pages found. Make sure you have pages you can manage.
+      </div>
+    );
+  }
+
+  return (
+    <select
+      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
+      value={selectedPageId || ''}
+      onChange={(e) => {
+        const selected = pages.find(p => p.page_id === e.target.value);
+        onPageSelect(selected || null);
+      }}
+    >
+      <option value="">Select a Facebook Page</option>
+      {pages.map((page) => (
+        <option key={page.page_id} value={page.page_id}>
+          {page.page_name} {page.category ? `(${page.category})` : ''}
+        </option>
+      ))}
+    </select>
+  );
+};
 
 const VideoDetailPage = () => {
   const router = useRouter();
@@ -56,6 +133,7 @@ const VideoDetailPage = () => {
   const { auth } = useAuth();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showShareDropdown, setShowShareDropdown] = useState(false);
+  const [showFacebookModal, setShowFacebookModal] = useState(false);
   const shareDropdownRef = useRef<HTMLDivElement>(null);
   const [ytTitle, setYtTitle] = useState('');
   const [ytDesc, setYtDesc] = useState('');
@@ -66,6 +144,12 @@ const VideoDetailPage = () => {
   // Social media statistics state
   const [socialStats, setSocialStats] = useState<SocialMediaStats[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  
+  // Facebook upload states
+  const [fbTitle, setFbTitle] = useState('');
+  const [fbDesc, setFbDesc] = useState('');
+  const [selectedPageId, setSelectedPageId] = useState('');
+  const [isUploadingFb, setIsUploadingFb] = useState(false);
   
   useEffect(() => {
     const fetchVideo = async () => {
@@ -261,9 +345,19 @@ useEffect(() => {
   };
 
   const handleShareToFacebook = () => {
-    const shareUrl = `${window.location.origin}/dashboard/video/${id}`;
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    window.open(facebookUrl, '_blank', 'width=600,height=400');
+    if (!auth.user?.social_credentials?.facebook) {
+      toast.error('You need to link your Facebook account first!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      setTimeout(() => {
+        window.location.href = '/auth/linkFacebook';
+      }, 1200);
+      return;
+    }
+    handleOpenFacebookModal();
     setShowShareDropdown(false);
   };
 
@@ -279,6 +373,12 @@ useEffect(() => {
     setYtTags((video?.tags || []).join(', '));
     setYtPrivacy('public');
     setShowUploadModal(true);
+  };
+  
+  const handleOpenFacebookModal = () => {
+    setFbTitle(video?.title || '');
+    setFbDesc(video?.description || '');
+    setShowFacebookModal(true);
   };
   
   const handleUploadToYouTube = async () => {
@@ -323,6 +423,71 @@ useEffect(() => {
       );
     } finally {
       setIsUploading(false);
+    }
+  };
+  
+  const handleUploadToFacebook = async () => {
+    if (!video || !selectedPageId) return;
+    
+    if (!auth.user?.social_credentials?.facebook) {
+      toast.error('You need to link your Facebook account before uploading!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      setTimeout(() => {
+        window.location.href = '/auth/linkFacebook';
+      }, 1200);
+      return;
+    }
+
+    try {
+      setIsUploadingFb(true);
+      
+      const uploadData = {
+        media_id: video.id,
+        platform: 'facebook',
+        page_id: selectedPageId,
+        title: fbTitle,
+        description: fbDesc,
+        privacy_status: 'public'
+      };
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/facebook-pages/upload-video`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(uploadData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Facebook upload failed');
+      }
+
+      const result = await response.json();
+      
+      toast.success('Successfully uploaded to Facebook Page!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      
+      setShowFacebookModal(false);
+      
+    } catch (err: any) {
+      toast.error('Facebook upload failed: ' + err.message,
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+    } finally {
+      setIsUploadingFb(false);
     }
   };
   
@@ -647,7 +812,8 @@ useEffect(() => {
             </div>
           </div>
         </div>
-      </div>      <Modal
+      </div>      
+      <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         title="Delete Video"
@@ -679,6 +845,69 @@ useEffect(() => {
         </div>
       </Modal>
       
+      {/* Facebook Upload Modal */}
+      <Modal
+        isOpen={showFacebookModal}
+        onClose={() => setShowFacebookModal(false)}
+        title="Upload to Facebook Page"
+      >
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <FaFacebook className="w-10 h-10 text-blue-500 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">Upload to Facebook Page</h3>
+            <p className="text-slate-600 text-sm">Choose a Facebook Page and customize your video information</p>
+          </div>
+          
+          {/* Facebook Page Selector */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Select Facebook Page</label>
+            <FacebookPageSelector 
+              selectedPageId={selectedPageId}
+              onPageSelect={(page: FacebookPage | null) => setSelectedPageId(page?.page_id || '')}
+            />
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+              <input
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
+                value={fbTitle}
+                onChange={e => setFbTitle(e.target.value)}
+                placeholder="Enter video title"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+              <textarea
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
+                rows={3}
+                value={fbDesc}
+                onChange={e => setFbDesc(e.target.value)}
+                placeholder="Enter video description"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFacebookModal(false)}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUploadToFacebook} 
+              disabled={isUploadingFb || !selectedPageId || !fbTitle.trim()}
+              className="bg-blue-500 hover:bg-blue-600 text-white border-0"
+            >
+              {isUploadingFb ? 'Uploading...' : 'Upload to Facebook'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      
       <Modal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
@@ -695,7 +924,7 @@ useEffect(() => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
               <input
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytTitle}
                 onChange={e => setYtTitle(e.target.value)}
                 placeholder="Enter video title"
@@ -704,7 +933,7 @@ useEffect(() => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 rows={3}
                 value={ytDesc}
                 onChange={e => setYtDesc(e.target.value)}
@@ -714,7 +943,7 @@ useEffect(() => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Tags</label>
               <input
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytTags}
                 onChange={e => setYtTags(e.target.value)}
                 placeholder="Enter tags separated by commas"
@@ -723,7 +952,7 @@ useEffect(() => {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Privacy</label>
               <select
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
                 value={ytPrivacy}
                 onChange={e => setYtPrivacy(e.target.value as 'public'|'private'|'unlisted')}
               >
