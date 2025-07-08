@@ -1,4 +1,4 @@
-import { Script } from '../mockdata/scripts';
+import { Script, WikipediaSource } from '../mockdata/scripts';
 import { delay, mockApiCall, mockScripts } from '../mockdata';
 
 // Backend API base URL
@@ -51,6 +51,8 @@ export const ScriptService = {
           throw new Error(`API request failed: ${response.statusText}`);
         }        const data = await response.json();
         const aiResult = data.text || {};
+        const wikipediaSources = data.wikipedia_sources || [];
+        const wikipediaTopic = data.wikipedia_topic;
         
         // Create script object from AI response
         const newScript: Script = {
@@ -61,11 +63,14 @@ export const ScriptService = {
           duration: Math.ceil((aiResult.script || aiResult.content || '').split(' ').length * 0.5) || 60, // Estimate duration
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          imagePrompts: aiResult.image_prompts || [] // Extract image prompts from AI response
+          imagePrompts: aiResult.image_prompts || [], // Extract image prompts from AI response
+          wikipediaSources: wikipediaSources, // Wikipedia sources from backend
+          wikipediaTopic: wikipediaTopic // Main Wikipedia search topic
         };
         
         console.log('✅ Script generated with AI:', newScript);
         console.log('🎨 Image prompts:', newScript.imagePrompts);
+        console.log('📚 Wikipedia sources:', newScript.wikipediaSources);
         
         // Remove from cache after successful completion
         requestCache.delete(cacheKey);
