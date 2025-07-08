@@ -20,7 +20,8 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalVideos, setTotalVideos] = useState(0);
-  const [videosPerPage] = useState(20);
+  const [videosPerPage] = useState(12);
+  const [hasNextPage, setHasNextPage] = useState(false);
   
   const [stats, setStats] = useState({
     totalVideos: 0,
@@ -33,26 +34,10 @@ export default function Dashboard() {
     const fetchVideos = async () => {
       try {
         setLoading(true);
-        // For now, we'll get all videos at once with size=100
-        // In the future, we can use getUserVideosPaginated for true pagination
-        const data = await VideoService.getUserVideos();
-        setVideos(data);
-        setTotalVideos(data.length);
-        
-        // Calculate stats
-        setStats({
-          totalVideos: data.length,
-          totalViews: data.reduce((sum, video) => sum + video.views, 0),
-          totalDuration: data.reduce((sum, video) => sum + video.duration, 0),
-          videosThisMonth: data.filter(video => {
-            const createdAt = new Date(video.createdAt);
-            const now = new Date();
-            return (
-              createdAt.getMonth() === now.getMonth() && 
-              createdAt.getFullYear() === now.getFullYear()
-            );
-          }).length
-        });
+        const data = await VideoService.getAllVideoOfUser(currentPage, videosPerPage);
+        setVideos(data.videos);
+        setTotalVideos(data.total);
+        setHasNextPage(data.hasNext);
         
         setError(null);
       } catch (err) {
@@ -64,18 +49,67 @@ export default function Dashboard() {
     };
     
     fetchVideos();
-  }, [currentPage]);
+  }, [currentPage, videosPerPage]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const statsData = await VideoService.getVideoStats();
+        
+        setStats({
+          totalVideos: statsData.total_videos,
+          totalViews: statsData.total_views,
+          totalDuration: statsData.total_duration,
+          videosThisMonth: statsData.videos_this_month || 0
+        });
+      } catch (err) {
+        console.error('Error fetching video stats:', err);
+      }
+    };
+    
+    fetchStats();
+  }, []);
   
   const handleDeleteVideo = async (id: string) => {
     try {
+      const videoToDelete = videos.find(video => video.id === id);
+      
       await VideoService.deleteVideo(id);
       setVideos(videos.filter(video => video.id !== id));
       
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        totalVideos: prev.totalVideos - 1
-      }));
+      try {
+        const statsData = await VideoService.getVideoStats();
+        setStats({
+          totalVideos: statsData.total_videos,
+          totalViews: statsData.total_views,
+          totalDuration: statsData.total_duration,
+          videosThisMonth: statsData.videos_this_month || 0
+        });
+      } catch (statsErr) {
+        if (videoToDelete) {
+          const isVideoFromThisMonth = (() => {
+            const createdAt = new Date(videoToDelete.createdAt);
+            const now = new Date();
+            return (
+              createdAt.getMonth() === now.getMonth() && 
+              createdAt.getFullYear() === now.getFullYear()
+            );
+          })();
+
+          setStats(prev => ({
+            ...prev,
+            totalVideos: prev.totalVideos - 1,
+            totalViews: prev.totalViews - videoToDelete.views,
+            totalDuration: prev.totalDuration - videoToDelete.duration,
+            videosThisMonth: isVideoFromThisMonth ? prev.videosThisMonth - 1 : prev.videosThisMonth
+          }));
+        }
+      }
+      
+      if (videos.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
+      
       toast.success('Video deleted successfully',
         { 
           position: 'bottom-right', 
@@ -172,10 +206,13 @@ export default function Dashboard() {
           <div className="mb-8">              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Your Videos</h2>
                 <div className="flex items-center">
-                  <span className="text-gray-500 text-sm mr-4">{totalVideos} videos total</span>
+                  <span className="text-gray-500 text-sm mr-4">
+                    {loading ? 'Loading...' : `${totalVideos} videos total`}
+                  </span>
                   <select 
                     className="border border-gray-300 rounded-md text-sm py-1.5 px-3 text-gray-800"
                     defaultValue="recent"
+                    disabled={loading}
                   >
                     <option value="recent">Most Recent</option>
                     <option value="popular">Most Popular</option>
@@ -196,26 +233,53 @@ export default function Dashboard() {
               isLoading={loading}
             />
             
-            {/* Pagination - Optional for future use */}
+            {/* Pagination */}
             {totalVideos > videosPerPage && (
               <div className="mt-6 flex justify-center">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    disabled={currentPage === 1 || loading}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     Previous
                   </button>
                   
-                  <span className="text-sm text-gray-700">
+                  <div className="flex items-center space-x-1">
+                    {/* Hiển thị số trang */}
+                    {Array.from({ length: Math.min(5, Math.ceil(totalVideos / videosPerPage)) }, (_, i) => {
+                      const pageNum = currentPage <= 3 ? i + 1 : 
+                                     currentPage >= Math.ceil(totalVideos / videosPerPage) - 2 ? 
+                                     Math.ceil(totalVideos / videosPerPage) - 4 + i : 
+                                     currentPage - 2 + i;
+                      
+                      if (pageNum < 1 || pageNum > Math.ceil(totalVideos / videosPerPage)) return null;
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          disabled={loading}
+                          className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                            currentPage === pageNum 
+                              ? 'bg-blue-600 text-white' 
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <span className="text-sm text-gray-700 px-2">
                     Page {currentPage} of {Math.ceil(totalVideos / videosPerPage)}
                   </span>
                   
                   <button
-                    onClick={() => setCurrentPage(Math.min(Math.ceil(totalVideos / videosPerPage), currentPage + 1))}
-                    disabled={currentPage === Math.ceil(totalVideos / videosPerPage)}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={!hasNextPage || loading}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     Next
                   </button>

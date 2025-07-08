@@ -1,4 +1,5 @@
 import { Video, VideoWithDetails } from '../mockdata/videos';
+import { VideoStats } from '../types/video';
 import { mockApiCall, mockBackgrounds, mockScripts, mockVideos, mockVoices, trendingTopics } from '../mockdata';
 import { SubtitleStyle } from '../types/subtitle';
 
@@ -523,6 +524,68 @@ export const VideoService = {
   },
 
   /**
+   * Get all videos of user with pagination (new endpoint)
+   */
+  getAllVideoOfUser: async (page: number = 1, size: number = 12): Promise<{videos: Video[], total: number, page: number, size: number, hasNext: boolean}> => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('No access token found');
+    }
+
+    console.log(`🎬 Fetching videos - Page: ${page}, Size: ${size}`);
+    const response = await fetch(`${API_BASE_URL}/media/videos/all?page=${page}&size=${size}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) throw new Error('Failed to fetch videos');
+    const data = await response.json();
+    
+    console.log(`📊 API Response:`, {
+      totalMedia: data.media?.length || 0,
+      total: data.total,
+      page: data.page,
+      size: data.size,
+      hasNext: data.has_next
+    });
+    
+    // Process videos and generate thumbnails if needed
+    const processedVideos = await Promise.all((data.media || []).map(async (v: any) => {
+      const thumbnailUrl = await getThumbnailUrl(v);
+      
+      return {
+        id: v.id,
+        title: v.title || 'Untitled Video',
+        description: v.content || v.description || '',
+        scriptId: v.metadata?.script_id || '',
+        voiceId: v.metadata?.voice_id || '',
+        backgroundId: v.metadata?.background_image_id || '',
+        duration: v.metadata?.duration || v.duration || 0,
+        thumbnailUrl: thumbnailUrl,
+        videoUrl: v.url,
+        status: v.status || 'completed',
+        createdAt: v.created_at,
+        updatedAt: v.updated_at,
+        topics: v.metadata?.topics || [],
+        tags: v.tags || [],
+        views: v.views || 0,
+        url: v.url,
+        voiceName: v.metadata?.voice_name || '',
+        backgroundName: v.metadata?.background_name || ''
+      };
+    }));
+    
+    console.log(`=Processed videos: ${processedVideos.length}`);
+    
+    return {
+      videos: processedVideos,
+      total: data.total || 0,
+      page: data.page || page,
+      size: data.size || size,
+      hasNext: data.has_next || false
+    };
+  },
+
+  /**
    * Delete a video (mock - for backward compatibility)
    */
   deleteVideoMock: async (id: string): Promise<void> => {
@@ -544,5 +607,28 @@ export const VideoService = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to delete video');
+  },
+
+  // Video statistics
+  getVideoStats: async (year?: number, month?: number): Promise<VideoStats> => {
+    const token = localStorage.getItem('access_token');
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (year) params.append('year', year.toString());
+    if (month) params.append('month', month.toString());
+    
+    const queryString = params.toString();
+    const url = `${API_BASE_URL}/media/video/stats${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to get video statistics');
+    }
+    
+    return response.json();
   },
 };

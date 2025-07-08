@@ -151,6 +151,7 @@ const VideoDetailPage = () => {
   const [fbDesc, setFbDesc] = useState('');
   const [selectedPageId, setSelectedPageId] = useState('');
   const [isUploadingFb, setIsUploadingFb] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   
   useEffect(() => {
     const fetchVideo = async () => {
@@ -298,35 +299,157 @@ useEffect(() => {
     }
   };
 
-  const handleDownload = async () => {
-    if (!id) return;
+  // Helper function to sanitize filename while preserving Vietnamese characters
+  const sanitizeFileName = (filename: string): string => {
+    // Remove only characters that are invalid in file names on Windows/Mac/Linux
+    // Keep Vietnamese characters, spaces, and other unicode characters
+    return filename
+      .replace(/[<>:"/\\|?*]/g, '') // Remove invalid file name characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim(); // Remove leading/trailing spaces
+  };
+
+  // Fallback download function for older browsers
+  const fallbackDownload = async (videoUrl: string, fileName: string, videoTitle: string) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/download/${id}`,
-        {
+      const response = await fetch(videoUrl);
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        
+        toast.success(`"${videoTitle}" downloaded`, {
+          position: 'bottom-right',
+          autoClose: 3000
+        });
+      } else {
+        // Final fallback: open in new tab
+        const link = document.createElement('a');
+        link.href = videoUrl;
+        link.target = '_blank';
+        link.click();
+        
+        toast.info('Video opened in new tab - right-click to save', {
+          position: 'bottom-right',
+          autoClose: 4000
+        });
+      }
+    } catch (fetchError) {
+      // Final fallback: open in new tab
+      const link = document.createElement('a');
+      link.href = videoUrl;
+      link.target = '_blank';
+      link.click();
+      
+      toast.info('Video opened in new tab - right-click to save', {
+        position: 'bottom-right',
+        autoClose: 4000
+      });
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!id || !video) return;
+    
+    try {
+      setDownloadLoading(true);
+      
+      // Get video URL
+      const videoUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/download/${id}`;
+      
+      // Sanitize filename
+      const fileName = `${sanitizeFileName(video.title || 'video')}.mp4`;
+
+      // Check if browser supports File System Access API
+      if ('showSaveFilePicker' in window) {
+        try {
+          // Use File System Access API for modern browsers
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: 'Video files',
+              accept: {
+                'video/mp4': ['.mp4'],
+                'video/*': ['.mp4', '.mov', '.avi']
+              }
+            }]
+          });
+
+          // Fetch video with auth headers and write to selected location
+          const response = await fetch(videoUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${auth.token}`,
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch video');
+          }
+
+          const writable = await fileHandle.createWritable();
+          await response.body?.pipeTo(writable);
+
+          toast.success(`"${video.title}" downloaded successfully`, {
+            position: 'bottom-right',
+            autoClose: 3000
+          });
+        } catch (filePickerError: any) {
+          // User cancelled or API failed, fallback to regular download
+          if (filePickerError.name !== 'AbortError') {
+            console.warn('File picker failed, falling back to regular download:', filePickerError);
+            // Create authenticated video URL for fallback
+            const response = await fetch(videoUrl, {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${auth.token}`,
+              },
+            });
+            if (!response.ok) throw new Error('Cannot download video');
+            const blob = await response.blob();
+            const authenticatedUrl = URL.createObjectURL(blob);
+            await fallbackDownload(authenticatedUrl, fileName, video.title);
+            // Clean up
+            setTimeout(() => URL.revokeObjectURL(authenticatedUrl), 100);
+          }
+          // If AbortError, user cancelled - do nothing
+        }
+      } else {
+        // Fallback for older browsers
+        const response = await fetch(videoUrl, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${auth.token}`,
           },
-        }
-      );
-      if (!res.ok) throw new Error('Cannot download video');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${video?.title || 'video'}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error('Video download failed!',
-        {
-          position: 'bottom-right',
-          autoClose: 3000,
-        }
-      );
+        });
+        if (!response.ok) throw new Error('Cannot download video');
+        const blob = await response.blob();
+        const authenticatedUrl = URL.createObjectURL(blob);
+        await fallbackDownload(authenticatedUrl, fileName, video.title);
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(authenticatedUrl), 100);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download video. Please try again.', {
+        position: 'bottom-right',
+        autoClose: 3000
+      });
+    } finally {
+      setDownloadLoading(false);
     }
   };
   const handleShare = () => {
@@ -754,10 +877,11 @@ useEffect(() => {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleDownload} 
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm border-0 text-sm"
-                    icon={<FiDownload />}
+                    disabled={downloadLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white shadow-sm border-0 text-sm"
+                    icon={downloadLoading ? <FiRefreshCw className="animate-spin" /> : <FiDownload />}
                   >
-                    Download Video
+                    {downloadLoading ? 'Downloading...' : 'Download Video'}
                   </Button>                  
                   <div className="relative" ref={shareDropdownRef}>
                     <Button 
@@ -786,13 +910,13 @@ useEffect(() => {
                             <FaFacebook className="text-blue-500" />
                             Facebook
                           </button>
-                          <button
+                          {/* <button
                             onClick={handleShareToInstagram}
                             className="w-full px-4 py-2.5 text-left hover:bg-pink-50 flex items-center gap-3 text-slate-700 hover:text-pink-600 text-sm transition-colors"
                           >
                             <FaInstagram className="text-pink-500" />
                             Instagram
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     )}
