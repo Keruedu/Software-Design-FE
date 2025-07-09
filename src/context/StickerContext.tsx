@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useState, useRef } from 'react';
 import { StickerOverlay, StickerState, StickerItem, DEFAULT_STICKER_SIZE, DEFAULT_STICKER_ANIMATION } from '@/types/sticker';
-import { clampPositionToBounds, getDefaultVideoSize, getDefaultStickerSize } from '@/utils/stickerPosition';
+import { clampPositionToBounds, getDefaultVideoSize, getDefaultStickerSize, getOptimalStickerSize, generateRandomOffset, calculateCenterPosition, getSafeCenterPosition } from '@/utils/stickerPosition';
 import { useTimelineContext } from '@/context/TimelineContext';
 
 type StickerAction =
@@ -36,13 +36,17 @@ function stickerReducer(state: StickerState, action: StickerAction): StickerStat
   switch (action.type) {
     case 'ADD_STICKER': {
       const id = action.payload.id || `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+      const videoSize = getDefaultVideoSize(); 
+      const optimalStickerSize = getOptimalStickerSize(videoSize, 80); 
+      
       const newSticker: StickerOverlay = {
         id,
         stickerId: action.payload.stickerId,
         stickerUrl: action.payload.stickerUrl,
         stickerName: action.payload.stickerName,
         position: action.payload.position,
-        size: { ...DEFAULT_STICKER_SIZE },
+        size: optimalStickerSize,
         rotation: 0,
         opacity: 1,
         visible: true,
@@ -50,7 +54,7 @@ function stickerReducer(state: StickerState, action: StickerAction): StickerStat
         zIndex: Math.max(...state.stickerOverlays.map(s => s.zIndex), 0) + 1,
         timing: action.payload.timing || {
           startTime: 0,
-          endTime: 5, // Default to 5 seconds to match StickerPanel
+          endTime: 5, 
         },
         animation: { ...DEFAULT_STICKER_ANIMATION },
       };
@@ -296,6 +300,7 @@ interface StickerContextValue {
   getStickerOverlayAtTime: (time: number) => StickerOverlay[];
   loadAvailableStickers: (stickers: StickerItem[]) => void;
   setTimelineOperations: (operations: any) => void;
+  setVideoSize: (size: { width: number; height: number }) => void;
 }
 
 const StickerContext = createContext<StickerContextValue | undefined>(undefined);
@@ -303,6 +308,7 @@ const StickerContext = createContext<StickerContextValue | undefined>(undefined)
 export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(stickerReducer, initialState);
   const [timelineOperations, setTimelineOperations] = useState<any>(null);
+  const [currentVideoSize, setCurrentVideoSize] = useState(getDefaultVideoSize());
   const timelineContext = useTimelineContext();
   
   // Refs to prevent infinite loops during synchronization
@@ -390,16 +396,26 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addStickerOverlay = useCallback((stickerId: string, stickerUrl: string, stickerName: string, position: { x: number; y: number }) => {
     const id = `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Ensure position is within bounds using utility function
-    const videoSize = getDefaultVideoSize();
-    const stickerSize = getDefaultStickerSize();
-    const clampedPosition = clampPositionToBounds(position, stickerSize, videoSize);
+    const videoSize = currentVideoSize.width > 0 && currentVideoSize.height > 0 
+      ? currentVideoSize 
+      : getDefaultVideoSize();
     
-    console.log('Adding sticker overlay:', {
+    const optimalStickerSize = getOptimalStickerSize(videoSize, 80);
+    
+    let finalPosition = position;
+    if (position.x <= 0 && position.y <= 0) {
+      finalPosition = getSafeCenterPosition(videoSize, optimalStickerSize);
+    }
+    
+    const clampedPosition = clampPositionToBounds(finalPosition, optimalStickerSize, videoSize);
+    
+    console.log('Adding sticker overlay with optimized positioning:', {
       originalPosition: position,
+      finalPosition,
       clampedPosition,
       videoSize,
-      stickerSize
+      optimalStickerSize,
+      isVerticalVideo: videoSize.height > videoSize.width
     });
     
     dispatch({ 
@@ -412,7 +428,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } 
     });
     return id;
-  }, []);
+  }, [currentVideoSize]);
 
   const removeStickerOverlay = useCallback((id: string) => {
     // Remove sticker overlay
@@ -546,13 +562,28 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     currentTime: number, 
     duration: number = 5
   ) => {
-    // Ensure position is within bounds using utility function
-    const videoSize = getDefaultVideoSize();
-    const stickerSize = getDefaultStickerSize();
-    const clampedPosition = clampPositionToBounds(position, stickerSize, videoSize);
+    const videoSize = getDefaultVideoSize(); // Now returns 720x1280 for vertical
+    const optimalStickerSize = getOptimalStickerSize(videoSize);
+    
+    let finalPosition = position;
+    if (position.x <= 0 && position.y <= 0) {
+      const randomOffset = generateRandomOffset(60); // Small random offset for variety
+      finalPosition = calculateCenterPosition(videoSize, optimalStickerSize, randomOffset);
+    }
+    
+    const clampedPosition = clampPositionToBounds(finalPosition, optimalStickerSize, videoSize);
     
     // Create sticker overlay with correct timing
     const id = `sticker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // console.log('Adding sticker to timeline for vertical video:', {
+    //   originalPosition: position,
+    //   finalPosition,
+    //   clampedPosition,
+    //   videoSize,
+    //   optimalStickerSize,
+    //   timing: { startTime: currentTime, endTime: currentTime + duration }
+    // });
     
     dispatch({ 
       type: 'ADD_STICKER', 
@@ -595,6 +626,11 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setTimelineOperations(operations);
   }, []);
 
+  const setVideoSize = useCallback((size: { width: number; height: number }) => {
+    setCurrentVideoSize(size);
+    console.log('StickerContext: Video size updated to:', size);
+  }, []);
+
   const value: StickerContextValue = {
     state,
     addStickerOverlay,
@@ -620,6 +656,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     getStickerOverlayAtTime,
     loadAvailableStickers,
     setTimelineOperations: setTimelineOperationsHandler,
+    setVideoSize,
   };
 
   return (

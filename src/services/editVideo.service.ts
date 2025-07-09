@@ -906,82 +906,29 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 const sticker = stickerOverlayParams[i];
                 const stickerInputIndex = i + 1; // Input indices start from 1 (0 is video)
                 
-                // Default coordinate system used by the web UI
-                const DEFAULT_COORDINATE_SIZE = { width: 1280, height: 720 };
+                const actualX = Math.round(sticker.position.x);
+                const actualY = Math.round(sticker.position.y);
                 
-                // Scale position from the default coordinate system to actual video size
-                const scaleX = videoSize.width / DEFAULT_COORDINATE_SIZE.width;
-                const scaleY = videoSize.height / DEFAULT_COORDINATE_SIZE.height;
+                const actualWidth = Math.round(sticker.size.width);
+                const actualHeight = Math.round(sticker.size.height);
                 
-                const scaledX = sticker.position.x * scaleX;
-                const scaledY = sticker.position.y * scaleY;
-                
-                // Scale size from default coordinate system to actual video size first
-                // This is needed to calculate proper position adjustments
-                const scaledSizeWidth = sticker.size.width * scaleX;
-                const scaledSizeHeight = sticker.size.height * scaleY;
-                
-                // Apply size scaling factor to match UI appearance
-                const sizeFactor = this.calculateStickerSizeFactor({ width: scaledSizeWidth, height: scaledSizeHeight });
-                const adjustedSizeFactor = Math.max(sizeFactor * 1.5, 0.8);
-                
-                const width = Math.max(20, Math.round(scaledSizeWidth * adjustedSizeFactor));
-                const height = Math.max(20, Math.round(scaledSizeHeight * adjustedSizeFactor));
-                
-                // Calculate position offsets to align with Web UI
-                // These offsets compensate for the difference between Web UI and FFmpeg positioning
-                const positionOffsetX = -width / 2; 
-                const positionOffsetY = -height / 2; 
-                
-                const finetuneOffsetX = -width * 1.6; // Move slightly left (adjust based on testing)
-                const finetuneOffsetY = height * 1.3; // Move slightly up (adjust based on testing)
-                
-                // Calculate final position
-                const x = Math.max(0, Math.round(scaledX + positionOffsetX + finetuneOffsetX));
-                const y = Math.max(0, Math.round(scaledY + positionOffsetY + finetuneOffsetY));
-                
-                // Ensure sticker doesn't go outside video bounds
-                const maxX = Math.max(0, videoSize.width - width);
-                const maxY = Math.max(0, videoSize.height - height);
-                const finalX = Math.min(x, maxX);
-                const finalY = Math.min(y, maxY);
+                const finalX = Math.max(0, Math.min(actualX, videoSize.width - actualWidth));
+                const finalY = Math.max(0, Math.min(actualY, videoSize.height - actualHeight));
+                const finalWidth = Math.max(10, Math.min(actualWidth, videoSize.width - finalX));
+                const finalHeight = Math.max(10, Math.min(actualHeight, videoSize.height - finalY));
 
-                console.log(`Sticker ${i + 1} calculations:`, {
-                    name: sticker.stickerName,
-                    coordinateSystem: 'Scaled from default coordinate system (1280x720) to actual video size',
-                    defaultCoordinateSize: DEFAULT_COORDINATE_SIZE,
-                    actualVideoSize: videoSize,
-                    scaleFactors: { scaleX, scaleY },
-                    originalPosition: sticker.position,
-                    originalSize: sticker.size,
-                    scaledPosition: { x: scaledX, y: scaledY },
-                    scaledSize: { width: scaledSizeWidth, height: scaledSizeHeight },
-                    positionOffsets: { 
-                        centerOffset: { x: positionOffsetX, y: positionOffsetY },
-                        finetuneOffset: { x: finetuneOffsetX, y: finetuneOffsetY }
-                    },
-                    calculatedPosition: { x, y },
-                    finalPosition: { x: finalX, y: finalY },
-                    finalSize: { width, height },
-                    sizeFactor: `original: ${sizeFactor} (${(sizeFactor*100).toFixed(0)}%) → adjusted: ${adjustedSizeFactor} (${(adjustedSizeFactor*100).toFixed(0)}%)`,
-                    timing: sticker.timing,
-                    boundsCheck: {
-                        withinX: finalX >= 0 && finalX + width <= videoSize.width,
-                        withinY: finalY >= 0 && finalY + height <= videoSize.height
-                    },
-                    positioningNotes: {
-                        webUIToFFmpegAlignment: 'Applied center-based positioning offset',
-                        webUIExpected: `Should be at (${sticker.position.x}, ${sticker.position.y}) scaled to video size`,
-                        ffmpegActual: `Will be at (${finalX}, ${finalY}) in video`,
-                        percentageInVideo: `${((finalX/videoSize.width)*100).toFixed(1)}%, ${((finalY/videoSize.height)*100).toFixed(1)}%`
-                    }
-                });
-
-                // Build sticker processing filter
+                // console.log(`Sticker ${i + 1} simplified positioning:`, {
+                //     name: sticker.stickerName,
+                //     webUIPosition: sticker.position,
+                //     webUISize: sticker.size,
+                //     videoSize,
+                //     finalPosition: { x: finalX, y: finalY },
+                //     finalSize: { width: finalWidth, height: finalHeight },
+                // });                
                 let stickerFilter = `[${stickerInputIndex}:v]`;
                 
                 // Scale sticker to desired size
-                stickerFilter += `scale=${width}:${height}`;
+                stickerFilter += `scale=${finalWidth}:${finalHeight}`;
                 
                 // Add rotation if specified
                 if (sticker.rotation && sticker.rotation !== 0) {
@@ -997,7 +944,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 
                 stickerFilter += `[sticker${i}]`;
 
-                // Build overlay filter with proper timing
+                // Build overlay filter with proper timing - sử dụng vị trí đã tính toán
                 const overlayFilter = `${currentVideoInput}[sticker${i}]overlay=${finalX}:${finalY}:enable='between(t,${sticker.timing.startTime},${sticker.timing.endTime})'`;
                 
                 if (i === stickerOverlayParams.length - 1) {
@@ -1008,10 +955,10 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                     filterComplex += `${i === 0 ? '' : ';'}${stickerFilter};${overlayFilter}[v${i}]`;
                     currentVideoInput = `[v${i}]`;
                 }
-
-                console.log(`Processing sticker ${i + 1}: ${sticker.stickerName} at (${finalX},${finalY}) size ${width}x${height}`);
-                console.log(`Sticker filter: ${stickerFilter}`);
-                console.log(`Overlay filter: ${overlayFilter}`);
+                
+                // console.log(`Processing sticker ${i + 1}: ${sticker.stickerName} at (${finalX},${finalY}) size ${finalWidth}x${finalHeight}`);
+                // console.log(`Sticker filter: ${stickerFilter}`);
+                // console.log(`Overlay filter: ${overlayFilter}`);
             }
 
             console.log(`Complete filter complex: ${filterComplex}`);

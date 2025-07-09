@@ -74,25 +74,29 @@ const {
 const { 
     state: { stickerOverlays }, 
     getStickerOverlayAtTime,
-    selectStickerOverlay 
+    selectStickerOverlay,
+    setVideoSize: setStickerVideoSize 
 } = useStickerContext();
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
 const [videoContainerRef, setVideoContainerRef] = useState<HTMLDivElement | null>(null)
-const [videoSize, setVideoSize] = useState({ width: 0, height: 0 })
+const [videoSize, setVideoSize] = useState({ width: 360, height: 640 }) // Default to vertical display size
 const playerRef = useRef<ReactPlayer>(null)
 const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
-const [originalVideoSize, setOriginalVideoSize] = useState({ width: 0, height: 0 });
+const [originalVideoSize, setOriginalVideoSize] = useState({ width: 720, height: 1280 }); // Default to vertical video
 const audioItems = timelineState.tracks.flatMap(track => 
     track.items.filter(item => item.type === 'audio')
 );
 
 useEffect(() => {
   setUrl(videoUrl);
-}, [videoUrl]);
+  
+  // Initialize sticker context with default video size
+  setStickerVideoSize({ width: 720, height: 1280 });
+}, [videoUrl, setStickerVideoSize]);
 
 // Sync external playing state and manage audio playback
 useEffect(() => {
@@ -169,7 +173,11 @@ useEffect(() => {
                     videoHeight = containerRect.height;
                     videoWidth = containerRect.height * videoAspectRatio;
                 }
-                setExternalVideoSize({ width: playerElement.videoWidth, height: playerElement.videoHeight });
+                
+                // Update sizes in multiple places
+                const originalVideoSize = { width: playerElement.videoWidth, height: playerElement.videoHeight };
+                setExternalVideoSize(originalVideoSize);
+                setStickerVideoSize(originalVideoSize); // Keep sticker context updated
                 setVideoSize({ width: videoWidth, height: videoHeight });
             }
         };
@@ -189,12 +197,16 @@ const handleReady = () => {
     if (videoContainerRef && playerRef.current) {
         const playerElement = playerRef.current.getInternalPlayer();
         if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
-            // Cập nhật videoSize ngay khi ready
-            setExternalVideoSize({ 
+            const videoSize = { 
                 width: playerElement.videoWidth, 
                 height: playerElement.videoHeight 
-            });
-            setOriginalVideoSize({width:playerElement.videoWidth, height: playerElement.videoHeight});
+            };
+            
+            setExternalVideoSize(videoSize);
+            setOriginalVideoSize(videoSize);
+            setStickerVideoSize(videoSize);
+            
+            console.log('VideoPlayer: Video ready with size:', videoSize);
         }
     }
 };
@@ -389,10 +401,10 @@ useEffect(() => {
     };
 }, []);
     return(
-        <div className="bg-white rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
+        <div className="bg-black rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
             <div 
                 ref={setVideoContainerRef}
-                className="flex-1 relative min-h-0 py-2"
+                className="flex-1 relative min-h-0"
             >
                 <ReactPlayer
                     onReady={handleReady}
@@ -432,29 +444,45 @@ useEffect(() => {
                     />
                 ))}
 
-                {/* Sticker Overlays */}
-                {visibleStickerOverlays.map((stickerOverlay) => {
-                    // Debug log for sticker rendering
-                    console.log('Rendering sticker overlay:', {
-                        stickerId: stickerOverlay.id,
-                        stickerName: stickerOverlay.stickerName,
-                        position: stickerOverlay.position,
-                        videoSize: { width: videoSize.width, height: videoSize.height },
-                        originalVideoSize: originalVideoSize
-                    });
-                    
-                    return (
-                        <StickerOverlay
-                            key={stickerOverlay.id}
-                            overlay={stickerOverlay}
-                            currentTime={currentTime}
-                            videoWidth={videoSize.width}
-                            videoHeight={videoSize.height}
-                            originalVideoSize={originalVideoSize}
-                            onClick={handleStickerOverlayClick}
-                        />
-                    );
-                })}
+                {/* Sticker Overlays - Always render with fallback positioning */}
+                {videoContainerRef && (
+                    <div
+                        className="absolute top-0 left-0 pointer-events-none"
+                        style={{
+                            width: videoSize.width > 0 ? videoSize.width : 360,
+                            height: videoSize.height > 0 ? videoSize.height : 640,
+                            transform: videoContainerRef ? `translate(${(videoContainerRef.getBoundingClientRect().width - (videoSize.width > 0 ? videoSize.width : 360)) / 2}px, ${(videoContainerRef.getBoundingClientRect().height - (videoSize.height > 0 ? videoSize.height : 640)) / 2}px)` : 'none',
+                            zIndex: 10
+                        }}
+                    >
+                        {visibleStickerOverlays.map((stickerOverlay) => {
+                            console.log('Rendering sticker overlay in video bounds:', {
+                                stickerId: stickerOverlay.id,
+                                stickerName: stickerOverlay.stickerName,
+                                position: stickerOverlay.position,
+                                stickerSize: stickerOverlay.size,
+                                videoDisplaySize: { width: videoSize.width, height: videoSize.height },
+                                originalVideoSize: originalVideoSize,
+                                containerSize: videoContainerRef ? {
+                                    width: videoContainerRef.getBoundingClientRect().width,
+                                    height: videoContainerRef.getBoundingClientRect().height
+                                } : null
+                            });
+                            
+                            return (
+                                <StickerOverlay
+                                    key={stickerOverlay.id}
+                                    overlay={stickerOverlay}
+                                    currentTime={currentTime}
+                                    videoWidth={videoSize.width > 0 ? videoSize.width : 360}
+                                    videoHeight={videoSize.height > 0 ? videoSize.height : 640}
+                                    originalVideoSize={originalVideoSize}
+                                    onClick={handleStickerOverlayClick}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
                 
             </div>
         </div>

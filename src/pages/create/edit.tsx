@@ -1200,9 +1200,12 @@ const VideoEditorContent: React.FC = () => {
             return false;
           }
           
-          // Check if sticker has reasonable size
-          if (overlay.size.width <= 0 || overlay.size.height <= 0 || overlay.size.width > 100 || overlay.size.height > 100) {
-            console.warn(`Skipping sticker ${overlay.stickerName}: Invalid size`);
+          const maxStickerWidth = Math.min(videoSize.width / 4, 320);
+          const maxStickerHeight = Math.min(videoSize.height / 4, 180);
+          
+          if (overlay.size.width <= 0 || overlay.size.height <= 0 || 
+              overlay.size.width > maxStickerWidth || overlay.size.height > maxStickerHeight) {
+            console.warn(`Skipping sticker ${overlay.stickerName}: Invalid size (${overlay.size.width}x${overlay.size.height}). Max allowed: ${maxStickerWidth}x${maxStickerHeight}`);
             return false;
           }
           return true;

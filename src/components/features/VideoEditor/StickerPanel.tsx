@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { 
   FaSmile, 
   FaPalette, 
@@ -24,7 +25,9 @@ import {
   calculateCenterPosition, 
   generateRandomOffset, 
   getDefaultVideoSize, 
-  getDefaultStickerSize 
+  getDefaultStickerSize,
+  getSafeCenterPosition,
+  getOptimalStickerSize 
 } from '@/utils/stickerPosition';
 
 interface StickerPanelProps {
@@ -76,15 +79,10 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
 
   // Handle add sticker
   const handleAddSticker = useCallback((sticker: StickerItem) => {
-    // Get video and sticker sizes
     const videoSize = getDefaultVideoSize();
-    const stickerSize = getDefaultStickerSize();
-    
-    // Generate random offset for variation
-    const randomOffset = generateRandomOffset(50);
-    
-    // Calculate center position with random offset
-    const position = calculateCenterPosition(videoSize, stickerSize, randomOffset);
+    const stickerSize = getOptimalStickerSize(videoSize);
+
+    const position = getSafeCenterPosition(videoSize, stickerSize, 60);
     
     // Add sticker to timeline with default duration of 5 seconds
     const newStickerId = addStickerToTimeline(
@@ -96,14 +94,13 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
       5 // Default duration
     );
     
-    console.log('Adding sticker to timeline:', {
+    console.log('Adding sticker to timeline with safe positioning:', {
       sticker: sticker.name,
       position,
       currentTime,
       duration: 5,
       videoSize,
-      stickerSize,
-      randomOffset
+      stickerSize
     });
     
     if (onAddSticker) {
@@ -116,10 +113,48 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
     selectStickerOverlay(id);
   }, [selectStickerOverlay]);
 
-  // Handle property updates
+  // Handle property updates with validation
   const handleSizeUpdate = useCallback((size: { width: number; height: number }) => {
     if (selectedStickerId) {
-      updateStickerSize(selectedStickerId, size);
+      const maxSize = 180;
+      const minSize = 10;
+      
+      let validatedSize = { ...size };
+      let hasError = false;
+      
+      if (size.width > maxSize) {
+        toast.warning(`Maximum width is ${maxSize}px!`, {
+          position: "top-right",
+          autoClose: 1500,
+        });
+        validatedSize.width = maxSize;
+        hasError = true;
+      } else if (size.width < minSize) {
+        toast.warning(`Minimum width is ${maxSize}px!`, {
+          position: "bottom-right", 
+          autoClose: 1500,
+        });
+        validatedSize.width = minSize;
+        hasError = true;
+      }
+      
+      if (size.height > maxSize) {
+        toast.warning(`Maximum heoght is ${maxSize}px!`, {
+          position: "bottom-right",
+          autoClose: 1500,
+        });
+        validatedSize.height = maxSize;
+        hasError = true;
+      } else if (size.height < minSize) {
+        toast.warning(`Minimum width is ${maxSize}px!`, {
+          position: "bottom-right",
+          autoClose: 1500,
+        });
+        validatedSize.height = minSize;
+        hasError = true;
+      }
+      
+      updateStickerSize(selectedStickerId, validatedSize);
     }
   }, [selectedStickerId, updateStickerSize]);
 
@@ -268,32 +303,40 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
         {/* Size Controls */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Kích thước
+            Size
           </label>
           <div className="flex space-x-2">
             <input
               type="number"
               min="10"
-              max="500"
+              max="180"
               value={selectedOverlay.size.width}
-              onChange={(e) => handleSizeUpdate({
-                width: parseInt(e.target.value),
-                height: selectedOverlay.size.height
-              })}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Rộng"
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 10;
+                handleSizeUpdate({
+                  width: value,
+                  height: selectedOverlay.size.height
+                });
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+              placeholder="Width"
+              title="Width"
             />
             <input
               type="number"
               min="10"
-              max="500"
+              max="180"
               value={selectedOverlay.size.height}
-              onChange={(e) => handleSizeUpdate({
-                width: selectedOverlay.size.width,
-                height: parseInt(e.target.value)
-              })}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Cao"
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 10;
+                handleSizeUpdate({
+                  width: selectedOverlay.size.width,
+                  height: value
+                });
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+              placeholder="Height"
+              title="Height"
             />
           </div>
         </div>
@@ -301,7 +344,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
         {/* Opacity */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Độ mờ ({Math.round(selectedOverlay.opacity * 100)}%)
+            Opacity ({Math.round(selectedOverlay.opacity * 100)}%)
           </label>
           <input
             type="range"
@@ -324,7 +367,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
         <div className="flex-1 p-4 space-y-6 overflow-y-auto">
           {/* Sticker Library */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Thư viện Sticker</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Sticker Library</h4>
             {renderStickerLibrary()}
           </div>
 
@@ -332,7 +375,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
           {stickerOverlays.length > 0 && (
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Sticker hiện tại ({stickerOverlays.length})
+                Stickers  ({stickerOverlays.length})
               </h4>
               {renderStickerList()}
             </div>
@@ -340,7 +383,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
 
           {/* Properties */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Thuộc tính</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Properties</h4>
             {renderPropertiesPanel()}
           </div>
         </div>

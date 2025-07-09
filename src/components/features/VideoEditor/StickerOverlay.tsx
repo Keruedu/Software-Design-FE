@@ -20,8 +20,10 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
   originalVideoSize,
   onClick
 }) => {
-  const { updateStickerPosition, state: { selectedStickerId } } = useStickerContext();
+  const { updateStickerPosition, updateStickerSize, state: { selectedStickerId } } = useStickerContext();
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string>('');
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isNewlyAdded, setIsNewlyAdded] = useState(true);
   const stickerRef = useRef<HTMLDivElement>(null);
@@ -45,21 +47,46 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
   // Use fallback values if originalVideoSize is not set yet
   const fallbackOriginalSize = originalVideoSize.width > 0 && originalVideoSize.height > 0 
     ? originalVideoSize 
-    : { width: 1280, height: 720 }; // Standard HD fallback
+    : { width: 720, height: 1280 }; // Vertical video fallback
 
-  // Use fallback values if videoSize is not set yet
+  // Use fallback values if videoSize is not set yet  
   const fallbackVideoSize = videoWidth > 0 && videoHeight > 0 
     ? { width: videoWidth, height: videoHeight }
-    : { width: 640, height: 360 }; // Fallback display size
+    : { width: 360, height: 640 }; // Vertical fallback display size
 
-  // Calculate scale factor based on video size - avoid division by zero
+  // Calculate scale factor based on video size - đảm bảo tỷ lệ chính xác
   const scaleX = fallbackOriginalSize.width > 0 ? fallbackVideoSize.width / fallbackOriginalSize.width : 1;
   const scaleY = fallbackOriginalSize.height > 0 ? fallbackVideoSize.height / fallbackOriginalSize.height : 1;
 
-  // Apply scale to position and size
+  // Ensure position is within bounds - sử dụng logic đơn giản và chính xác hơn
+  const safePosition = React.useMemo(() => {
+    const margin = 10; // Giảm margin để tăng độ chính xác
+    const maxX = Math.max(0, fallbackOriginalSize.width - overlay.size.width - margin);
+    const maxY = Math.max(0, fallbackOriginalSize.height - overlay.size.height - margin);
+    
+    const safeX = Math.max(margin, Math.min(overlay.position.x, maxX));
+    const safeY = Math.max(margin, Math.min(overlay.position.y, maxY));
+
+    if (Math.abs(safeX - overlay.position.x) > 1 || Math.abs(safeY - overlay.position.y) > 1) {
+      console.log('Adjusting sticker position for safety:', {
+        stickerId: overlay.id,
+        original: overlay.position,
+        adjusted: { x: safeX, y: safeY },
+        reason: 'out of bounds',
+        videoSize: fallbackOriginalSize
+      });
+
+      setTimeout(() => {
+        updateStickerPosition(overlay.id, { x: safeX, y: safeY });
+      }, 0);
+    }
+    
+    return { x: safeX, y: safeY };
+  }, [overlay.position.x, overlay.position.y, overlay.size.width, overlay.size.height, fallbackOriginalSize, overlay.id, updateStickerPosition]);
+
   const scaledPosition = {
-    x: overlay.position.x * scaleX,
-    y: overlay.position.y * scaleY,
+    x: safePosition.x * scaleX,
+    y: safePosition.y * scaleY,
   };
 
   const scaledSize = {
@@ -67,20 +94,37 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
     height: overlay.size.height * scaleY,
   };
 
-  // Debug log - only for newly added stickers
+  // Debug log
+  useEffect(() => {
+    if (isNewlyAdded) {
+      console.log('StickerOverlay new sticker rendered:', {
+        stickerName: overlay.stickerName,
+        stickerId: overlay.id,
+        isVisible,
+        position: overlay.position,
+        size: overlay.size,
+        scaledPosition,
+        scaledSize,
+        scaleFactors: { scaleX, scaleY },
+        videoSize: { width: videoWidth, height: videoHeight },
+        originalVideoSize: fallbackOriginalSize
+      });
+    }
+  }, [overlay.id, isNewlyAdded, scaledPosition.x, scaledPosition.y]);
+
+  // Debug log
   if (isNewlyAdded) {
-    console.log('NEW STICKER DEBUG:', {
+    console.log('NEW STICKER POSITIONING:', {
       stickerName: overlay.stickerName,
-      originalPosition: overlay.position,
-      scaledPosition,
-      scaleX,
-      scaleY,
-      videoWidth,
-      videoHeight,
-      fallbackVideoSize,
-      originalVideoSize,
-      fallbackOriginalSize,
-      isNewlyAdded
+      webUI: {
+        originalPosition: overlay.position,
+        scaledPosition,
+        scaleFactors: { scaleX, scaleY }
+      },
+      videoSizes: {
+        display: { width: videoWidth, height: videoHeight },
+        original: fallbackOriginalSize
+      }
     });
   }
 
@@ -105,45 +149,126 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
     }
   };
 
+  // Resize handle
+  const handleResizeMouseDown = (e: React.MouseEvent, handle: string) => {
+    e.stopPropagation();
+    
+    if (overlay.locked) return;
+
+    setIsResizing(true);
+    setResizeHandle(handle);
+    
+    const rect = stickerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDragOffset({
+        x: e.clientX - rect.right,
+        y: e.clientY - rect.bottom,
+      });
+    }
+  };
+
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || overlay.locked) return;
+    if (overlay.locked) return;
 
     const videoContainer = stickerRef.current?.parentElement;
     if (!videoContainer) return;
 
     const containerRect = videoContainer.getBoundingClientRect();
-    const newX = e.clientX - containerRect.left - dragOffset.x;
-    const newY = e.clientY - containerRect.top - dragOffset.y;
-
+    
     // Use fallback values if originalVideoSize is not set yet
     const fallbackOriginalSize = originalVideoSize.width > 0 && originalVideoSize.height > 0 
       ? originalVideoSize 
-      : { width: 1280, height: 720 };
+      : { width: 720, height: 1280 }; // Vertical video fallback
 
-    // Convert back to original scale
-    const originalX = newX / scaleX;
-    const originalY = newY / scaleY;
+    if (isDragging && !isResizing) {
+      // Handle dragging
+      const newX = e.clientX - containerRect.left - dragOffset.x;
+      const newY = e.clientY - containerRect.top - dragOffset.y;
 
-    // Đảm bảo sticker không bị kéo ra ngoài video bounds với margin an toàn
-    const margin = 16; // Margin an toàn 16px từ edge
-    const maxX = fallbackOriginalSize.width - overlay.size.width - margin;
-    const maxY = fallbackOriginalSize.height - overlay.size.height - margin;
+      // Convert back to original scale
+      const originalX = newX / scaleX;
+      const originalY = newY / scaleY;
 
-    const boundedX = Math.max(margin, Math.min(originalX, maxX));
-    const boundedY = Math.max(margin, Math.min(originalY, maxY));
+      const margin = 10;
+      const maxX = fallbackOriginalSize.width - overlay.size.width - margin;
+      const maxY = fallbackOriginalSize.height - overlay.size.height - margin;
 
-    updateStickerPosition(overlay.id, {
-      x: boundedX,
-      y: boundedY,
-    });
+      const boundedX = Math.max(margin, Math.min(originalX, maxX));
+      const boundedY = Math.max(margin, Math.min(originalY, maxY));
+
+      updateStickerPosition(overlay.id, {
+        x: boundedX,
+        y: boundedY,
+      });
+    } else if (isResizing) {
+      // Handle resizing
+      const currentRect = stickerRef.current?.getBoundingClientRect();
+      if (!currentRect) return;
+
+      let newWidth = overlay.size.width;
+      let newHeight = overlay.size.height;
+      let newX = overlay.position.x;
+      let newY = overlay.position.y;
+
+      // Calculate deltas based on current mouse position
+      const deltaX = (e.clientX - containerRect.left) / scaleX;
+      const deltaY = (e.clientY - containerRect.top) / scaleY;
+
+      switch (resizeHandle) {
+        case 'bottom-right':
+          newWidth = Math.max(10, deltaX - overlay.position.x);
+          newHeight = Math.max(10, deltaY - overlay.position.y);
+          break;
+        
+        case 'bottom-left':
+          newWidth = Math.max(10, overlay.position.x + overlay.size.width - deltaX);
+          newHeight = Math.max(10, deltaY - overlay.position.y);
+          newX = Math.min(deltaX, overlay.position.x + overlay.size.width - 10);
+          break;
+          
+        case 'top-right':
+          newWidth = Math.max(10, deltaX - overlay.position.x);
+          newHeight = Math.max(10, overlay.position.y + overlay.size.height - deltaY);
+          newY = Math.min(deltaY, overlay.position.y + overlay.size.height - 10);
+          break;
+          
+        case 'top-left':
+          newWidth = Math.max(10, overlay.position.x + overlay.size.width - deltaX);
+          newHeight = Math.max(10, overlay.position.y + overlay.size.height - deltaY);
+          newX = Math.min(deltaX, overlay.position.x + overlay.size.width - 10);
+          newY = Math.min(deltaY, overlay.position.y + overlay.size.height - 10);
+          break;
+      }
+
+      // Giới hạn kích thước tối đa (same as in StickerPanel)
+      newWidth = Math.min(180, newWidth);
+      newHeight = Math.min(180, newHeight);
+
+      // Ensure sticker doesn't go out of bounds
+      const margin = 10;
+      newX = Math.max(margin, Math.min(newX, fallbackOriginalSize.width - newWidth - margin));
+      newY = Math.max(margin, Math.min(newY, fallbackOriginalSize.height - newHeight - margin));
+
+      // Update both size and position if needed
+      if (newX !== overlay.position.x || newY !== overlay.position.y) {
+        updateStickerPosition(overlay.id, { x: newX, y: newY });
+      }
+      
+      updateStickerSize(overlay.id, {
+        width: Math.round(newWidth),
+        height: Math.round(newHeight),
+      });
+    }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setIsResizing(false);
+    setResizeHandle('');
   };
 
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging || isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -151,7 +276,7 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragOffset, scaleX, scaleY, overlay.id, overlay.size, originalVideoSize]);
+  }, [isDragging, isResizing, dragOffset, scaleX, scaleY, overlay.id, overlay.size, overlay.position, originalVideoSize, resizeHandle]);
 
   // Animation variants
   const animationVariants = {
@@ -245,10 +370,19 @@ const StickerOverlay: React.FC<StickerOverlayProps> = ({
       {isSelected && (
         <div className="absolute inset-0 border-2 border-blue-500 rounded pointer-events-none">
           {/* Resize handles */}
-          <div className="absolute -top-1 -left-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-blue-500 rounded-full"></div>
-          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+          <div className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 rounded-full pointer-events-auto cursor-nw-resize"
+               onMouseDown={(e) => handleResizeMouseDown(e, 'top-left')}></div>
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full pointer-events-auto cursor-ne-resize"
+               onMouseDown={(e) => handleResizeMouseDown(e, 'top-right')}></div>
+          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 rounded-full pointer-events-auto cursor-sw-resize"
+               onMouseDown={(e) => handleResizeMouseDown(e, 'bottom-left')}></div>
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full pointer-events-auto cursor-se-resize"
+               onMouseDown={(e) => handleResizeMouseDown(e, 'bottom-right')}></div>
+               
+          {/* Resize indicator text */}
+          {/* <div className="absolute -top-8 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none">
+            {Math.round(overlay.size.width)} × {Math.round(overlay.size.height)}px
+          </div> */}
         </div>
       )}
     </motion.div>
