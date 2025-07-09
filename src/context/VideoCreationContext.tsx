@@ -8,7 +8,7 @@ import { VoiceGenerationResult } from '../services/voice.service';
 import { SubtitleOptions } from '../types/subtitle';
 
 interface VideoCreationState {
-  step: 'topic' | 'script' | 'voice' | 'background' | 'subtitle' | 'edit' | 'export'|'preview';
+  step: 'topic' | 'script' | 'voice' | 'background' | 'subtitle' | 'edit' | 'export';
   selectedTopic: TrendingTopic | null;
   keyword: string;
   script: Script | null;
