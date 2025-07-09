@@ -2,7 +2,7 @@ import { ffmpegService,FFmpegService } from "./editVideo.service";
 
 export interface VideoProcessingStep{
   id: string;
-  type: 'trim' | 'addAudio' | 'adjustVolume' | 'replaceAudio';
+  type: 'trim' | 'addAudio' | 'addMultipleAudio' | 'adjustVolume' | 'replaceAudio' | 'addTextOverlay' | 'addMultipleTextOverlays' | 'addStickerOverlay' | 'addMultipleStickerOverlays';
   params: any;
   timestamp: number;
 }
@@ -16,7 +16,62 @@ export interface ProcessedVideo{
   originalUrl?: string;
 }
 
+export interface TextOverlayParams {
+  text: string;
+  position: { x: number; y: number };
+  style: {
+    fontSize: number;
+    fontFamily: string;
+    color: string;
+    fontWeight: string;
+    fontStyle: string;
+    textAlign: string;
+  };
+  timing: {
+    startTime: number;
+    duration: number;
+  };
+  size?: { width: number; height: number };
+  opacity?: number;
+  shadow?: {
+    enabled: boolean;
+    color: string;
+    blur: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  outline?: {
+    enabled: boolean;
+    color: string;
+    width: number;
+  };
+  background?: {
+    enabled: boolean;
+    color: string;
+    opacity: number;
+    borderRadius: number;
+    padding: number;
+  };
+}
 
+export interface StickerOverlayParams {
+  stickerId: string;
+  stickerUrl: string;
+  stickerName: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  rotation: number;
+  opacity: number;
+  timing: {
+    startTime: number;
+    endTime: number;
+  };
+  animation?: {
+    type: 'none' | 'bounce' | 'pulse' | 'fade' | 'slide';
+    duration: number;
+    delay: number;
+  };
+}
 
 export class VideoProcessor {
     private static instance: VideoProcessor;
@@ -81,12 +136,20 @@ export class VideoProcessor {
         try{
             switch(step.type) {
                 case 'trim':
+                    console.log('VideoProcessor - Executing trim step:', {
+                        startTime: step.params.startTime,
+                        endTime: step.params.endTime,
+                        duration: step.params.endTime - step.params.startTime,
+                        originalDuration: this.currentVideo.duration
+                    });
+                    
                     resultBlob = await this.ffmpegService.trimVideo(
                         this.currentVideo.blob,
                         step.params.startTime,
                         step.params.endTime
                     )
                     this.currentVideo.duration = step.params.endTime - step.params.startTime;
+                    console.log('VideoProcessor - Trim completed, new duration:', this.currentVideo.duration);
                     break;
                 case 'addAudio':
                     resultBlob =await this.ffmpegService.addAudioToVideo(
@@ -95,12 +158,87 @@ export class VideoProcessor {
                         step.params.options
                     )
                     break;
+                case 'addMultipleAudio':
+                    resultBlob = await this.ffmpegService.addMultipleAudioToVideo(
+                        this.currentVideo.blob,
+                        step.params.audioTracks
+                    );
+                    break;
+                case 'adjustVolume':
+                    // Temporarily skip volume adjustment as it is not implemented yet
+                    resultBlob = this.currentVideo.blob;
+                    break;
                 case 'replaceAudio':
                     resultBlob = await this.ffmpegService.addAudioToVideo(
                         this.currentVideo.blob,
                         step.params.audioFile,
                         {...step.params.options, replaceOriginalAudio: true }
                     )
+                    break;
+                case 'addTextOverlay':
+                    // Convert single text overlay to multiple text overlays format
+                    resultBlob = await this.ffmpegService.addMultipleTextOverlays(
+                        this.currentVideo.blob,
+                        [step.params], // Wrap single overlay in array
+                        step.params.videoSize || { width: 1280, height: 720 }
+                    );
+                    break;
+                case 'addMultipleTextOverlays':
+                    resultBlob = await this.ffmpegService.addMultipleTextOverlays(
+                        this.currentVideo.blob,
+                        step.params.overlays,
+                        step.params.videoSize
+                    );
+                    break;
+                case 'addStickerOverlay':
+                    // Convert single sticker overlay to multiple sticker overlays format
+                    resultBlob = await this.ffmpegService.addMultipleStickerOverlays(
+                        this.currentVideo.blob,
+                        [step.params], // Wrap single overlay in array
+                        step.params.videoSize || { width: 1280, height: 720 }
+                    );
+                    break;
+                case 'addMultipleStickerOverlays':
+                    try {
+                        console.log(`Starting sticker overlay processing...`);
+                        console.log(`Input video size: ${Math.round(this.currentVideo.blob.size / 1024)}KB`);
+                        
+                        resultBlob = await this.ffmpegService.addMultipleStickerOverlays(
+                            this.currentVideo.blob,
+                            step.params.overlays,
+                            step.params.videoSize
+                        );
+                        
+                        console.log(`Sticker processing completed`);
+                        console.log(`Output video size: ${Math.round(resultBlob.size / 1024)}KB`);
+                        
+                        // Check if result is empty
+                        if (!resultBlob || resultBlob.size === 0) {
+                            console.error('Sticker processing returned empty blob');
+                            console.warn('Using original video instead');
+                            resultBlob = this.currentVideo.blob;
+                        } else {
+                            console.log(`Sticker processing successful: ${Math.round(resultBlob.size / 1024)}KB`);
+                        }
+                        
+                        const originalStickerCount = step.params.overlays.length;
+                        console.log(`Processed ${originalStickerCount} sticker(s) for video export`);
+                        
+                    } catch (stickerError) {
+                        console.error('Failed to add sticker overlays:', stickerError);
+                        console.error('Error details:', stickerError);
+                        
+                        // Continue with original video if stickers fail
+                        resultBlob = this.currentVideo.blob;
+                        console.warn('Continuing export without stickers due to processing errors');
+                        console.log(`Fallback video size: ${Math.round(resultBlob.size / 1024)}KB`);
+                        
+                        // Ensure fallback video is not empty
+                        if (!resultBlob || resultBlob.size === 0) {
+                            console.error('Fallback video is also empty, this should not happen');
+                            throw new Error('Both sticker processing and fallback failed');
+                        }
+                    }
                     break;
                 default:
                     throw new Error(`Unsupported step type: ${step.type}`);
@@ -154,11 +292,37 @@ export class VideoProcessor {
                         );
                         break;
 
+                    case 'addMultipleAudio':
+                        currentBlob = await this.ffmpegService.addMultipleAudioToVideo(
+                            currentBlob,
+                            step.params.audioTracks
+                        );
+                        break;
+
+                    case 'adjustVolume':
+                        // Temporarily skip volume adjustment as it is not implemented yet
+                        break;
+
                     case 'replaceAudio':
                         currentBlob = await this.ffmpegService.addAudioToVideo(
                             currentBlob,
                             step.params.audioFile,
                             { ...step.params.options, replaceOriginalAudio: true }
+                        );
+                        break;
+                    case 'addTextOverlay':
+                        // Convert single text overlay to multiple text overlays format
+                        currentBlob = await this.ffmpegService.addMultipleTextOverlays(
+                            currentBlob,
+                            [step.params], // Wrap single overlay in array
+                            step.params.videoSize || { width: 1280, height: 720 }
+                        );
+                        break;
+                    case 'addMultipleTextOverlays':
+                        currentBlob = await this.ffmpegService.addMultipleTextOverlays(
+                            currentBlob,
+                            step.params.overlays,
+                            step.params.videoSize
                         );
                         break;
                 }

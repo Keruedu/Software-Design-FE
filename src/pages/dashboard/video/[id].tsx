@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router';
-import { useEffect, useState, useRef } from 'react';
-import { FiDownload, FiShare2, FiTrash2, FiArrowLeft, FiChevronDown } from 'react-icons/fi';
-import { FaYoutube, FaFacebook, FaInstagram } from 'react-icons/fa';
+import { useEffect, useState, useRef, use } from 'react';
+import { FiDownload, FiShare2, FiTrash2, FiArrowLeft, FiChevronDown, FiEye, FiHeart, FiMessageCircle, FiRefreshCw } from 'react-icons/fi';
+import { FaYoutube, FaFacebook, FaInstagram, FaThumbsUp, FaShare } from 'react-icons/fa';
 import ReactPlayer from 'react-player';
 import { Layout } from '../../../components/layout/Layout';
 import { Button } from '../../../components/common/Button/Button';
@@ -11,7 +11,40 @@ import { Modal } from '../../../components/common/Modal/Modal';
 import { toast } from 'react-toastify';
 import { SocialService } from '@/services/social.service';
 import { useAuth } from '@/context/AuthContext';
+import { platform } from 'os';
 
+// Interface for social media statistics
+interface YouTubeStats {
+  platform: 'google';
+  title: string;
+  description: string;
+  platform_url: string;
+  created_at: string;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+}
+
+interface FacebookStats {
+  platform: 'facebook';
+  title: string;
+  description: string;
+  platform_url: string;
+  created_at: string;
+  view_count: number;
+  reaction_count: {
+    LIKE: number;
+    LOVE: number;
+    WOW: number;
+    HAHA: number;
+    SAD: number;
+    ANGRY: number;
+  };
+  share_count: number;
+  comment_count: number;
+}
+
+type SocialMediaStats = YouTubeStats | FacebookStats;
 interface FacebookPage {
   page_id: string;
   page_name: string;
@@ -92,7 +125,9 @@ const FacebookPageSelector: React.FC<FacebookPageSelectorProps> = ({
 
 const VideoDetailPage = () => {
   const router = useRouter();
-  const { id } = router.query;  const [video, setVideo] = useState<VideoWithDetails | null>(null);  const [loading, setLoading] = useState(true);
+  const { id } = router.query;
+  const [video, setVideo] = useState<VideoWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -105,12 +140,18 @@ const VideoDetailPage = () => {
   const [ytDesc, setYtDesc] = useState('');
   const [ytTags, setYtTags] = useState('');
   const [ytPrivacy, setYtPrivacy] = useState<'public'|'private'|'unlisted'>('public');
+  const [listVideoFacebook, setListVideoFacebook] = useState<Array<{ video_url: string; page_id: string }>>([]);
+  const [listVideoYoutube, setListVideoYoutube] = useState<Array<string>>([]);
+  // Social media statistics state
+  const [socialStats, setSocialStats] = useState<SocialMediaStats[]>([]);
+  const [loadingStats, setLoadingStats] = useState(false);
   
   // Facebook upload states
   const [fbTitle, setFbTitle] = useState('');
   const [fbDesc, setFbDesc] = useState('');
   const [selectedPageId, setSelectedPageId] = useState('');
   const [isUploadingFb, setIsUploadingFb] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   
   useEffect(() => {
     const fetchVideo = async () => {
@@ -127,7 +168,100 @@ const VideoDetailPage = () => {
       } finally {
         setLoading(false);
       }
-    };    fetchVideo();  }, [id]);
+    };
+    
+    fetchVideo();
+  }, [id]);
+
+useEffect(() => {
+  if (!id) return;
+
+  const fetchListVideoSocial = async () => {
+    if (typeof id !=="string") return;
+    try {
+      setLoadingStats(true);
+      const facebookVideos = await VideoService.getListVideoSocial('facebook',id);
+      setListVideoFacebook(facebookVideos);
+
+      const youtubeVideos = await VideoService.getListVideoSocial('google',id);
+      setListVideoYoutube(youtubeVideos);
+    } catch (err) {
+      setError('Failed to load video details');
+      console.error(err);
+    }
+    finally {
+      setLoadingStats(false);
+    }
+  };
+  console.log("Fetching social videos for ID:", id, "Facebook:", listVideoFacebook, "YouTube:", listVideoYoutube);
+  fetchListVideoSocial();
+}, [id]);
+
+useEffect(() => {
+  if (!id) return;
+
+  const fetchSocialStats = async () => {
+    if (!id) return;
+    try {
+      setLoadingStats(true);
+      const newStats: SocialMediaStats[] = [];
+
+      for (const video of listVideoYoutube) {
+        const response = await VideoService.getStatVideoSocial("google", video);
+        if (response) {
+          newStats.push(response);
+        }
+      }
+
+      for (const video of listVideoFacebook) {
+        const response = await VideoService.getStatVideoSocial("facebook", video.video_url, video.page_id);
+        if (response) {
+          newStats.push(response);
+        }
+      }
+
+      setSocialStats(newStats);
+    } catch (err) {
+      setError("Failed to load video details");
+      console.error(err);
+    }
+    finally {
+      setLoadingStats(false);
+    }
+  };
+
+  fetchSocialStats();
+}, [id, listVideoFacebook, listVideoYoutube]);
+
+  
+  // // Fetch social media statistics
+  // useEffect(() => {
+  //   const fetchSocialStats = async () => {
+  //     if (!id) return;
+      
+  //     try {
+  //       setLoadingStats(true);
+  //       // Replace with actual API endpoint
+  //       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/${id}/social-stats`, {
+  //         headers: {
+  //           Authorization: `Bearer ${auth.token}`,
+  //         },
+  //       });
+        
+  //       if (response.ok) {
+  //         const stats = await response.json();
+  //         setSocialStats(stats);
+  //       }
+  //     } catch (err) {
+  //       console.error('Failed to fetch social media statistics:', err);
+  //     } finally {
+  //       setLoadingStats(false);
+  //     }
+  //   };
+    
+  //   fetchSocialStats();
+  // }, [id, auth.token]);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -165,35 +299,157 @@ const VideoDetailPage = () => {
     }
   };
 
-  const handleDownload = async () => {
-    if (!id) return;
+  // Helper function to sanitize filename while preserving Vietnamese characters
+  const sanitizeFileName = (filename: string): string => {
+    // Remove only characters that are invalid in file names on Windows/Mac/Linux
+    // Keep Vietnamese characters, spaces, and other unicode characters
+    return filename
+      .replace(/[<>:"/\\|?*]/g, '') // Remove invalid file name characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim(); // Remove leading/trailing spaces
+  };
+
+  // Fallback download function for older browsers
+  const fallbackDownload = async (videoUrl: string, fileName: string, videoTitle: string) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/download/${id}`,
-        {
+      const response = await fetch(videoUrl);
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        
+        toast.success(`"${videoTitle}" downloaded`, {
+          position: 'bottom-right',
+          autoClose: 3000
+        });
+      } else {
+        // Final fallback: open in new tab
+        const link = document.createElement('a');
+        link.href = videoUrl;
+        link.target = '_blank';
+        link.click();
+        
+        toast.info('Video opened in new tab - right-click to save', {
+          position: 'bottom-right',
+          autoClose: 4000
+        });
+      }
+    } catch (fetchError) {
+      // Final fallback: open in new tab
+      const link = document.createElement('a');
+      link.href = videoUrl;
+      link.target = '_blank';
+      link.click();
+      
+      toast.info('Video opened in new tab - right-click to save', {
+        position: 'bottom-right',
+        autoClose: 4000
+      });
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!id || !video) return;
+    
+    try {
+      setDownloadLoading(true);
+      
+      // Get video URL
+      const videoUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/download/${id}`;
+      
+      // Sanitize filename
+      const fileName = `${sanitizeFileName(video.title || 'video')}.mp4`;
+
+      // Check if browser supports File System Access API
+      if ('showSaveFilePicker' in window) {
+        try {
+          // Use File System Access API for modern browsers
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: 'Video files',
+              accept: {
+                'video/mp4': ['.mp4'],
+                'video/*': ['.mp4', '.mov', '.avi']
+              }
+            }]
+          });
+
+          // Fetch video with auth headers and write to selected location
+          const response = await fetch(videoUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${auth.token}`,
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch video');
+          }
+
+          const writable = await fileHandle.createWritable();
+          await response.body?.pipeTo(writable);
+
+          toast.success(`"${video.title}" downloaded successfully`, {
+            position: 'bottom-right',
+            autoClose: 3000
+          });
+        } catch (filePickerError: any) {
+          // User cancelled or API failed, fallback to regular download
+          if (filePickerError.name !== 'AbortError') {
+            console.warn('File picker failed, falling back to regular download:', filePickerError);
+            // Create authenticated video URL for fallback
+            const response = await fetch(videoUrl, {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${auth.token}`,
+              },
+            });
+            if (!response.ok) throw new Error('Cannot download video');
+            const blob = await response.blob();
+            const authenticatedUrl = URL.createObjectURL(blob);
+            await fallbackDownload(authenticatedUrl, fileName, video.title);
+            // Clean up
+            setTimeout(() => URL.revokeObjectURL(authenticatedUrl), 100);
+          }
+          // If AbortError, user cancelled - do nothing
+        }
+      } else {
+        // Fallback for older browsers
+        const response = await fetch(videoUrl, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${auth.token}`,
           },
-        }
-      );
-      if (!res.ok) throw new Error('Cannot download video');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${video?.title || 'video'}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error('Video download failed!',
-        {
-          position: 'bottom-right',
-          autoClose: 3000,
-        }
-      );
+        });
+        if (!response.ok) throw new Error('Cannot download video');
+        const blob = await response.blob();
+        const authenticatedUrl = URL.createObjectURL(blob);
+        await fallbackDownload(authenticatedUrl, fileName, video.title);
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(authenticatedUrl), 100);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download video. Please try again.', {
+        position: 'bottom-right',
+        autoClose: 3000
+      });
+    } finally {
+      setDownloadLoading(false);
     }
   };
   const handleShare = () => {
@@ -322,14 +578,12 @@ const VideoDetailPage = () => {
         privacy_status: 'public'
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/facebook-pages/upload-video`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${auth.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(uploadData),
-      });
+      const response = await SocialService.uploadVideoToFacebook(
+        video.id,
+        fbTitle,
+        fbDesc,
+        selectedPageId
+      )
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -436,30 +690,184 @@ const VideoDetailPage = () => {
                 </div>
               </div>
 
-              {/* Video Details */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/50 p-6">
-                <h2 className="text-lg font-semibold mb-4 text-slate-800">
-                  Video Information
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100">
-                    <h3 className="text-sm font-medium text-slate-600 mb-2">Description</h3>
-                    <p className="text-slate-800 text-sm leading-relaxed">{video.description}</p>
-                  </div>
-                  <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100">
-                    <h3 className="text-sm font-medium text-slate-600 mb-2">Duration</h3>
-                    <p className="text-slate-800 text-sm">{video.duration} seconds</p>
-                  </div>
-                  <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100">
-                    <h3 className="text-sm font-medium text-slate-600 mb-2">Voice</h3>
-                    <p className="text-slate-800 text-sm">{video.voiceName || 'Default'}</p>
-                  </div>
-                  <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100">
-                    <h3 className="text-sm font-medium text-slate-600 mb-2">Background</h3>
-                    <p className="text-slate-800 text-sm">{video.backgroundName || 'Default'}</p>
+              {/* Video Statistics from Social Networks */}
+              {loadingStats && (
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/50 p-6">
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                    <span className="ml-3 text-slate-600">Loading statistics...</span>
                   </div>
                 </div>
-              </div>
+              )}
+              
+              {socialStats.length > 0 &&!loadingStats && (
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/50 p-6">
+                  
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {socialStats.map((stat, index) => (
+                      <div key={index} className="border border-slate-200 rounded-lg p-4">
+                        {stat.platform === 'google' && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                              <FaYoutube className="text-red-500 text-xl" />
+                              <div>
+                                <h4 className="font-semibold text-slate-800">YouTube</h4>
+                                <p className="text-xs text-slate-600">
+                                  Published: {new Date(stat.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-blue-600 mb-1">
+                                  <FiEye className="text-sm" />
+                                  <span className="text-xs font-medium">Views</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.view_count.toLocaleString()}
+                                </div>
+                              </div>
+                              
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-red-600 mb-1">
+                                  <FiHeart className="text-sm" />
+                                  <span className="text-xs font-medium">Likes</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.like_count.toLocaleString()}
+                                </div>
+                              </div>
+                              
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
+                                  <FiMessageCircle className="text-sm" />
+                                  <span className="text-xs font-medium">Comments</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.comment_count.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="pt-3 border-t border-slate-200">
+                              <a
+                                href={stat.platform_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
+                              >
+                                View on YouTube →
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {stat.platform === 'facebook' && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                              <FaFacebook className="text-blue-500 text-xl" />
+                              <div>
+                                <h4 className="font-semibold text-slate-800">Facebook</h4>
+                                <p className="text-xs text-slate-600">
+                                  Published: {new Date(stat.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-blue-600 mb-1">
+                                  <FiEye className="text-sm" />
+                                  <span className="text-xs font-medium">Views</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.view_count.toLocaleString()}
+                                </div>
+                              </div>
+                              
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-purple-600 mb-1">
+                                  <FaShare className="text-sm" />
+                                  <span className="text-xs font-medium">Shares</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.share_count.toLocaleString()}
+                                </div>
+                              </div>
+                              
+                              <div className="text-center">
+                                <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
+                                  <FiMessageCircle className="text-sm" />
+                                  <span className="text-xs font-medium">Comments</span>
+                                </div>
+                                <div className="text-lg font-bold text-slate-800">
+                                  {stat.comment_count.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-slate-50 rounded-lg p-3">
+                              <h5 className="text-sm font-medium text-slate-700 mb-2">Reactions</h5>
+                              <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-blue-500">👍</span>
+                                  <span className="text-slate-600">Like: {stat.reaction_count.LIKE}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-red-500">❤️</span>
+                                  <span className="text-slate-600">Love: {stat.reaction_count.LOVE}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-yellow-500">😮</span>
+                                  <span className="text-slate-600">Wow: {stat.reaction_count.WOW}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-yellow-500">😂</span>
+                                  <span className="text-slate-600">Haha: {stat.reaction_count.HAHA}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-yellow-500">😢</span>
+                                  <span className="text-slate-600">Sad: {stat.reaction_count.SAD}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-red-500">😠</span>
+                                  <span className="text-slate-600">Angry: {stat.reaction_count.ANGRY}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="pt-3 border-t border-slate-200">
+                              <a
+                                href={stat.platform_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
+                              >
+                                View on Facebook →
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {!loadingStats && socialStats.length === 0 && (
+                <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200/50 p-6">
+                  <div className="text-center py-8">
+                    <FiShare2 className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                    <h3 className="text-lg font-medium text-slate-800 mb-2">No Social Media Statistics</h3>
+                    <p className="text-slate-600">
+                      Upload your video to YouTube or Facebook to see statistics here.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
             </div>
 
             {/* Action Sidebar */}
@@ -469,10 +877,11 @@ const VideoDetailPage = () => {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleDownload} 
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm border-0 text-sm"
-                    icon={<FiDownload />}
+                    disabled={downloadLoading}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white shadow-sm border-0 text-sm"
+                    icon={downloadLoading ? <FiRefreshCw className="animate-spin" /> : <FiDownload />}
                   >
-                    Download Video
+                    {downloadLoading ? 'Downloading...' : 'Download Video'}
                   </Button>                  
                   <div className="relative" ref={shareDropdownRef}>
                     <Button 
@@ -501,13 +910,13 @@ const VideoDetailPage = () => {
                             <FaFacebook className="text-blue-500" />
                             Facebook
                           </button>
-                          <button
+                          {/* <button
                             onClick={handleShareToInstagram}
                             className="w-full px-4 py-2.5 text-left hover:bg-pink-50 flex items-center gap-3 text-slate-700 hover:text-pink-600 text-sm transition-colors"
                           >
                             <FaInstagram className="text-pink-500" />
                             Instagram
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                     )}

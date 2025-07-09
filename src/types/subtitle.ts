@@ -64,7 +64,7 @@ export const SUBTITLE_STYLES: { [key: string]: SubtitleStyle } = {
     fontSize: 14,
     fontColor: '#FFFFFF',
     backgroundColor: 'transparent',
-    backgroundOpacity: 0.0,
+    backgroundOpacity: 0.5,
     position: 'bottom',
     outline: true,
     outlineColor: '#000000'
@@ -90,6 +90,39 @@ export const SUBTITLE_STYLES: { [key: string]: SubtitleStyle } = {
     position: 'bottom',
     outline: false,
     outlineColor: '#000000'
+  },
+  gaming: {
+    name: 'gaming',
+    fontFamily: 'Arial Black',
+    fontSize: 18,
+    fontColor: '#00FF00',
+    backgroundColor: '#000000',
+    backgroundOpacity: 0.8,
+    position: 'bottom',
+    outline: true,
+    outlineColor: '#003300'
+  },
+  cinematic: {
+    name: 'cinematic',
+    fontFamily: 'Georgia',
+    fontSize: 16,
+    fontColor: '#FFD700',
+    backgroundColor: '#1A1A1A',
+    backgroundOpacity: 0.9,
+    position: 'bottom',
+    outline: true,
+    outlineColor: '#333333'
+  },
+  neon: {
+    name: 'neon',
+    fontFamily: 'Arial',
+    fontSize: 17,
+    fontColor: '#00FFFF',
+    backgroundColor: '#000033',
+    backgroundOpacity: 0.7,
+    position: 'bottom',
+    outline: true,
+    outlineColor: '#0066CC'
   }
 };
 

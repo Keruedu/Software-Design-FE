@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-toastify';
 import { 
   FiPlay, 
   FiEdit2, 
@@ -135,10 +136,131 @@ const VideoManager: React.FC<VideoManagerProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [downloadingVideo, setDownloadingVideo] = useState<string | null>(null);
   
   const handleDeleteClick = (video: Video) => {
     setSelectedVideo(video);
     setShowDeleteModal(true);
+  };
+
+  const sanitizeFileName = (filename: string): string => {
+    return filename
+      .replace(/[<>:"/\\|?*]/g, '') 
+      .replace(/\s+/g, ' ') 
+      .trim(); 
+  };
+
+  const handleDownload = async (video: Video) => {
+    try {
+      setDownloadingVideo(video.id);
+      
+      // Get video URL
+      const videoUrl = video.videoUrl || video.url;
+      if (!videoUrl) {
+        toast.error('Video URL not available');
+        return;
+      }
+
+      const fileName = `${sanitizeFileName(video.title)}.mp4`;
+
+      if ('showSaveFilePicker' in window) {
+        try {
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: 'Video files',
+              accept: {
+                'video/mp4': ['.mp4'],
+                'video/*': ['.mp4', '.mov', '.avi']
+              }
+            }]
+          });
+
+          // Fetch video and write to selected location
+          const response = await fetch(videoUrl);
+          if (!response.ok) {
+            throw new Error('Failed to fetch video');
+          }
+
+          const writable = await fileHandle.createWritable();
+          await response.body?.pipeTo(writable);
+
+          toast.success(`"${video.title}" download successfully`, {
+            position: 'bottom-right',
+            autoClose: 3000
+          });
+        } catch (filePickerError: any) {
+          if (filePickerError.name !== 'AbortError') {
+            console.warn('File picker failed, falling back to regular download:', filePickerError);
+            await fallbackDownload(videoUrl, fileName, video.title);
+          }
+        }
+      } else {
+        await fallbackDownload(videoUrl, fileName, video.title);
+      }
+      
+      setActiveDropdown(null);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download video. Please try again.', {
+        position: 'bottom-right',
+        autoClose: 3000
+      });
+    } finally {
+      setDownloadingVideo(null);
+    }
+  };
+
+  // Fallback download function for older browsers
+  const fallbackDownload = async (videoUrl: string, fileName: string, videoTitle: string) => {
+    try {
+      const response = await fetch(videoUrl);
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        
+        toast.success(`"${videoTitle}" downloaded`, {
+          position: 'bottom-right',
+          autoClose: 3000
+        });
+      } else {
+        // Final fallback: open in new tab
+        const link = document.createElement('a');
+        link.href = videoUrl;
+        link.target = '_blank';
+        link.click();
+        
+        toast.info('Video opened in new tab - right-click to save', {
+          position: 'bottom-right',
+          autoClose: 4000
+        });
+      }
+    } catch (fetchError) {
+      // Final fallback: open in new tab
+      const link = document.createElement('a');
+      link.href = videoUrl;
+      link.target = '_blank';
+      link.click();
+      
+      toast.info('Video opened in new tab - right-click to save', {
+        position: 'bottom-right',
+        autoClose: 4000
+      });
+    }
   };
   
   const confirmDelete = async () => {
@@ -152,6 +274,32 @@ const VideoManager: React.FC<VideoManagerProps> = ({
   const toggleDropdown = (id: string) => {
     setActiveDropdown(activeDropdown === id ? null : id);
   };
+
+  // Close dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (activeDropdown && !target.closest('.dropdown-container')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveDropdown(null);
+      }
+    };
+
+    if (activeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [activeDropdown]);
   
   if (isLoading) {
     return (
@@ -191,18 +339,130 @@ const VideoManager: React.FC<VideoManagerProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {videos.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            onDelete={(videoId) => {
-              handleDeleteClick(video);
-              setActiveDropdown(null);
-            }}
-            onDropdownToggle={toggleDropdown}
-            activeDropdown={activeDropdown}
-          />
+          <div key={video.id} className="bg-white rounded-lg shadow relative">
+            <div 
+              className="relative h-40 bg-gray-200 bg-cover bg-center cursor-pointer rounded-t-lg overflow-hidden" 
+              style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
+            >
+              <Link 
+                href={`/dashboard/video/${video.id}`} 
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="bg-black bg-opacity-40 rounded-full p-3 hover:bg-opacity-60 transition">
+                  <FiPlay className="text-white h-6 w-6" />
+                </div>
+              </Link>
+              {video.status === 'processing' && (
+                <div className="absolute top-0 inset-x-0 bg-blue-500 text-white text-xs font-medium text-center p-1">
+                  Processing
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4">
+              <div className="flex justify-between items-start">
+                <Link 
+                  href={`/dashboard/video/${video.id}`}
+                  className="font-medium text-gray-900 hover:text-blue-600 truncate block"
+                >
+                  {video.title}
+                </Link>
+                
+                <div className="relative dropdown-container">
+                  <button 
+                    onClick={() => toggleDropdown(video.id)}
+                    className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <FiMoreVertical className="h-5 w-5 text-gray-500" />
+                  </button>
+                  
+                  {activeDropdown === video.id && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg z-50 py-1 border border-gray-200">
+                      <Link 
+                        href={`/dashboard/video/${video.id}`}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        <FiPlay className="mr-3 h-4 w-4" />
+                        View Video
+                      </Link>
+                        <button
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => handleDownload(video)}
+                          disabled={downloadingVideo === video.id}
+                        >
+                          {downloadingVideo === video.id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-3"></div>
+                              Downloading...
+                            </>
+                          ) : (
+                            <>
+                              <FiDownload className="mr-3 h-4 w-4" />
+                              Download
+                            </>
+                          )}
+                        </button>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        <button
+                          onClick={() => {
+                            handleDeleteClick(video);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left transition-colors"
+                        >
+                          <FiTrash2 className="mr-3 h-4 w-4" />
+                          Delete
+                        </button>
+                      </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-1 flex items-center text-sm text-gray-500">
+                <p>
+                  {new Date(video.createdAt).toLocaleDateString()}
+                  &nbsp;&bull;&nbsp;
+                  {video.duration} sec
+                </p>
+              </div>
+                <div className="mt-3 flex flex-wrap gap-1">
+                {video.tags && video.tags.length > 0 ? (
+                  <>
+                    {video.tags.slice(0, 2).map((tag, index) => (
+                      <span 
+                        key={index}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {video.tags.length > 2 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        +{video.tags.length - 2}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                    No tags
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          // <VideoCard
+          //   key={video.id}
+          //   video={video}
+          //   onDelete={(videoId) => {
+          //     handleDeleteClick(video);
+          //     setActiveDropdown(null);
+          //   }}
+          //   onDropdownToggle={toggleDropdown}
+          //   activeDropdown={activeDropdown}
+          // />
         ))}
       </div>
       

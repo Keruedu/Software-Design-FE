@@ -11,7 +11,7 @@ import { Voice } from '../../mockdata/voices';
 
 export default function VoicePage() {
   const router = useRouter();
-  const { state, setSelectedVoice, setVoiceSettings, setSelectedUploadedAudio, setGeneratedAudio, setStep } = useVideoCreation();
+  const { state, setSelectedVoice, setVoiceSettings, setGeneratedAudio, setSelectedUploadedAudio, setStep } = useVideoCreation();
   
   const [voices, setVoices] = useState<Voice[]>([]);
   const [uploadedAudios, setUploadedAudios] = useState<UploadedAudio[]>([]);
@@ -138,6 +138,9 @@ export default function VoicePage() {
     setUseUploadedAudio(false);
     setLocalSelectedUploadedAudio(null);
     setSelectedUploadedAudio(null);
+    // Clear generated audio when changing voice since it's no longer valid
+    setGeneratedAudio(null);
+    console.log('🔄 Cleared generated audio due to voice change');
   };
 
   const handleAudioUploaded = (audio: UploadedAudio) => {
@@ -193,21 +196,11 @@ export default function VoicePage() {
     setPitch(newPitch);
     setVoiceSettings({ pitch: newPitch });
   };  
-  const handleContinue = async () => {
+  const handleContinue = () => {
+    // Store audio choice in context (either voice or uploaded audio)
     if (useUploadedAudio && localSelectedUploadedAudio) {
       // Upload audio selected - already saved to context
-      console.log('✅ Using uploaded audio:', localSelectedUploadedAudio);
-      setStep('background');
-      router.push('/create/background');
-      return;
-    }
-
-    // AI Voice selected - save voice selection and settings, audio will be generated in background step
-    if (!useUploadedAudio && state.selectedVoice) {
-      console.log('✅ Voice selected:', state.selectedVoice.name);
-      console.log('📋 Voice settings saved:', { speed, pitch });
-      // Ensure voice settings are saved to context
-      setVoiceSettings({ speed, pitch });
+      console.log('Using uploaded audio:', localSelectedUploadedAudio);
     }
     
     setStep('background');
@@ -447,17 +440,10 @@ export default function VoicePage() {
             </Button>
             <Button 
               onClick={handleContinue}
-              disabled={(!state.selectedVoice && !localSelectedUploadedAudio) || generatingPreview === 'generating'}
+              disabled={!state.selectedVoice && !localSelectedUploadedAudio}
               className="px-6 py-2 w-full md:w-auto"
             >
-              {generatingPreview === 'generating' ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Generating Audio...
-                </>
-              ) : (
-                'Continue to Background Selection'
-              )}
+              Continue to Background Selection
             </Button>
           </div>
         </div>

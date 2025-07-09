@@ -13,6 +13,7 @@ interface TimelineContextType {
   setDuration: (duration: number) => void;
   setZoom: (zoom: number) => void;
   moveItem: (itemId: string, fromTrackId: string, toTrackId: string, newStartTime: number) => void;
+  findOrCreateStickerTrack: () => string;
 }
 
 const TimelineContext = createContext<TimelineContextType | null>(null);
@@ -27,9 +28,9 @@ export const useTimelineContext = () => {
 
 const DEFAULT_TRACKS: Track[] = [
   {
-    id: 'video-main',
-    name: 'Video chính',
-    type: 'video',
+    id: 'track-1',
+    name: '',
+    type: 'mixed',
     height: 60,
     isVisible: true,
     isLocked: false,
@@ -37,36 +38,36 @@ const DEFAULT_TRACKS: Track[] = [
     color: '#3B82F6'
   },
   {
-    id: 'audio-main',
-    name: 'Audio chính',
-    type: 'audio',
+    id: 'track-2',
+    name: '',
+    type: 'mixed',
     height: 50,
     isVisible: true,
     isLocked: false,
     isMuted: false,
     volume: 1,
     items: [],
-    color: '#10B981'
+    color: '#3B82F6'
   },
   {
-    id: 'overlay-1',
-    name: 'Overlay 1',
-    type: 'overlay',
-    height: 40,
-    isVisible: true,
-    isLocked: false,
-    items: [],
-    color: '#F59E0B'
-  },
-  {
-    id: 'text-1',
-    name: 'Text 1',
+    id: 'text-track',
+    name: '',
     type: 'text',
-    height: 40,
+    height: 50,
     isVisible: true,
     isLocked: false,
     items: [],
-    color: '#EF4444'
+    color: '#3B82F6'
+  },
+  {
+    id: 'overlay-track',
+    name: '',
+    type: 'overlay',
+    height: 50,
+    isVisible: true,
+    isLocked: false,
+    items: [],
+    color: '#3B82F6'
   }
 ];
 
@@ -76,12 +77,16 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     duration: 0,
     currentTime: 0,
     zoom: 1,
-    pixelsPerSecond: 100
+    pixelsPerSecond: 200 // Increased for better precision
   });
 
   const addTrack = useCallback((track: Omit<Track, 'id'>) => {
     const id = `track-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const newTrack: Track = { ...track, id };
+    
+    const newTrack: Track = { 
+      ...track, 
+      id
+    };
     
     setTimelineState(prev => ({
       ...prev,
@@ -102,14 +107,18 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const id = `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newItem: TimelineItem = { ...item, id, trackId };
     
-    setTimelineState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
+    setTimelineState(prev => {
+      const updatedTracks = prev.tracks.map(track => 
         track.id === trackId 
           ? { ...track, items: [...track.items, newItem] }
           : track
-      )
-    }));
+      );
+
+      return {
+        ...prev,
+        tracks: updatedTracks
+      };
+    });
     
     return id;
   }, []);
@@ -126,9 +135,8 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const updateItem = useCallback((trackId: string, itemId: string, updates: Partial<TimelineItem>) => {
-    setTimelineState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
+    setTimelineState(prev => {
+      const updatedTracks = prev.tracks.map(track => 
         track.id === trackId 
           ? { 
               ...track, 
@@ -137,17 +145,39 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               )
             }
           : track
-      )
-    }));
+      );
+
+      // Calculate new duration if item extends beyond current duration
+      let newDuration = prev.duration;
+      updatedTracks.forEach(track => {
+        track.items.forEach(item => {
+          const itemEndTime = item.startTime + item.duration;
+          if (itemEndTime > newDuration) {
+            newDuration = itemEndTime;
+          }
+        });
+      });
+
+      return {
+        ...prev,
+        tracks: updatedTracks,
+        duration: newDuration
+      };
+    });
   }, []);
 
   const updateTrack = useCallback((trackId: string, updates: Partial<Track>) => {
-    setTimelineState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
+    // console.log('Debug - TimelineContext updateTrack called:', { trackId, updates });
+    setTimelineState(prev => {
+      const updatedTracks = prev.tracks.map(track => 
         track.id === trackId ? { ...track, ...updates } : track
-      )
-    }));
+      );
+      // console.log('Debug - Updated tracks:', updatedTracks.find(t => t.id === trackId));
+      return {
+        ...prev,
+        tracks: updatedTracks
+      };
+    });
   }, []);
 
   const setCurrentTime = useCallback((time: number) => {
@@ -159,7 +189,7 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const setZoom = useCallback((zoom: number) => {
-    setTimelineState(prev => ({ ...prev, zoom, pixelsPerSecond: 100 * zoom }));
+    setTimelineState(prev => ({ ...prev, zoom, pixelsPerSecond: 200 * zoom }));
   }, []);
 
   const moveItem = useCallback((itemId: string, fromTrackId: string, toTrackId: string, newStartTime: number) => {
@@ -186,6 +216,27 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
+  const findOrCreateStickerTrack = useCallback(() => {
+    const existingStickerTrack = timelineState.tracks.find(track => track.type === 'sticker');
+    
+    if (existingStickerTrack) {
+      return existingStickerTrack.id;
+    }
+    
+    // Create new sticker track
+    const stickerTrackId = addTrack({
+      name: 'Stickers',
+      type: 'sticker',
+      height: 50,
+      isVisible: true,
+      isLocked: false,
+      items: [],
+      color: '#F59E0B'
+    });
+    
+    return stickerTrackId;
+  }, [timelineState.tracks, addTrack]);
+
   const contextValue: TimelineContextType = {
     timelineState,
     addTrack,
@@ -197,7 +248,8 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrentTime,
     setDuration,
     setZoom,
-    moveItem
+    moveItem,
+    findOrCreateStickerTrack
   };
 
   return (

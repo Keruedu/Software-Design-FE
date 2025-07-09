@@ -1,0 +1,163 @@
+[
+  {
+    "pack": "Animals",
+    "id": "crocodile_png",
+    "name": "Crocodile",
+    "category": "sticker",
+    "url": "/stickers/Animals/crocodile.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "boxer_png",
+    "name": "Boxer Cat",
+    "category": "sticker",
+    "url": "/stickers/Cat/boxer.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "january_png",
+    "name": "January",
+    "category": "sticker",
+    "url": "/stickers/DoWM/january.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "february_png",
+    "name": "February",
+    "category": "sticker",
+    "url": "/stickers/DoWM/february.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "march_png",
+    "name": "March",
+    "category": "sticker",
+    "url": "/stickers/DoWM/march.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "april_png",
+    "name": "April",
+    "category": "sticker",
+    "url": "/stickers/DoWM/april.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "may_png",
+    "name": "May",
+    "category": "sticker",
+    "url": "/stickers/DoWM/may.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "june_png",
+    "name": "June",
+    "category": "sticker",
+    "url": "/stickers/DoWM/june.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "july_png",
+    "name": "July",
+    "category": "sticker",
+    "url": "/stickers/DoWM/july.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "august_png",
+    "name": "August",
+    "category": "sticker",
+    "url": "/stickers/DoWM/august.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "september_png",
+    "name": "September",
+    "category": "sticker",
+    "url": "/stickers/DoWM/september.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "october_png",
+    "name": "October",
+    "category": "sticker",
+    "url": "/stickers/DoWM/october.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "november_png",
+    "name": "November",
+    "category": "sticker",
+    "url": "/stickers/DoWM/november.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "december_png",
+    "name": "December",
+    "category": "sticker",
+    "url": "/stickers/DoWM/december.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "monday_png",
+    "name": "Monday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/monday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "tuesday_png",
+    "name": "Tuesday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/tuesday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "wednesday_png",
+    "name": "Wednesday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/wednesday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "thursday_png",
+    "name": "Thursday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/thursday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "friday_png",
+    "name": "Friday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/friday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "saturday_png",
+    "name": "Saturday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/saturday.png"
+  },
+  {
+    "pack": "DoWM",
+    "id": "sunday_png",
+    "name": "Sunday",
+    "category": "sticker",
+    "url": "/stickers/DoWM/sunday.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "award_png",
+    "name": "Award Frog",
+    "category": "sticker",
+    "url": "/stickers/Frog/award.png"
+  },
+  {
+    "pack": "Misc",
+    "id": "smile_png",
+    "name": "Smile",
+    "category": "sticker",
+    "url": "/stickers/smile.png"
+  }
+]

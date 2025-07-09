@@ -1,11 +1,17 @@
-import React,{useState,useRef,useEffect,forwardRef,useImperativeHandle} from 'react';
+import React,{useState,useRef,useEffect,forwardRef,useImperativeHandle,useCallback} from 'react';
 import { motion } from 'framer-motion';
 import ReactPlayer from 'react-player';
-import { FaPlay, FaPause,FaBackward,FaForward, FaRegSave } from 'react-icons/fa';
+import { FaPlay, FaPause,FaBackward,FaForward, FaRegSave, FaVolumeUp, FaVolumeMute, FaVolumeDown } from 'react-icons/fa';
 import { videoProcessor } from '@/services/videoProcessor.service';
 import { ffmpegService } from '@/services/editVideo.service';
 import { useAudioTracksContext } from '@/context/AudioTracks';
+import { useTimelineContext } from '@/context/TimelineContext';
+import { useTextOverlayContext } from '@/context/TextOverlayContext';
+import { useStickerContext } from '@/context/StickerContext';
+import { audioManager } from '@/services/audioManager';
 import { AudioTrackData } from '@/types/audio';
+import TextOverlay from './TextOverlay';
+import StickerOverlay from './StickerOverlay';
 
 interface VideoPlayerProps {
     videoUrl: string;
@@ -16,6 +22,14 @@ interface VideoPlayerProps {
     onPause?: () => void;
     onSeek?: (direction: 'forward' | 'backward') => void;
     currentTime?: number;
+    volume?: number;
+    onVolumeChange?: (volume: number) => void;
+    isMuted?: boolean;
+    onToggleMute?: () => void;
+    isMainVideoTrackMuted?: boolean; 
+    trimStart?: number;
+    trimEnd?: number;
+    setVideoSize?: (size: { width: number; height: number }) => void; 
 }
 
 
@@ -29,6 +43,14 @@ const VideoPlayer = forwardRef<any, VideoPlayerProps>(({
     onPause,
     onSeek: externalOnSeek,
     currentTime: externalCurrentTime = 0,
+    volume: externalVolume = 1, 
+    onVolumeChange,
+    isMuted = false,
+    onToggleMute,
+    isMainVideoTrackMuted = false,
+    trimStart = 0,
+    trimEnd = 0,
+    setVideoSize: setExternalVideoSize = () => {},
 }, ref) => {
 useEffect(()=>{
     const initializeFFmpeg = async () => {
@@ -40,47 +62,176 @@ useEffect(()=>{
     };
     initializeFFmpeg();
 },[])
-const {audioTracks,setAudioTracks} = useAudioTracksContext();
-const [trimStart, setTrimStart] = useState(0);
-const [trimEnd, setTrimEnd] = useState(0);
+
+const { audioTracks, setAudioTracks } = useAudioTracksContext();
+const { timelineState } = useTimelineContext();
+const { 
+    state: { textOverlays }, 
+    startEditing, 
+    stopEditing,
+    getTextOverlayAtTime 
+} = useTextOverlayContext();
+const { 
+    state: { stickerOverlays }, 
+    getStickerOverlayAtTime,
+    selectStickerOverlay 
+} = useStickerContext();
 const [isPlaying, setIsPlaying] = useState(externalIsPlaying)
-const [volume, setVolume] = useState(1)
 const [duration, setDuration] = useState(0)
 const [currentTime, setCurrentTime] = useState(0)
+const [videoContainerRef, setVideoContainerRef] = useState<HTMLDivElement | null>(null)
+const [videoSize, setVideoSize] = useState({ width: 0, height: 0 })
 const playerRef = useRef<ReactPlayer>(null)
 const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
+const [originalVideoSize, setOriginalVideoSize] = useState({ width: 0, height: 0 });
+const audioItems = timelineState.tracks.flatMap(track => 
+    track.items.filter(item => item.type === 'audio')
+);
 
 useEffect(() => {
   setUrl(videoUrl);
 }, [videoUrl]);
 
-// Sync external playing state
+// Sync external playing state and manage audio playback
 useEffect(() => {
     setIsPlaying(externalIsPlaying);
-}, [externalIsPlaying]);
+    
+    if (externalIsPlaying) {
+        audioManager.play(currentTime, audioItems, timelineState.tracks);
+        
+        // Sync mute states with audio manager
+        timelineState.tracks.forEach(track => {
+            if (track.isMuted) {
+                audioManager.muteTrack(track.id);
+            } else {
+                audioManager.unmuteTrack(track.id);
+            }
+        });
+    } else {
+        audioManager.pause();
+    }
+}, [externalIsPlaying, currentTime, audioItems, timelineState.tracks.map(t => t.isMuted).join(',')]); // Added track mute dependency
 
-// Sync external currentTime to video player
+// Update audio items when timeline changes
+useEffect(() => {
+    audioManager.updateAudioItems(audioItems);
+}, [audioItems]);
+
+// Sync track mute states with audio manager
+useEffect(() => {
+    timelineState.tracks.forEach(track => {
+        if (track.isMuted) {
+            audioManager.muteTrack(track.id);
+        } else {
+            audioManager.unmuteTrack(track.id);
+        }
+    });
+    // Update all audio volumes to reflect mute changes
+    audioManager.updateAllAudioVolumes(audioItems, timelineState.tracks);
+}, [timelineState.tracks.map(t => t.isMuted).join(','), audioItems]);
+
+// Log when main video track mute state changes
+useEffect(() => {
+    // console.log('Debug - VideoPlayer main video track mute state:', isMainVideoTrackMuted, 'global mute:', isMuted);
+    // console.log('Debug - Final video volume will be:', (isMuted || isMainVideoTrackMuted) ? 0 : externalVolume);
+}, [isMainVideoTrackMuted, isMuted, externalVolume]);
+
+// Sync external currentTime to video player and audio
 useEffect(() => {
     if (playerRef.current && Math.abs(currentTime - externalCurrentTime) > 0.5) {
         playerRef.current.seekTo(externalCurrentTime, 'seconds');
+        audioManager.seekTo(externalCurrentTime, audioItems, timelineState.tracks);
     }
-}, [externalCurrentTime]);
+}, [externalCurrentTime, audioItems]); // Removed timelineState.tracks dependency
 
-// Cleanup effect
+// Debug logging for external volume changes
 useEffect(() => {
-    return () => {
-        if (playerRef.current) {
-            setIsPlaying(false);
-            // Pause tất cả media elements
-            const allVideos = document.querySelectorAll('video');
-            const allAudios = document.querySelectorAll('audio');
-            allVideos.forEach(video => video.pause());
-            allAudios.forEach(audio => audio.pause());
+    // console.log('Debug - VideoPlayer received external volume:', externalVolume);
+}, [externalVolume]);
+
+// Update video container size when video loads
+useEffect(() => {
+    if (videoContainerRef && playerRef.current) {
+        const updateSize = () => {
+            const playerElement = playerRef.current?.getInternalPlayer();
+            if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
+                const containerRect = videoContainerRef.getBoundingClientRect();
+                const videoAspectRatio = playerElement.videoWidth / playerElement.videoHeight;
+                const containerAspectRatio = containerRect.width / containerRect.height;
+                
+                let videoWidth, videoHeight;
+                if (videoAspectRatio > containerAspectRatio) {
+                    videoWidth = containerRect.width;
+                    videoHeight = containerRect.width / videoAspectRatio;
+                } else {
+                    videoHeight = containerRect.height;
+                    videoWidth = containerRect.height * videoAspectRatio;
+                }
+                setExternalVideoSize({ width: playerElement.videoWidth, height: playerElement.videoHeight });
+                setVideoSize({ width: videoWidth, height: videoHeight });
+            }
+        };
+        
+        updateSize();
+        window.addEventListener('resize', updateSize);
+        
+        return () => window.removeEventListener('resize', updateSize);
+    }
+}, [videoContainerRef, url]);
+
+// Handle text overlay double click for editing
+const handleTextOverlayDoubleClick = useCallback((textId: string) => {
+    startEditing(textId);
+}, [startEditing]);
+const handleReady = () => {
+    if (videoContainerRef && playerRef.current) {
+        const playerElement = playerRef.current.getInternalPlayer();
+        if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
+            // Cập nhật videoSize ngay khi ready
+            setExternalVideoSize({ 
+                width: playerElement.videoWidth, 
+                height: playerElement.videoHeight 
+            });
+            setOriginalVideoSize({width:playerElement.videoWidth, height: playerElement.videoHeight});
         }
-    };
-}, []);
+    }
+};
+// Get visible text overlays for current time
+const visibleTextOverlays = getTextOverlayAtTime(currentTime);
+
+// Get visible sticker overlays for current time
+const visibleStickerOverlays = getStickerOverlayAtTime(currentTime);
+
+// Handle sticker overlay click
+const handleStickerOverlayClick = useCallback((stickerId: string) => {
+    selectStickerOverlay(stickerId);
+}, [selectStickerOverlay]);
+
+// Handle text overlay processing
+const addTextOverlayToVideo = async () => {
+    try {
+        for (const textOverlay of textOverlays) {
+            const result = await videoProcessor.addProcessingStep({
+                type: 'addTextOverlay',
+                params: {
+                    text: textOverlay.text,
+                    position: textOverlay.position,
+                    style: textOverlay.style,
+                    timing: textOverlay.timing,
+                    size: textOverlay.size,
+                    opacity: textOverlay.opacity,
+                    shadow: textOverlay.shadow,
+                    outline: textOverlay.outline,
+                    background: textOverlay.background,
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error adding text overlays to video:', error);
+    }
+};
 
 // Expose methods to parent component
 useImperativeHandle(ref, () => ({
@@ -108,12 +259,36 @@ const handlDuration=(duration:number)=>{
     onDuration(duration);
 }
 const handleProgress = (progress: { playedSeconds: number }) => {
-    setCurrentTime(progress.playedSeconds);
+    const currentTime = progress.playedSeconds;
+    
+    // Check if playback is outside trim boundaries
+    if (trimEnd > 0 && currentTime >= trimEnd) {
+        // Stop playback when reaching trim end
+        setIsPlaying(false);
+        if (onPause) onPause();
+        
+        // Seek back to trim end to prevent overshoot
+        if (playerRef.current) {
+            playerRef.current.seekTo(trimEnd, 'seconds');
+        }
+        
+        // Update progress with trim end time
+        setCurrentTime(trimEnd);
+        onProgress({ playedSeconds: trimEnd });
+        return;
+    }
+    
+    // Normal progress update
+    setCurrentTime(currentTime);
     onProgress(progress);
+    
+    // Only sync audio playback with video progress if there are audio items
+    // Don't call audioManager.play() continuously to avoid interference
 };
 const handleTimelineSeek = (time: number) => {
     if (playerRef.current) {
         playerRef.current.seekTo(time, 'seconds');
+        audioManager.seekTo(time, audioItems, timelineState.tracks);
     }
 };
 const trimVideo = async () => {
@@ -129,8 +304,7 @@ const trimVideo = async () => {
                 },
             });
             
-            setTrimStart(0);
-            setTrimEnd(result.duration);
+            // Trim values are now managed by parent component via props
         }
         catch (error) {
             console.error('Error trimming video:', error);
@@ -187,7 +361,8 @@ const trimAudio = async () => {
 const handleSaveVideo = async () => {
     await trimVideo();
     await trimAudio();
-    await addAudioToVideo()
+    await addAudioToVideo();
+    await addTextOverlayToVideo();
     setForceUpdate(!forceUpdate);
     const currentVideo = videoProcessor.getCurrentVideo();
     if (!currentVideo) {
@@ -196,10 +371,31 @@ const handleSaveVideo = async () => {
     }
     setUrl(currentVideo.url);
 }
+
+// Cleanup effect  
+useEffect(() => {
+    return () => {
+        if (playerRef.current) {
+            setIsPlaying(false);
+            // Pause tất cả media elements
+            const allVideos = document.querySelectorAll('video');
+            const allAudios = document.querySelectorAll('audio');
+            allVideos.forEach(video => video.pause());
+            allAudios.forEach(audio => audio.pause());
+        }
+        
+        // Cleanup audio manager
+        audioManager.dispose();
+    };
+}, []);
     return(
         <div className="bg-white rounded-lg overflow-hidden shadow-lg h-full flex flex-col">
-            <div className="flex-1 relative min-h-0 py-2 ">
+            <div 
+                ref={setVideoContainerRef}
+                className="flex-1 relative min-h-0 py-2"
+            >
                 <ReactPlayer
+                    onReady={handleReady}
                     ref ={playerRef}
                     url={ url}
                     playing={isPlaying}
@@ -207,7 +403,7 @@ const handleSaveVideo = async () => {
                     onDuration={handlDuration}
                     width="100%"
                     height="100%"
-                    volume={volume}
+                    volume={(isMuted || isMainVideoTrackMuted) ? 0 : externalVolume}
                     progressInterval={100}
                     loop={false}
                     onEnded={() => setIsPlaying(false)}
@@ -222,33 +418,45 @@ const handleSaveVideo = async () => {
                     }}
                     stopOnUnmount={true}
                 />
+                
+                {/* Text Overlays */}
+                {visibleTextOverlays.map((textOverlay) => (
+                    <TextOverlay
+                        key={textOverlay.id}
+                        overlay={textOverlay}
+                        currentTime={currentTime}
+                        videoWidth={videoSize.width}
+                        videoHeight={videoSize.height}
+                        originalVideoSize={originalVideoSize}
+                        onDoubleClick={handleTextOverlayDoubleClick}
+                    />
+                ))}
+
+                {/* Sticker Overlays */}
+                {visibleStickerOverlays.map((stickerOverlay) => {
+                    // Debug log for sticker rendering
+                    console.log('Rendering sticker overlay:', {
+                        stickerId: stickerOverlay.id,
+                        stickerName: stickerOverlay.stickerName,
+                        position: stickerOverlay.position,
+                        videoSize: { width: videoSize.width, height: videoSize.height },
+                        originalVideoSize: originalVideoSize
+                    });
+                    
+                    return (
+                        <StickerOverlay
+                            key={stickerOverlay.id}
+                            overlay={stickerOverlay}
+                            currentTime={currentTime}
+                            videoWidth={videoSize.width}
+                            videoHeight={videoSize.height}
+                            originalVideoSize={originalVideoSize}
+                            onClick={handleStickerOverlayClick}
+                        />
+                    );
+                })}
+                
             </div>
-            {/* Video Control - Disabled (chỉ hiển thị) */}
-            {/* <div className="p-2">
-                <div className="flex items-center justify-center space-x-5">
-                     <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        <FaBackward className="w-4 h-4" />
-                    </motion.button>
-                    <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        {isPlaying ? <FaPause className="w-4 h-4" /> : <FaPlay className="w-4 h-4 ml-0.5" />}
-                    </motion.button>
-                     <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        disabled={true}
-                        className="text-white p-2 rounded-full bg-gray-400 cursor-not-allowed shadow-md opacity-50">
-                        <FaForward className="w-4 h-4" />
-                    </motion.button>
-                </div>
-            </div> */}
         </div>
     )
 });

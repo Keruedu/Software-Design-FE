@@ -1,3 +1,10 @@
+export interface WikipediaSource {
+  title: string;
+  url: string;
+  extract: string;
+  language?: string;
+}
+
 export interface Script {
   id: string;
   topic: string;
@@ -7,6 +14,8 @@ export interface Script {
   createdAt: string;
   updatedAt: string;
   imagePrompts?: string[]; // AI-generated image prompts for backgrounds
+  wikipediaSources?: WikipediaSource[]; // Wikipedia sources used for generation
+  wikipediaTopic?: string; // Main Wikipedia topic searched
 }
 
 export const mockScripts: Script[] = [
