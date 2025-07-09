@@ -1,14 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Track, TimelineItem } from '@/types/timeline';
-import { FaEye, FaEyeSlash, FaLock, FaUnlock, FaVolumeUp, FaVolumeMute, FaTrash, FaGripLines, FaVideo, FaMusic, FaImage, FaFont, FaSmile } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaLock, FaUnlock, FaVolumeUp, FaVolumeMute, FaTrash, FaGripLines, FaVideo, FaMusic, FaImage, FaFont, FaSmile, FaLayerGroup } from 'react-icons/fa';
 import { audioManager } from '@/services/audioManager';
 import { useTimelineContext } from '@/context/TimelineContext';
 import TimelineItemComponent from './TimelineItem';
 
-// Helper function to get track icon based on type
-const getTrackIcon = (type: string) => {
-  switch (type) {
+// Helper function to get track icon based on type and properties
+const getTrackIcon = (track: Track) => {
+  if (track.isMainVideoTrack) {
+    return <FaVideo className="w-3 h-3" />;
+  }
+  
+  if (track.type === 'mixed') {
+    return <FaLayerGroup className="w-3 h-3" />;
+  }
+  
+  switch (track.type) {
     case 'video':
       return <FaVideo className="w-3 h-3" />;
     case 'audio':
@@ -40,6 +48,7 @@ interface TimelineTrackProps {
   onDrop?: (e: React.DragEvent) => void;
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
+  onMoveItemToTrack?: (itemId: string, targetTrackId: string, newStartTime: number) => void;
 }
 
 const TimelineTrack: React.FC<TimelineTrackProps> = ({
@@ -57,7 +66,8 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
   onSelectItem,
   onDrop,
   onDragOver,
-  onDragLeave
+  onDragLeave,
+  onMoveItemToTrack
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -97,6 +107,12 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
+    
+    // Chặn resize nếu track không thể resize
+    if (!track.isResizable) {
+      return;
+    }
+    
     setIsResizing(true);
     
     const startY = e.clientY;
@@ -122,6 +138,11 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // "Prevent dragging into the main video track"
+    if (track.isMainVideoTrack) {
+      return;
+    }
     
     // Only update state if it's actually changing to prevent flickering
     if (!isDragOver) {
@@ -155,6 +176,12 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
+    
+    // "Prevent dragging into the main video track"
+    if (track.isMainVideoTrack) {
+      return;
+    }
+    
     if (onDrop) {
       onDrop(e);
     }
@@ -164,7 +191,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
     const newMutedState = !isTrackMuted;
     console.log('Debug - Track mute toggle clicked for track:', track.id, 'hasAudioItems:', hasAudioItems, 'current muted:', isTrackMuted, 'new state:', newMutedState);
     
-    // Always allow mute/unmute regardless of audio items (user might add audio items later)
+    // Always allow mute/unmute regardless of audio items
     onUpdateTrack({ isMuted: newMutedState });
     console.log('Debug - Updated track mute state to:', newMutedState);
     
@@ -193,7 +220,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
         <div className="flex items-center space-x-2 min-w-0">
           {/* Track icon */}
           <div className="flex-shrink-0 text-gray-600">
-            {getTrackIcon(track.type)}
+            {getTrackIcon(track)}
           </div>
           
           <div className="min-w-0 flex-1">
@@ -204,7 +231,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
               </div>
             )}
             
-            {/* Chỉ hiển thị thông tin số lượng items */}
+            {/* Display the number of items */}
             <div className="text-xs text-gray-500" style={{ fontSize: '11px' }}>
               {track.items.length} item{track.items.length !== 1 ? 's' : ''}
               {isTrackMuted && (
@@ -222,7 +249,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${
               isTrackMuted ? 'text-red-500' : 'text-gray-600'
             }`}
-            title={isTrackMuted ? 'Bật âm thanh track' : 'Tắt âm thanh track'}
+            title={isTrackMuted ? 'Unmute track' : 'Mute track'}
           >
             {isTrackMuted ? 
               <FaVolumeMute className="w-2.5 h-2.5" /> : 
@@ -255,7 +282,7 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             <button
               onClick={onDeleteTrack}
               className="p-1 rounded hover:bg-red-100 text-red-500 transition-colors ml-1"
-              title="Xóa track"
+              title="Delete track"
             >
               <FaTrash className="w-3 h-3" />
             </button>
@@ -276,9 +303,10 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
           pointerEvents: track.isLocked ? 'none' : 'auto',
           minWidth: `${timelineWidth}px`
         }}
-        onDrop={track.isLocked ? undefined : handleDrop}
-        onDragOver={track.isLocked ? undefined : handleDragOver}
-        onDragLeave={track.isLocked ? undefined : handleDragLeave}
+        onDrop={track.isLocked || track.isMainVideoTrack ? undefined : handleDrop}
+        onDragOver={track.isLocked || track.isMainVideoTrack ? undefined : handleDragOver}
+        onDragLeave={track.isLocked || track.isMainVideoTrack ? undefined : handleDragLeave}
+        data-track-id={track.id}
       >
         {/* Timeline Grid */}
         <div className="absolute inset-0">
@@ -325,6 +353,8 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
             onDeleteItem={() => onDeleteItem(item.id)}
             onSelect={() => onSelectItem(item.id)}
             isSelected={selectedItemId === item.id}
+            onMoveToTrack={onMoveItemToTrack}
+            trackId={track.id}
           />
         ))}
 
@@ -332,8 +362,17 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
         {track.items.length === 0 && !isDragOver && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-gray-400 text-xs text-center">
-              <div className="mb-1">Trống</div>
-              <div>Kéo bất kỳ media nào vào đây</div>
+              {track.isMainVideoTrack ? (
+                <>
+                  <div className="mb-1">Main Video Track</div>
+                  <div>This track contains only the main video. You can't add other items here.</div>
+                </>
+              ) : (
+                <>
+                  <div className="mb-1">Empty</div>
+                  <div>Drag and drop any media into this track</div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -342,33 +381,34 @@ const TimelineTrack: React.FC<TimelineTrackProps> = ({
         {isDragOver && (
           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-80 border-2 border-dashed border-blue-400 rounded-lg transition-all duration-200">
             <div className="text-blue-600 text-sm font-medium bg-white px-3 py-1 rounded-lg shadow-sm">
-              ✨ Thả vào đây
+              Drag & drop here
             </div>
           </div>
         )}
       </div>
 
-      {/* Resize Handle */}
-      <div
-        ref={resizeRef}
-        onMouseDown={handleResizeStart}
-        className={`absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize transition-all duration-200 group ${
-          isResizing ? 'bg-blue-500 h-3' : 'hover:bg-gray-400 hover:h-3'
-        }`}
-        title="Kéo để điều chỉnh chiều cao track"
-      >
-        <div className="absolute inset-x-0 top-0 bottom-0 flex items-center justify-center">
-          <FaGripLines className={`w-4 h-2 transition-all duration-200 ${
-            isResizing ? 'text-white scale-110' : 'text-gray-400 opacity-0 group-hover:opacity-100'
-          }`} />
-        </div>
-        {/* Visual feedback indicator */}
-        {isResizing && (
-          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
-            {track.height}px
+      {track.isResizable && (
+        <div
+          ref={resizeRef}
+          onMouseDown={handleResizeStart}
+          className={`absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize transition-all duration-200 group ${
+            isResizing ? 'bg-blue-500 h-3' : 'hover:bg-gray-400 hover:h-3'
+          }`}
+          title="Drag to resize the track vertically"
+        >
+          <div className="absolute inset-x-0 top-0 bottom-0 flex items-center justify-center">
+            <FaGripLines className={`w-4 h-2 transition-all duration-200 ${
+              isResizing ? 'text-white scale-110' : 'text-gray-400 opacity-0 group-hover:opacity-100'
+            }`} />
           </div>
-        )}
-      </div>
+          {/* Visual feedback indicator */}
+          {isResizing && (
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+              {track.height}px
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

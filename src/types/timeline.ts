@@ -42,7 +42,7 @@ export interface TimelineItem {
 export interface Track {
   id: string;
   name: string;
-  type: 'video' | 'audio' | 'overlay' | 'text' | 'effect' | 'mixed' | 'sticker';
+  type: 'mixed';
   height: number;
   isVisible: boolean;
   isLocked: boolean;
@@ -50,6 +50,8 @@ export interface Track {
   volume?: number;
   items: TimelineItem[];
   color: string;
+  isMainVideoTrack?: boolean; 
+  isResizable?: boolean; 
 }
 
 export interface TimelineState {

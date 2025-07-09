@@ -85,6 +85,7 @@ export interface TextOverlayActions {
   getTextOverlayAtTime: (time: number) => TextOverlayData[];
   getTextOverlayById: (id: string) => TextOverlayData | null;
   restoreTextOverlays: (textOverlays: TextOverlayData[]) => void;
+  changeTextOverlayId: (oldId: string, newId: string) => void;
 }
 
 export interface TextOverlayContextType extends TextOverlayActions {

@@ -30,7 +30,8 @@ type TextOverlayAction =
   | { type: 'BRING_TO_FRONT'; payload: { id: string } }
   | { type: 'SEND_TO_BACK'; payload: { id: string } }
   | { type: 'RESTORE_TEXT_OVERLAYS'; payload: { textOverlays: TextOverlayData[] } }
-  | { type: 'UPDATE_TEXT_TIMING_FROM_TIMELINE'; payload: { textOverlays: TextOverlayData[] } };
+  | { type: 'UPDATE_TEXT_TIMING_FROM_TIMELINE'; payload: { textOverlays: TextOverlayData[] } }
+  | { type: 'CHANGE_TEXT_OVERLAY_ID'; payload: { oldId: string; newId: string } };
 
 const initialState: TextOverlayState = {
   textOverlays: [],
@@ -297,6 +298,19 @@ const textOverlayReducer = (state: TextOverlayState, action: TextOverlayAction):
       };
     }
 
+    case 'CHANGE_TEXT_OVERLAY_ID': {
+      return {
+        ...state,
+        textOverlays: state.textOverlays.map(overlay =>
+          overlay.id === action.payload.oldId
+            ? { ...overlay, id: action.payload.newId }
+            : overlay
+        ),
+        selectedTextId: state.selectedTextId === action.payload.oldId ? action.payload.newId : state.selectedTextId,
+        editingTextId: state.editingTextId === action.payload.oldId ? action.payload.newId : state.editingTextId,
+      };
+    }
+
     default:
       return state;
   }
@@ -335,7 +349,7 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
       name: overlay.text || 'Text',
       startTime: overlay.timing.startTime,
       duration: overlay.timing.duration,
-      trackId: 'text-track',
+      trackId: '', 
       text: overlay.text,
       style: {
         fontSize: overlay.style.fontSize,
@@ -346,62 +360,25 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
       position: overlay.position,
       size: overlay.size,
       opacity: overlay.opacity,
-      isLocked: overlay.isLocked,
+      isLocked: false, 
+      isMainVideoUnit: false 
     };
   }, []);
-
-  // Sync text overlays with timeline when they change (Text -> Timeline)
-  useEffect(() => {
-    console.log('Text overlay sync effect triggered', { 
-      hasTimelineContext: !!timelineContext, 
-      textOverlayCount: state.textOverlays.length,
-      isUpdatingFromTimeline: isUpdatingFromTimeline.current 
-    });
-    
-    if (!timelineContext || isUpdatingFromTimeline.current) return;
-
-    const textTrack = timelineContext.timelineState.tracks.find(track => track.id === 'text-track');
-    console.log('Text track found:', !!textTrack);
-    if (!textTrack) return;
-
-    // Update timeline items to match text overlays
-    const textTrackItems = state.textOverlays.map(textOverlayToTimelineItem);
-    
-    // Only update if there are actual changes
-    const currentItemIds = textTrack.items.map(item => item.id).sort();
-    const newItemIds = textTrackItems.map(item => item.id).sort();
-    
-    console.log('Timeline sync check:', {
-      currentItemIds,
-      newItemIds,
-      needsUpdate: JSON.stringify(currentItemIds) !== JSON.stringify(newItemIds)
-    });
-    
-    if (JSON.stringify(currentItemIds) !== JSON.stringify(newItemIds)) {
-      console.log('Updating timeline track with items:', textTrackItems);
-      isUpdatingFromTextOverlay.current = true;
-      timelineContext.updateTrack('text-track', { items: textTrackItems });
-      // Reset flag after a short delay to allow the update to complete
-      setTimeout(() => {
-        isUpdatingFromTextOverlay.current = false;
-      }, 50);
-    }
-  }, [state.textOverlays, timelineContext, textOverlayToTimelineItem]);
 
   // Sync timeline changes back to text overlays (Timeline -> Text)
   // Only sync timing changes (startTime, duration) to avoid lag
   useEffect(() => {
     if (!timelineContext || isUpdatingFromTextOverlay.current) return;
 
-    const textTrack = timelineContext.timelineState.tracks.find(track => track.id === 'text-track');
-    if (!textTrack) return;
-
-    const timelineItems = textTrack.items.filter(item => item.type === 'text');
+    // Tìm tất cả text items trong tất cả tracks
+    const allTextItems = timelineContext.timelineState.tracks.flatMap(track => 
+      track.items.filter(item => item.type === 'text')
+    );
     
     // Only check for timing changes in existing items
     let hasTimingChanges = false;
     const updatedOverlays = state.textOverlays.map(overlay => {
-      const timelineItem = timelineItems.find(item => item.id === overlay.id);
+      const timelineItem = allTextItems.find(item => item.id === overlay.id);
       if (!timelineItem) return overlay;
 
       // Only check for timing changes
@@ -433,15 +410,81 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }, 50);
     }
   }, [
-    timelineContext?.timelineState.tracks.find(track => track.id === 'text-track')?.items,
+    timelineContext?.timelineState.tracks.flatMap(track => track.items.filter(item => item.type === 'text')).map(item => `${item.id}-${item.startTime}-${item.duration}`).join(','),
     state.textOverlays.map(overlay => `${overlay.id}-${overlay.timing.startTime}-${overlay.timing.duration}`).join(',')
   ]);
 
   const addTextOverlay = useCallback((text: string, position?: { x: number; y: number }) => {
     const id = generateId();
     dispatch({ type: 'ADD_TEXT_OVERLAY', payload: { id, text, position } });
+    if (timelineContext) {
+      console.log('Adding text overlay to timeline:', id, text);
+      
+      const timelineItem: Omit<TimelineItem, 'id' | 'trackId'> = {
+        type: 'text',
+        name: text || 'Text',
+        startTime: 0,
+        duration: 5,
+        text: text,
+        style: {
+          fontSize: DEFAULT_TEXT_STYLE.fontSize,
+          color: DEFAULT_TEXT_STYLE.color,
+          fontFamily: DEFAULT_TEXT_STYLE.fontFamily,
+          fontWeight: DEFAULT_TEXT_STYLE.fontWeight,
+        },
+        position: position || { x: 50, y: 50 },
+        size: DEFAULT_TEXT_SIZE,
+        opacity: 1,
+        isLocked: false,
+        isMainVideoUnit: false
+      };
+      
+      const availableTrack = timelineContext.timelineState.tracks.find(track => 
+        !track.isMainVideoTrack && !track.isLocked
+      );
+      
+      if (availableTrack) {
+        console.log('Adding text item to existing track:', availableTrack.id);
+        const generatedId = timelineContext.addItemToTrack(availableTrack.id, timelineItem);
+        console.log('Timeline item created with ID:', generatedId);
+        
+        dispatch({ type: 'UPDATE_TEXT_OVERLAY', payload: { 
+          id, 
+          updates: { id: generatedId } 
+        }});
+      } else {
+        console.log('Creating new mixed track for text item');
+        const newTrack = {
+          name: 'Text',
+          type: 'mixed' as const,
+          height: 60,
+          isVisible: true,
+          isLocked: false,
+          items: [],
+          color: '#3B82F6'
+        };
+        timelineContext.addTrack(newTrack);
+        
+        // Add item to the newly created track after a short delay
+        setTimeout(() => {
+          const tracks = timelineContext.timelineState.tracks;
+          const latestTrack = tracks[tracks.length - 1];
+          if (latestTrack) {
+            console.log('Adding text item to newly created track:', latestTrack.id);
+            const generatedId = timelineContext.addItemToTrack(latestTrack.id, timelineItem);
+            console.log('Timeline item created with ID:', generatedId);
+            
+            dispatch({ type: 'UPDATE_TEXT_OVERLAY', payload: { 
+              id, 
+              updates: { id: generatedId } 
+            }});
+          }
+        }, 100);
+      }
+    }
+    
     return id;
-  }, []);
+  }, [timelineContext]);
 
   const updateTextOverlay = useCallback((id: string, updates: Partial<TextOverlayData>) => {
     dispatch({ type: 'UPDATE_TEXT_OVERLAY', payload: { id, updates } });
@@ -451,7 +494,12 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     dispatch({ type: 'REMOVE_TEXT_OVERLAY', payload: { id } });
     // Also remove from timeline if available
     if (timelineContext) {
-      timelineContext.removeItemFromTrack('text-track', id);
+      const trackWithItem = timelineContext.timelineState.tracks.find(track => 
+        track.items.some(item => item.type === 'text' && item.id === id)
+      );
+      if (trackWithItem) {
+        timelineContext.removeItemFromTrack(trackWithItem.id, id);
+      }
     }
   }, [timelineContext]);
 
@@ -485,7 +533,12 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (timing.startTime !== undefined) updates.startTime = timing.startTime;
       if (timing.duration !== undefined) updates.duration = timing.duration;
       if (Object.keys(updates).length > 0) {
-        timelineContext.updateItem('text-track', id, updates);
+        const trackWithItem = timelineContext.timelineState.tracks.find(track => 
+          track.items.some(item => item.type === 'text' && item.id === id)
+        );
+        if (trackWithItem) {
+          timelineContext.updateItem(trackWithItem.id, id, updates);
+        }
       }
     }
   }, [timelineContext]);
@@ -539,6 +592,10 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     dispatch({ type: 'RESTORE_TEXT_OVERLAYS', payload: { textOverlays } });
   }, []);
 
+  const changeTextOverlayId = useCallback((oldId: string, newId: string) => {
+    dispatch({ type: 'CHANGE_TEXT_OVERLAY_ID', payload: { oldId, newId } });
+  }, []);
+
   const contextValue: TextOverlayContextType = {
     state,
     addTextOverlay,
@@ -561,6 +618,7 @@ export const TextOverlayProvider: React.FC<{ children: React.ReactNode }> = ({ c
     getTextOverlayAtTime,
     getTextOverlayById,
     restoreTextOverlays,
+    changeTextOverlayId,
   };
 
   return (

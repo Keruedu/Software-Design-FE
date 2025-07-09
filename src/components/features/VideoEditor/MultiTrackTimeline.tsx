@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FaPlay, FaPause, FaBackward, FaForward, FaRegSave, FaPlus, FaSearchMinus, FaSearchPlus, FaVolumeUp, FaVolumeDown, FaVolumeMute } from 'react-icons/fa';
 import { useTimelineContext } from '@/context/TimelineContext';
@@ -76,7 +76,7 @@ const Timeline: React.FC<TimelineProps> = ({
     } = useTimelineContext();
 
     const { trimStart, trimEnd, setTrimStart, setTrimEnd } = useTrimVideoContext();
-    const { state: textOverlayState } = useTextOverlayContext();
+    const { state: textOverlayState, updateTextOverlay, removeTextOverlay, addTextOverlay, changeTextOverlayId } = useTextOverlayContext();
     
     const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
     const [virtualPlayheadTime, setVirtualPlayheadTime] = useState(0);
@@ -225,7 +225,7 @@ const Timeline: React.FC<TimelineProps> = ({
 
         addTrack({
             name: `Track ${nextTrackNumber}`,
-            type: 'video', 
+            type: 'mixed', 
             height: 50,
             isVisible: true,
             isLocked: false,
@@ -251,14 +251,11 @@ const Timeline: React.FC<TimelineProps> = ({
                     return;
                 }
                 
-                // Allow dropping any media type on any track for maximum flexibility
-                // Calculate drop position precisely
                 const rect = e.currentTarget.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const percentage = Math.max(0, Math.min(1, clickX / rect.width));
                 const startTime = percentage * duration;
                 
-                // Add item to track with appropriate properties based on media type
                 addItemToTrack(trackId, {
                     type: mediaItem.type === 'image' ? 'image' : mediaItem.type,
                     name: mediaItem.name,
@@ -274,7 +271,7 @@ const Timeline: React.FC<TimelineProps> = ({
                 // Show success notification
                 const notification = document.createElement('div');
                 notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-slide-in';
-                notification.textContent = `Đã thêm "${mediaItem.name}" vào "${track.name}"`;
+                notification.textContent = `"${mediaItem.name}" has been added to "${track.name}"`;
                 document.body.appendChild(notification);
                 setTimeout(() => {
                     if (document.body.contains(notification)) {
@@ -308,6 +305,70 @@ const Timeline: React.FC<TimelineProps> = ({
             setIsDragOverTrack(null);
         }, 50);
     };
+
+    // Move item between tracks
+    const moveItemToTrack = useCallback((itemId: string, targetTrackId: string, newStartTime: number) => {
+        // Find the item and its current track
+        let sourceTrackId: string | null = null;
+        let itemToMove: TimelineItem | null = null;
+        
+        for (const track of timelineState.tracks) {
+            const item = track.items.find(item => item.id === itemId);
+            if (item) {
+                sourceTrackId = track.id;
+                itemToMove = item;
+                break;
+            }
+        }
+        
+        if (!sourceTrackId || !itemToMove) {
+            console.warn('Item not found for cross-track move:', itemId);
+            return;
+        }
+        
+        // Don't move if source and target are the same
+        if (sourceTrackId === targetTrackId) {
+            return;
+        }
+        
+        // Remove from source track
+        removeItemFromTrack(sourceTrackId, itemId);
+        
+        // Add to target track with new start time
+        const updatedItem: Omit<TimelineItem, 'id' | 'trackId'> = {
+            ...itemToMove,
+            startTime: newStartTime
+        };
+        
+        // Create new timeline item
+        const newItemId = addItemToTrack(targetTrackId, updatedItem);
+        
+        // Special handling for text items - need to update text overlay context
+        if (itemToMove.type === 'text') {
+            // Find the existing text overlay
+            const existingTextOverlay = textOverlayState.textOverlays.find(overlay => overlay.id === itemId);
+            
+            if (existingTextOverlay) {
+                // Change the text overlay ID to match the new timeline item ID
+                changeTextOverlayId(itemId, newItemId);
+                
+                // Update the text overlay timing to match new start time
+                updateTextOverlay(newItemId, {
+                    timing: {
+                        startTime: newStartTime,
+                        duration: itemToMove.duration,
+                        endTime: newStartTime + itemToMove.duration
+                    }
+                });
+                
+                console.log(`Moved text item ${itemId} to new item ${newItemId} from track ${sourceTrackId} to ${targetTrackId} at time ${newStartTime}`);
+            } else {
+                console.warn('Text overlay not found for text item:', itemId);
+            }
+        } else {
+            console.log(`Moved item ${itemId} from track ${sourceTrackId} to ${targetTrackId} at time ${newStartTime}, new ID: ${newItemId}`);
+        }
+    }, [timelineState.tracks, removeItemFromTrack, addItemToTrack, textOverlayState.textOverlays, updateTextOverlay, changeTextOverlayId]);
 
     const playheadPosition = duration > 0 ? 
         ((isDraggingPlayhead ? virtualPlayheadTime : currentTime) / duration) * (timelineState.pixelsPerSecond * duration * timelineState.zoom) : 0;
@@ -363,9 +424,6 @@ const Timeline: React.FC<TimelineProps> = ({
                     {/* Current Time Display */}
                     <div className="text-xs text-gray-600 min-w-[80px] text-center">
                         <div>{formatTime(currentTime)} / {formatTime(duration)}</div>
-                        {/* <div className="text-xs text-gray-500 mt-1">
-                            Trim: {formatTime(isDraggingTrimStart ? virtualTrimStart : trimStart)} - {formatTime(isDraggingTrimEnd ? virtualTrimEnd : trimEnd)}
-                        </div> */}
                     </div>
 
                     {/* Volume Controls */}
@@ -571,7 +629,7 @@ const Timeline: React.FC<TimelineProps> = ({
                 </div>
 
                 {/* Tracks */}
-                <div className="relative">
+                <div className="relative" data-timeline-container>
                     {/* Trim Range Overlay */}
                     <div className="absolute inset-0 pointer-events-none z-20">
                         {/* Left trim overlay (before trim start) */}
@@ -600,7 +658,7 @@ const Timeline: React.FC<TimelineProps> = ({
                                 <h3 className="text-lg font-semibold text-gray-700 mb-2">Your timeline is empty</h3>
                                 <p className="text-gray-500 mb-4">Add some media from the Media panel to start editing!</p>
                                 <div className="flex items-center justify-center space-x-2 text-sm text-gray-400">
-                                    <span>💡 Tip: Kéo thả bất kỳ media nào vào bất kỳ track nào</span>
+                                    <span>You can drag and drop any media onto any track</span>
                                 </div>
                             </div>
                         </div>
@@ -624,6 +682,7 @@ const Timeline: React.FC<TimelineProps> = ({
                             onDrop={(e) => handleDropOnTrack(track.id, e)}
                             onDragOver={(e) => handleDragOverTrack(track.id, e)}
                             onDragLeave={handleDragLeaveTrack}
+                            onMoveItemToTrack={moveItemToTrack}
                         />
                     ))}
                 </div>
@@ -713,7 +772,7 @@ const Timeline: React.FC<TimelineProps> = ({
                 <div
                     className="absolute top-6 bottom-0 w-0.5 bg-orange-500 z-30 pointer-events-none opacity-70"
                     style={{ left: `${180 + duration * timelineState.pixelsPerSecond * timelineState.zoom}px` }}
-                    title={`Giới hạn video chính: ${formatTime(duration)}`}
+                    title={`Main video limit: ${formatTime(duration)}`}
                 />
                 
                 {/* Trim Start Handle (Draggable) */}
@@ -791,18 +850,6 @@ const Timeline: React.FC<TimelineProps> = ({
                     title={`Playhead: ${formatTime(isDraggingPlayhead ? virtualPlayheadTime : currentTime)}`}
                 />
             </div>
-
-            {/* Trim Info Display */}
-            {(trimStart > 0 || trimEnd < duration) && (
-                <div className="absolute top-2 right-4 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-medium shadow-lg z-20">
-                    Trim: {formatTime(trimStart)} - {formatTime(trimEnd)} 
-                    <span className="ml-2 text-blue-200">
-                        ({formatTime(trimEnd - trimStart)} / {((trimEnd - trimStart) / duration * 100).toFixed(0)}%)
-                    </span>
-                </div>
-            )}
-            
-            {/* Timeline container */}
         </div>
     );
 };

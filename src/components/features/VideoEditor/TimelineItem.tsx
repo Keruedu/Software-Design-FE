@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TimelineItem } from '@/types/timeline';
 import { FaImage, FaMusic, FaVideo, FaFont, FaMagic, FaVolumeUp, FaVolumeMute, FaEye, FaEyeSlash, FaTrash, FaSmile } from 'react-icons/fa';
+import { useTextOverlayContext } from '@/context/TextOverlayContext';
 
 interface TimelineItemComponentProps {
   item: TimelineItem;
@@ -13,6 +14,8 @@ interface TimelineItemComponentProps {
   onDeleteItem: () => void;
   onSelect: () => void;
   isSelected: boolean;
+  onMoveToTrack?: (itemId: string, targetTrackId: string, newStartTime: number) => void;
+  trackId?: string;
 }
 
 const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
@@ -24,13 +27,18 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
   onUpdateItem,
   onDeleteItem,
   onSelect,
-  isSelected
+  isSelected,
+  onMoveToTrack,
+  trackId
 }) => {
+
+  const { removeTextOverlay } = useTextOverlayContext();
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | null>(null);
-  const [dragStart, setDragStart] = useState({ x: 0, startTime: 0, duration: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0, startTime: 0, duration: 0 });
   const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const [isDraggingCrossTrack, setIsDraggingCrossTrack] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
 
   // Snap to grid helper function for better precision
@@ -51,17 +59,26 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging && !item.isLocked) {
-        // Only allow dragging if the item is not locked (main video is locked)
         const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
         const deltaTime = deltaX / (pixelsPerSecond * zoom);
-        const rawNewStartTime = dragStart.startTime + deltaTime;
-        let newStartTime = Math.max(0, snapToGrid(rawNewStartTime, zoom));
         
-        // Ensure item doesn't extend beyond video duration
-        const maxStartTime = Math.max(0, videoDuration - item.duration);
-        newStartTime = Math.min(newStartTime, maxStartTime);
-        
-        onUpdateItem({ startTime: newStartTime });
+        // Check if dragging vertically enough to trigger cross-track move
+        if (Math.abs(deltaY) > 30 && onMoveToTrack && trackId) {
+          setIsDraggingCrossTrack(true);
+        } else {
+          setIsDraggingCrossTrack(false);
+          
+          // Normal horizontal drag within same track
+          const rawNewStartTime = dragStart.startTime + deltaTime;
+          let newStartTime = Math.max(0, snapToGrid(rawNewStartTime, zoom));
+          
+          // Ensure item doesn't extend beyond video duration
+          const maxStartTime = Math.max(0, videoDuration - item.duration);
+          newStartTime = Math.min(newStartTime, maxStartTime);
+          
+          onUpdateItem({ startTime: newStartTime });
+        }
       } else if (isResizing) {
         const deltaX = e.clientX - dragStart.x;
         const deltaTime = deltaX / (pixelsPerSecond * zoom);
@@ -102,10 +119,40 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
+      if (isDraggingCrossTrack && onMoveToTrack && trackId) {
+        // Find target track by mouse position
+        const timelineElement = document.querySelector('[data-timeline-container]');
+        if (timelineElement) {
+          const tracks = timelineElement.querySelectorAll('[data-track-id]');
+          let targetTrackId = null;
+          
+          for (const trackElement of tracks) {
+            const rect = trackElement.getBoundingClientRect();
+            if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+              targetTrackId = trackElement.getAttribute('data-track-id');
+              break;
+            }
+          }
+          
+          if (targetTrackId && targetTrackId !== trackId) {
+            // Calculate new start time based on mouse position
+            const trackRect = timelineElement.querySelector(`[data-track-id="${targetTrackId}"]`)?.getBoundingClientRect();
+            if (trackRect) {
+              const deltaX = e.clientX - dragStart.x;
+              const deltaTime = deltaX / (pixelsPerSecond * zoom);
+              const newStartTime = Math.max(0, Math.min(videoDuration - item.duration, dragStart.startTime + deltaTime));
+              
+              onMoveToTrack(item.id, targetTrackId, newStartTime);
+            }
+          }
+        }
+      }
+      
       setIsDragging(false);
       setIsResizing(false);
       setResizeDirection(null);
+      setIsDraggingCrossTrack(false);
     };
 
     if (isDragging || isResizing) {
@@ -117,7 +164,7 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, resizeDirection, dragStart, pixelsPerSecond, zoom, onUpdateItem]);
+  }, [isDragging, isResizing, resizeDirection, dragStart, pixelsPerSecond, zoom, onUpdateItem, isDraggingCrossTrack, onMoveToTrack, trackId, item, videoDuration]);
 
   const getItemIcon = () => {
     switch (item.type) {
@@ -133,7 +180,6 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
 
   const getItemColor = () => {
     if (item.isMainVideoUnit) {
-      // Main video gets a special color to indicate it's locked
       return 'bg-indigo-600';
     }
     
@@ -154,8 +200,11 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
     
     if (e.button === 0) { 
       if (!item.isLocked) {
+        // console.log('Starting drag for item:', item.id);
         setIsDragging(true);
-        setDragStart({ x: e.clientX, startTime: item.startTime, duration: item.duration });
+        setDragStart({ x: e.clientX, y: e.clientY, startTime: item.startTime, duration: item.duration });
+      } else {
+        // console.log('Item is locked, cannot drag:', item.id);
       }
       onSelect();
     }
@@ -164,16 +213,20 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
   const handleResizeStart = (e: React.MouseEvent, direction: 'left' | 'right') => {
     e.preventDefault();
     e.stopPropagation();
+    
     setIsResizing(true);
     setResizeDirection(direction);
-    setDragStart({ x: e.clientX, startTime: item.startTime, duration: item.duration });
+    setDragStart({ x: e.clientX, y: e.clientY, startTime: item.startTime, duration: item.duration });
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Don't allow deleting the main video
+    
     if (!item.isMainVideoUnit) {
+      if (item.type === 'text') {
+        removeTextOverlay(item.id);
+      }
       onDeleteItem();
     }
   };
@@ -192,7 +245,9 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           isSelected ? 'ring-2 ring-white ring-opacity-80 shadow-lg' : 'hover:shadow-md'
         } ${isDragging ? 'z-50' : 'z-10'} ${
           item.isLocked ? 'cursor-default' : 'cursor-pointer'
-        } ${item.isMainVideoUnit ? 'border-2 border-yellow-400' : ''}`}
+        } ${item.isMainVideoUnit ? 'border-2 border-yellow-400' : ''} ${
+          isDraggingCrossTrack ? 'ring-4 ring-blue-400 ring-opacity-60 shadow-2xl scale-105' : ''
+        }`}
         style={{
           left: `${left}px`,
           width: `${Math.max(width, 30)}px`,
@@ -203,13 +258,15 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
         onMouseLeave={() => setShowDeleteButton(false)}
         whileHover={{ scale: item.isLocked ? 1 : 1.02 }}
         animate={{ 
-          scale: isSelected ? 1.05 : 1,
-          opacity: isDragging ? 0.8 : 1
+          scale: isSelected ? 1.05 : (isDraggingCrossTrack ? 1.1 : 1),
+          opacity: isDragging ? 0.8 : 1,
+          y: isDraggingCrossTrack ? -5 : 0
         }}
         drag={false} // Disable framer-motion drag to use custom drag
-        title={item.isMainVideoUnit ? 
-          `Video chính - Không thể di chuyển, chỉ có thể cắt ngắn (tối đa: ${item.maxDuration ? formatTime(item.maxDuration) : 'N/A'})` : 
-          `${item.name} - Giới hạn trong thời lượng video chính (${formatTime(videoDuration)})`
+        title={
+          item.isMainVideoUnit
+            ? `Main video - Fixed, cannot be resized or moved`
+            : `${item.name} - Drag and drop to move between tracks`
         }
       >
         {/* Item Content */}
@@ -218,7 +275,7 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           <div className="flex items-center space-x-1 text-white text-xs font-medium min-w-0">
             {getItemIcon()}
             <span className="truncate">
-              {item.isMainVideoUnit ? `🔒 ${item.name}` : item.name}
+              {item.isMainVideoUnit ? `${item.name}` : item.name}
             </span>
           </div>
 
@@ -226,9 +283,6 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           <div className="flex items-center space-x-1 text-white text-xs">
             <span>
               {formatTime(item.duration)}
-              {item.isMainVideoUnit && item.maxDuration && (
-                <span className="text-yellow-300"> / {formatTime(item.maxDuration)}</span>
-              )}
             </span>
             {item.type === 'audio' && (
               <div className="flex items-center space-x-1">
@@ -247,14 +301,13 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           <button
             onClick={handleDeleteClick}
             className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-all duration-200 pointer-events-auto z-10"
-            title="Xóa item"
+            title="Delete item"
           >
             <FaTrash className="w-2 h-2" />
           </button>
         )}
 
-        {/* Left Resize Handle - Only show for non-locked items */}
-        {!item.isLocked && (
+        {!item.isLocked && !item.isMainVideoUnit && (
           <div
             className={`absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize transition-all pointer-events-auto ${
               isResizing && resizeDirection === 'left' ? 'bg-blue-500 w-3' : 'bg-white bg-opacity-20 hover:bg-opacity-40 hover:w-3'
@@ -269,34 +322,32 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
           </div>
         )}
 
-        {/* Right Resize Handle */}
-        <div
-          className={`absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-all pointer-events-auto ${
-            isResizing && resizeDirection === 'right' ? 'bg-blue-500 w-3' : 'bg-white bg-opacity-20 hover:bg-opacity-40 hover:w-3'
-          }`}
-          onMouseDown={(e) => handleResizeStart(e, 'right')}
-        >
-          {isResizing && resizeDirection === 'right' && (
-            <div className="absolute -top-6 -right-8 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
-              {formatTime(item.duration)}
-              {item.isMainVideoUnit && item.maxDuration && (
-                <span className="text-yellow-300"> / {formatTime(item.maxDuration)}</span>
-              )}
-            </div>
-          )}
-        </div>
+        {!item.isMainVideoUnit && (
+          <div
+            className={`absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize transition-all pointer-events-auto ${
+              isResizing && resizeDirection === 'right' ? 'bg-blue-500 w-3' : 'bg-white bg-opacity-20 hover:bg-opacity-40 hover:w-3'
+            }`}
+            onMouseDown={(e) => handleResizeStart(e, 'right')}
+            title="Drag to change length"
+          >
+            {isResizing && resizeDirection === 'right' && (
+              <div className="absolute -top-6 -right-8 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                {formatTime(item.duration)}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Progress indicator for video/audio */}
         {(item.type === 'video' || item.type === 'audio') && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-black bg-opacity-20 pointer-events-none">
             <div 
               className="h-full bg-white bg-opacity-60 transition-all duration-100"
-              style={{ width: '0%' }} // This would be updated based on playback progress
+              style={{ width: '0%' }}
             />
           </div>
         )}
 
-        {/* Duration usage indicator for main video */}
         {item.isMainVideoUnit && item.maxDuration && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-600 bg-opacity-40 pointer-events-none">
             <div 
@@ -312,15 +363,6 @@ const TimelineItemComponent: React.FC<TimelineItemComponentProps> = ({
             className="absolute inset-0 bg-cover bg-center opacity-30 rounded-md pointer-events-none"
             style={{ backgroundImage: `url(${item.thumbnail})` }}
           />
-        )}
-
-        {/* Main video indicator */}
-        {item.isMainVideoUnit && (
-          <>
-            <div className="absolute top-0 left-0 bg-yellow-500 text-black text-xs px-1 rounded-br-md font-bold pointer-events-none">
-              MAIN
-            </div>
-          </>
         )}
 
         {/* Warning when item approaches video duration limit */}

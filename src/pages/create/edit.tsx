@@ -45,7 +45,7 @@ const VideoEditor: React.FC = () => {
 
 const VideoEditorContent: React.FC = () => {
   const router = useRouter()
-  const { addItemToTrack, timelineState, updateTrack, findOrCreateStickerTrack } = useTimelineContext()
+  const { addItemToTrack, timelineState, updateTrack, getFirstAvailableTrack, removeItemFromTrack, updateItem } = useTimelineContext()
   const { state: textOverlayState, getTextOverlayAtTime, restoreTextOverlays } = useTextOverlayContext()
   const { state: stickerState, getStickerOverlayAtTime, restoreStickerOverlays, setTimelineOperations } = useStickerContext()
   // Use trim context directly instead of props
@@ -56,9 +56,11 @@ const VideoEditorContent: React.FC = () => {
     setTimelineOperations({
       tracks: timelineState.tracks,
       addItemToTrack: addItemToTrack,
-      findOrCreateStickerTrack: findOrCreateStickerTrack
+      getFirstAvailableTrack: getFirstAvailableTrack,
+      removeItemFromTrack: removeItemFromTrack,
+      updateItem: updateItem
     });
-  }, [timelineState.tracks, addItemToTrack, findOrCreateStickerTrack, setTimelineOperations]);
+  }, [timelineState.tracks, addItemToTrack, getFirstAvailableTrack, removeItemFromTrack, updateItem, setTimelineOperations]);
 
   const [activeTab, setActiveTab] = useState<'text' | 'media' | 'effects' | 'stickers' | null>('media'); // Start with media tab
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
@@ -97,11 +99,8 @@ const VideoEditorContent: React.FC = () => {
 
   // Use uploaded audios from context
   const { audioTracks: uploadedAudios, setAudioTracks: setUploadedAudios } = useAudioTracksContext();
-  // Global media items state
   const [globalMediaItems, setGlobalMediaItems] = useState<any[]>([]);
-  // Track if main video has been added to timeline
   const [hasAddedMainVideo, setHasAddedMainVideo] = useState(false);
-  // REMOVED: Timeline timer refs - không cần vì timeline chỉ trong video duration
   const audioElementsRef = useRef<{ [key: string]: HTMLAudioElement }>({});
 
   // Cleanup audio elements on unmount
@@ -112,9 +111,6 @@ const VideoEditorContent: React.FC = () => {
         audio.pause();
       });
       audioElementsRef.current = {};
-      
-      // SIMPLIFIED: No hidden video elements to cleanup
-      // Video is handled by ReactPlayer as a single unit
     };
   }, []);
 
@@ -137,10 +133,6 @@ const VideoEditorContent: React.FC = () => {
           }
           setGeneratedVideo(video)
           setVideoUrl(urlParam);
-
-          // IMPROVED APPROACH: Treat video as a single unit from database
-          // Instead of complex audio/video separation, use the video URL directly
-          // This simplifies timeline handling and eliminates sync issues
           
           // Initialize video processor
           await videoProcessor.initialize(urlParam);
@@ -155,7 +147,6 @@ const VideoEditorContent: React.FC = () => {
     loadVideoFromGeneration()
   }, [router.query])
 
-  // FIXED: Add main video as a locked unit to timeline
   useEffect(() => {
     if (videoUrl && videoDuration > 0 && generatedVideo && !hasAddedMainVideo) {
       // Add video item to track-1 automatically as a complete unit
@@ -163,16 +154,15 @@ const VideoEditorContent: React.FC = () => {
       addItemToTrack(trackId, {
         type: 'video',
         name: generatedVideo.title,
-        startTime: 0, // Luôn bắt đầu từ 0
+        startTime: 0, 
         duration: videoDuration,
         url: videoUrl,
         thumbnail: videoUrl,
         opacity: 1,
         volume: 1,
-        // Mark this as the main video unit - contains both video and embedded audio
         isMainVideoUnit: true,
-        isLocked: true, // Khóa không cho di chuyển
-        maxDuration: videoDuration // Duration tối đa
+        isLocked: true, 
+        maxDuration: videoDuration 
       });
 
       // Add to global media items with special flag for main video
@@ -344,7 +334,6 @@ const VideoEditorContent: React.FC = () => {
     
     console.log('Debug - Current time:', newTime, 'Video duration:', videoDuration);
     
-    // Kiểm tra nếu đạt cuối video
     if (isPlaying && newTime >= videoDuration - 0.1) {
       console.log('Debug - Reached end of video, pausing...');
       setCurrentTime(videoDuration);
@@ -768,12 +757,12 @@ const VideoEditorContent: React.FC = () => {
   // Export modal handlers
   const handleOpenExportModal = () => {
     if (!generatedVideo || !videoUrl) {
-      showNotification('Không có video để export!', 'error');
+      showNotification('There is no video to export!', 'error');
       return;
     }
 
     if (isExporting) {
-      showNotification('Đang export video, vui lòng đợi...', 'warning');
+      showNotification('Video is being exported, please wait...', 'warning');
       return;
     }
 
@@ -785,7 +774,7 @@ const VideoEditorContent: React.FC = () => {
 
   const handleConfirmExport = () => {
     if (!exportVideoTitle.trim()) {
-      showNotification('Vui lòng nhập tên video!', 'error');
+      showNotification('Please provide a name for the video!', 'error');
       return;
     }
     setShowExportModal(false);
@@ -795,19 +784,6 @@ const VideoEditorContent: React.FC = () => {
   const handleCancelExport = () => {
     setShowExportModal(false);
     setExportVideoTitle('');
-  };
-
-  // Download original video function
-  const handleDownloadOriginalVideo = () => {
-    if (videoUrl) {
-      const link = document.createElement('a');
-      link.href = videoUrl;
-      link.download = `original_${generatedVideo?.title || 'video'}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showNotification('Downloading original video...', 'info');
-    }
   };
 
   // Delete media function
@@ -827,12 +803,12 @@ const VideoEditorContent: React.FC = () => {
 
   const handleExportVideo = async () => {
     if (!generatedVideo || !videoUrl) {
-      showNotification('Không có video để export!', 'error');
+      showNotification('There is no video to export!', 'error');
       return;
     }
 
     if (isExporting) {
-      showNotification('Đang export video, vui lòng đợi...', 'warning');
+      showNotification('The video is being exported, please wait...', 'warning');
       return;
     }
 
@@ -841,11 +817,10 @@ const VideoEditorContent: React.FC = () => {
 
     try {
       // B1: Bắt đầu export với dữ liệu hiện tại
-      setExportStage('Bắt đầu export video (1080p)...');
-      showNotification('Bắt đầu export video với chất lượng 1080p...', 'info');
+      setExportStage('Exporting video...');
+      showNotification('Exporting video...', 'info');
       setExportProgress(5);
 
-      // Use current state values directly (no save/load needed)
       let effectiveTrimStart = trimStart;
       let effectiveTrimEnd = trimEnd;
       let effectiveVideoVolume = videoVolume;
@@ -914,7 +889,7 @@ const VideoEditorContent: React.FC = () => {
       
       setExportProgress(30);
 
-      // B3: Áp dụng trim nếu có (dựa trên saved timeline hoặc state hiện tại)
+      // B3: Áp dụng trim nếu có
       console.log('Debug Export - Trim analysis:', {
         effectiveTrimStart,
         effectiveTrimEnd,
@@ -938,17 +913,17 @@ const VideoEditorContent: React.FC = () => {
         if (totalTrimmed < 1) {
           console.warn('Debug Export - Very small trim detected:', {
             totalTrimmed: totalTrimmed.toFixed(3) + 's',
-            message: 'Video sẽ gần như không thay đổi'
+            message: 'The video will be nearly unchanged'
           });
           showNotification(
-            `Cảnh báo: Trim rất nhỏ (chỉ cắt ${totalTrimmed.toFixed(1)}s). Video sẽ gần như không đổi.`,
+            `Warning: Only ${totalTrimmed.toFixed(1)}s trimmed. The video will look almost the same.`,
             'warning'
           );
         }
         
-        setExportStage('Đang cắt video theo timeline...');
+        setExportStage('Trimming video based on the timeline...');
         showNotification(
-          `Đang cắt video: ${formatTime(effectiveTrimStart)} - ${formatTime(effectiveTrimEnd)} (${trimmedPercentage}% video gốc)`,
+          `Trimming from ${formatTime(effectiveTrimStart)} to ${formatTime(effectiveTrimEnd)} (${trimmedPercentage}% of original)`,
           'info'
         );
         
@@ -981,7 +956,7 @@ const VideoEditorContent: React.FC = () => {
           console.log('Debug Export - Trim step added successfully');
         } catch (trimError) {
           console.error('Debug Export - Trim failed:', trimError);
-          throw new Error(`Lỗi khi trim video: ${trimError instanceof Error ? trimError.message : String(trimError)}`);
+          throw new Error(`Error trimming video: ${trimError instanceof Error ? trimError.message : String(trimError)}`);
         }
         
         setExportProgress(50);
@@ -1005,30 +980,56 @@ const VideoEditorContent: React.FC = () => {
           }))
         );
         
-        // Tạo audio tracks data
+        // Generate audio track data – only extract audio within the trim range
         const audioTracks = [];
         for (let i = 0; i < audioItems.length; i++) {
           const audioItem = audioItems[i];
           
           if (!audioItem.url) {
-            console.warn(`Audio item ${i} không có URL, bỏ qua`);
+            console.warn(`Audio item ${i} does not have a URL, skipping it`);
             continue;
           }
           
-          // Tạo audio file từ URL
-          const audioResponse = await fetch(audioItem.url);
-          const audioBlob = await audioResponse.blob();
-          const audioFile = new File([audioBlob], `audio-${i}.mp3`, { type: 'audio/mpeg' });
+          // Calculate the audio duration within the trim range
+          const audioStartInTrim = Math.max(audioItem.startTime, effectiveTrimStart);
+          const audioEndInTrim = Math.min(audioItem.startTime + audioItem.duration, effectiveTrimEnd);
           
-          audioTracks.push({
-            audioFile: audioFile,
-            startTime: audioItem.startTime,
-            duration: audioItem.duration,
-            volume: audioItem.volume || 1
-          });
+          // Process audio only if it is within the trim range
+          if (audioStartInTrim < audioEndInTrim) {
+            const trimmedStartTime = audioStartInTrim - effectiveTrimStart;
+            const trimmedDuration = audioEndInTrim - audioStartInTrim;
+            
+            console.log('Debug Export - Adding audio item within trim:', {
+              originalStart: audioItem.startTime,
+              originalDuration: audioItem.duration,
+              trimmedStartTime,
+              trimmedDuration,
+              audioStartInTrim,
+              audioEndInTrim
+            });
+            
+            // Create audio file from URL
+            const audioResponse = await fetch(audioItem.url);
+            const audioBlob = await audioResponse.blob();
+            const audioFile = new File([audioBlob], `audio-${i}.mp3`, { type: 'audio/mpeg' });
+            
+            audioTracks.push({
+              audioFile: audioFile,
+              startTime: trimmedStartTime,
+              duration: trimmedDuration,
+              volume: audioItem.volume || 1
+            });
+          } else {
+            console.log('Debug Export - Skipping audio item outside trim boundaries:', {
+              audioStart: audioItem.startTime,
+              audioEnd: audioItem.startTime + audioItem.duration,
+              trimStart: effectiveTrimStart,
+              trimEnd: effectiveTrimEnd
+            });
+          }
         }
         
-        // Thêm tất cả audio tracks cùng lúc
+        // Add all audio tracks at once
         if (audioTracks.length > 0) {
           await videoProcessor.addProcessingStep({
             type: 'addMultipleAudio',
@@ -1061,8 +1062,11 @@ const VideoEditorContent: React.FC = () => {
       });
       
       if (effectiveTextOverlays.length > 0) {
-        setExportStage(`Adding ${effectiveTextOverlays.length} text overlay(s)...`);
-        showNotification(`Adding ${effectiveTextOverlays.length} text overlay(s)...`, 'info');
+        const count = effectiveTextOverlays.length;
+        const label = count === 1 ? 'text overlay' : 'text overlays';
+
+        setExportStage(`Adding ${count} ${label}...`);
+        showNotification(`Adding ${count} ${label}...`, 'info');
         
         console.log('Debug Export - Text overlays to process:', effectiveTextOverlays.map(overlay => ({
           id: overlay.id,
@@ -1148,8 +1152,11 @@ const VideoEditorContent: React.FC = () => {
       console.log('Debug Export - Using current sticker overlays:', effectiveStickerOverlays.length);
 
       if (effectiveStickerOverlays.length > 0) {
-        setExportStage(`Đang thêm ${effectiveStickerOverlays.length} sticker(s)...`);
-        showNotification(`Đang thêm ${effectiveStickerOverlays.length} sticker(s)...`, 'info');
+        const count = effectiveStickerOverlays.length;
+        const stickerLabel = count === 1 ? 'sticker' : 'stickers';
+
+        setExportStage(`Adding ${count} ${stickerLabel}...`);
+        showNotification(`Adding ${count} ${stickerLabel}...`, 'info');
         
         console.log('Debug Export - Sticker overlays to process:', effectiveStickerOverlays.map(overlay => ({
           id: overlay.id,
@@ -1203,7 +1210,7 @@ const VideoEditorContent: React.FC = () => {
         
         if (validStickerOverlays.length === 0) {
           console.warn('No valid sticker overlays to process');
-          showNotification('Không có sticker hợp lệ để thêm', 'warning');
+          showNotification('No valid stickers to add', 'warning');
         } else {
           console.log(`Processing ${validStickerOverlays.length} valid sticker overlays`);
           
@@ -1338,20 +1345,24 @@ const VideoEditorContent: React.FC = () => {
               
               if (originalCount > processedCount) {
                 const skippedCount = originalCount - processedCount;
-                showNotification(`Đã thêm ${processedCount} sticker(s), bỏ qua ${skippedCount} sticker(s) không hợp lệ`, 'info');
+                const stickerLabel = processedCount === 1 ? 'sticker' : 'stickers';
+                const skippedLabel = skippedCount === 1 ? 'invalid sticker' : 'invalid stickers';
+
+                showNotification(`Added ${processedCount} ${stickerLabel}, skipped ${skippedCount} ${skippedLabel}`, 'info');
               } else {
-                showNotification(`Đã thêm ${processedCount} sticker(s) thành công`, 'success');
+                const label = processedCount === 1 ? 'sticker' : 'stickers';
+                showNotification(`Successfully added ${processedCount} ${label}`, 'success');
               }
               
             } catch (stickerError) {
               console.error('Error adding sticker overlays:', stickerError);
-              showNotification(`Có lỗi khi thêm sticker: ${stickerError instanceof Error ? stickerError.message : String(stickerError)}`, 'error');
+              showNotification(`Error adding sticker: ${stickerError instanceof Error ? stickerError.message : String(stickerError)}`, 'error');
               // Throw error to stop export process if stickers fail
               throw stickerError;
             }
           } else {
             console.warn('No sticker overlays remain after validation and timing adjustment');
-            showNotification('Không có sticker nào có thể được thêm sau khi kiểm tra', 'warning');
+            showNotification('No stickers could be added after validation', 'warning');
           }
         }
         
@@ -1359,13 +1370,13 @@ const VideoEditorContent: React.FC = () => {
       }
 
       // B6: Tạo video cuối cùng
-      setExportStage('Đang hoàn tất xử lý video...');
-      showNotification('Đang hoàn tất xử lý video...', 'info');
+      setExportStage('Finishing up video processing...');
+      showNotification('Finishing up video processing...', 'info');
       setExportProgress(85);
 
       const exportedVideo = videoProcessor.getCurrentVideo();
       if (!exportedVideo) {
-        throw new Error('Không thể tạo video cuối cùng');
+        throw new Error('Could not create final video');
       }
 
       // Kiểm tra kích thước video trước khi upload
@@ -1373,12 +1384,12 @@ const VideoEditorContent: React.FC = () => {
       console.log(`Video size: ${videoSizeKB}KB`);
       
       if (videoSizeKB > 800) {
-        showNotification(`Video có kích thước lớn (${videoSizeKB}KB). Hệ thống sẽ tự động nén để đảm bảo upload thành công.`, 'warning');
+        showNotification(`Large video detected (${videoSizeKB}KB). Compressing automatically for successful upload.`, 'warning');
       }
 
       // B7: Upload video lên server và cập nhật database
-      setExportStage('Đang upload video lên server...');
-      showNotification('Đang upload video lên server...', 'info');
+      setExportStage('Uploading the video to the server...');
+      showNotification('Uploading the video to the server...', 'info');
       setExportProgress(90);
 
       // Chuẩn bị dữ liệu export
@@ -1427,10 +1438,8 @@ const VideoEditorContent: React.FC = () => {
       setExportProgress(98);
 
       // B8: Thông báo thành công và tùy chọn tải xuống
-      setExportStage('Hoàn thành export video (1080p)!');
-      showNotification(
-        'Video export thành công với chất lượng 1080p!'
-      );
+      setExportStage('Video export completed!');
+      showNotification('Video exported successfully!');
 
       // Hiển thị thông tin chi tiết về export
       console.log('Export completed with database update:', {
@@ -1466,27 +1475,24 @@ const VideoEditorContent: React.FC = () => {
 
     } catch (error) {
       console.error('Error exporting video:', error);
-      let errorMessage = 'Lỗi không xác định';
+      let errorMessage = 'Unknown error';
       
       if (error instanceof Error) {
-        if (error.message.includes('Authentication') || error.message.includes('đăng nhập')) {
+        if (error.message.includes('Authentication') || error.message.includes('login')) {
           errorMessage = error.message;
           // Show login expiration modal instead of window.confirm
           setTimeout(() => {
             showLoginExpiration();
           }, 2000);
-        } else if (error.message.includes('exceeded maximum size') || error.message.includes('quá lớn')) {
+        } else if (error.message.includes('exceeded maximum size') || error.message.includes('too large')) {
           errorMessage = error.message;
-          // Show specific size error guidance
-          showNotification(
-            'Video hoặc dữ liệu quá lớn để upload.'
-          );
+          showNotification('The video or data is too large to upload.');
         } else {
           errorMessage = error.message;
         }
       }
       
-      showNotification(`Lỗi khi export video: ${errorMessage}`, 'error');
+      showNotification(`An error occurred while exporting the video: ${errorMessage}`, 'error');
     } finally {
       setIsExporting(false);
       setExportProgress(0);
@@ -1494,9 +1500,7 @@ const VideoEditorContent: React.FC = () => {
     }
   };
 
-  // Component mount effect (simplified - no save/load functionality)
   useEffect(() => {
-    // Initialize with default values when video loads
     if (generatedVideo?.id && videoDuration > 0) {
       console.log('Video loaded, using default trim values:', {
         trimStart: 0,
@@ -1505,6 +1509,16 @@ const VideoEditorContent: React.FC = () => {
       });
     }
   }, [generatedVideo?.id, videoDuration]);
+
+  // Debug: Log timeline state when tracks change to check text items (limited logging)
+  useEffect(() => {
+    const textItems = timelineState.tracks.flatMap(track => 
+      track.items.filter(item => item.type === 'text')
+    );
+    if (textItems.length > 0) {
+      // console.log('Debug - Text items in timeline:', textItems.length, 'items');
+    }
+  }, [timelineState.tracks.flatMap(track => track.items.filter(item => item.type === 'text')).length]);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
@@ -1545,7 +1559,7 @@ const VideoEditorContent: React.FC = () => {
                     {isExporting ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                        <span>Đang Export...</span>
+                        <span>Exporting...</span>
                       </>
                     ) : (
                       <>
@@ -1566,7 +1580,7 @@ const VideoEditorContent: React.FC = () => {
                 >
                   <div className="bg-white rounded-lg shadow-lg border p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Đang Export Video</span>
+                      <span className="text-sm font-medium text-gray-700">Exporting Video</span>
                       <span className="text-sm text-gray-500">{exportProgress}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1603,8 +1617,8 @@ const VideoEditorContent: React.FC = () => {
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-gray-600">Đang tải video AI của bạn...</p>
-                      <p className="text-gray-500 text-sm mt-2">Khởi tạo video processor...</p>
+                      <p className="text-gray-600">Loading your AI-generated video...</p>
+                      <p className="text-gray-500 text-sm mt-2">Initializing video processor...</p>
                     </div>
                   </div>
                 ) : !videoUrl ? (
@@ -1689,7 +1703,7 @@ const VideoEditorContent: React.FC = () => {
                   <div className="h-full flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-lg font-semibold text-gray-900">Thư Viện Media</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Media Library</h3>
                       <button
                         onClick={() => {
                           setIsPropertiesPanelOpen(false);
@@ -1711,7 +1725,7 @@ const VideoEditorContent: React.FC = () => {
                         showHeader={false}
                         onAddMedia={(media) => {
                           console.log('Added media:', media);
-                          showNotification(`Đã thêm ${media.name} vào thư viện media`, 'success');
+                          showNotification(`Added ${media.name} to the media library`, 'success');
                         }}
                         onDeleteMedia={handleDeleteMedia}
                         showNotification={showNotification}
@@ -1744,7 +1758,7 @@ const VideoEditorContent: React.FC = () => {
                       <TextOverlayPanel
                         currentTime={currentTime}
                         onAddText={() => {
-                          showNotification('Đã thêm text overlay mới', 'success');
+                          showNotification('Text overlay added', 'success');
                         }}
                       />
                     </div>
@@ -1775,7 +1789,7 @@ const VideoEditorContent: React.FC = () => {
                       <StickerPanel
                         currentTime={currentTime}
                         onAddSticker={() => {
-                          showNotification('Đã thêm sticker mới', 'success');
+                          showNotification('Sticker added', 'success');
                         }}
                       />
                     </div>
@@ -1799,7 +1813,7 @@ const VideoEditorContent: React.FC = () => {
             {/* Bottom area - Multi-Track Timeline */}
             <div className="bg-white border-t border-gray-200 shadow-sm flex-shrink-0" style={{ height: '300px' }}>
               <MultiTrackTimeline
-                duration={videoDuration} // FIXED: Sử dụng videoDuration thay vì tính toán phức tạp
+                duration={videoDuration} 
                 currentTime={currentTime}
                 onSeek={handleSeek}
                 videoUrl={videoUrl}
@@ -1868,15 +1882,15 @@ const VideoEditorContent: React.FC = () => {
                     <div>
                       Select folder
                       {!('showSaveFilePicker' in window) && (
-                        <span className="text-xs block">Chỉ hỗ trợ Chrome/Edge</span>
+                        <span className="text-xs block">Only supported in Chrome and Edge</span>
                       )}
                     </div>
                     <div className={`text-xs ${
                       'showSaveFilePicker' in window ? 'text-green-100' : 'text-gray-400'
                     }`}>
                       {('showSaveFilePicker' in window) 
-                        ? 'Chọn thư mục và tên file tùy ý' 
-                        : 'Cần trình duyệt hỗ trợ mới'
+                        ? 'Choose any folder and filename'
+                        : 'A supported browser is required'
                       }
                     </div>
                   </div>
@@ -1912,22 +1926,22 @@ const VideoEditorContent: React.FC = () => {
         {showLoginModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold mb-4">Phiên đăng nhập hết hạn</h3>
+              <h3 className="text-lg font-semibold mb-4">Your session has expired</h3>
               <p className="text-gray-600 mb-6">
-                Phiên đăng nhập đã hết hạn. Bạn có muốn đăng nhập lại không?
+                Your session has expired. Would you like to log in again?
               </p>
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={handleCancelLogin}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Không
+                  No
                 </button>
                 <button
                   onClick={handleConfirmLogin}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                 >
-                  Đăng nhập lại
+                  Log in again
                 </button>
               </div>
             </div>
@@ -1940,13 +1954,13 @@ const VideoEditorContent: React.FC = () => {
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
               <h3 className="text-lg font-semibold mb-4">Export Video</h3>
               <p className="text-gray-600 mb-4">
-                Nhập tên cho video sau khi chỉnh sửa:
+                Enter a name for the edited video:
               </p>
               <input
                 type="text"
                 value={exportVideoTitle}
                 onChange={(e) => setExportVideoTitle(e.target.value)}
-                placeholder="Nhập tên video..."
+                placeholder="Enter video name..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
                 autoFocus
                 onKeyPress={(e) => {
@@ -1960,7 +1974,7 @@ const VideoEditorContent: React.FC = () => {
                   onClick={handleCancelExport}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirmExport}

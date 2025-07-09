@@ -13,7 +13,7 @@ interface TimelineContextType {
   setDuration: (duration: number) => void;
   setZoom: (zoom: number) => void;
   moveItem: (itemId: string, fromTrackId: string, toTrackId: string, newStartTime: number) => void;
-  findOrCreateStickerTrack: () => string;
+  getFirstAvailableTrack: () => string;
 }
 
 const TimelineContext = createContext<TimelineContextType | null>(null);
@@ -29,43 +29,52 @@ export const useTimelineContext = () => {
 const DEFAULT_TRACKS: Track[] = [
   {
     id: 'track-1',
-    name: '',
+    name: 'Main Video',
     type: 'mixed',
-    height: 60,
+    height: 50, 
     isVisible: true,
     isLocked: false,
+    isMainVideoTrack: true, 
+    isResizable: false,
     items: [],
     color: '#3B82F6'
   },
   {
     id: 'track-2',
-    name: '',
+    name: 'Track 2',
     type: 'mixed',
     height: 50,
     isVisible: true,
     isLocked: false,
     isMuted: false,
     volume: 1,
+    isResizable: true, 
     items: [],
     color: '#3B82F6'
   },
   {
-    id: 'text-track',
-    name: '',
-    type: 'text',
+    id: 'track-3',
+    name: 'Track 3',
+    type: 'mixed',
     height: 50,
     isVisible: true,
     isLocked: false,
+    isMuted: false,
+    volume: 1,
+    isResizable: true,
     items: [],
     color: '#3B82F6'
   },
   {
-    id: 'overlay-track',
-    name: '',
-    type: 'overlay',
+    id: 'track-4',
+    name: 'Track 4',
+    type: 'mixed',
     height: 50,
     isVisible: true,
     isLocked: false,
+    isMuted: false,
+    volume: 1,
+    isResizable: true,
     items: [],
     color: '#3B82F6'
   }
@@ -77,7 +86,7 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     duration: 0,
     currentTime: 0,
     zoom: 1,
-    pixelsPerSecond: 200 // Increased for better precision
+    pixelsPerSecond: 200 
   });
 
   const addTrack = useCallback((track: Omit<Track, 'id'>) => {
@@ -216,25 +225,26 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
-  const findOrCreateStickerTrack = useCallback(() => {
-    const existingStickerTrack = timelineState.tracks.find(track => track.type === 'sticker');
+  const getFirstAvailableTrack = useCallback(() => {
+    const availableTrack = timelineState.tracks.find(track => !track.isMainVideoTrack);
     
-    if (existingStickerTrack) {
-      return existingStickerTrack.id;
+    if (availableTrack) {
+      return availableTrack.id;
     }
     
-    // Create new sticker track
-    const stickerTrackId = addTrack({
-      name: 'Stickers',
-      type: 'sticker',
+    // Create a new track if none are available
+    const newTrackId = addTrack({
+      name: `Track ${timelineState.tracks.length + 1}`,
+      type: 'mixed',
       height: 50,
       isVisible: true,
       isLocked: false,
+      isResizable: true,
       items: [],
-      color: '#F59E0B'
+      color: '#3B82F6'
     });
     
-    return stickerTrackId;
+    return newTrackId;
   }, [timelineState.tracks, addTrack]);
 
   const contextValue: TimelineContextType = {
@@ -249,7 +259,7 @@ export const TimelineProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setDuration,
     setZoom,
     moveItem,
-    findOrCreateStickerTrack
+    getFirstAvailableTrack
   };
 
   return (

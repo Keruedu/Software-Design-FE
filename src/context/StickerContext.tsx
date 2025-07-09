@@ -329,14 +329,14 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (!timelineContext || isUpdatingFromSticker.current) return;
 
-    const stickerTrack = timelineContext.timelineState.tracks.find(track => track.type === 'sticker');
-    if (!stickerTrack) return;
-
-    const timelineItems = stickerTrack.items.filter(item => item.type === 'sticker');
+    // Tìm tất cả sticker items trong tất cả tracks (không phân biệt track type)
+    const allStickerItems = timelineContext.timelineState.tracks.flatMap(track => 
+      track.items.filter(item => item.type === 'sticker')
+    );
     
     // Check for deleted items - stickers that exist in overlay but not in timeline
     const deletedStickers = state.stickerOverlays.filter(sticker => 
-      !timelineItems.some(item => item.stickerId === sticker.id)
+      !allStickerItems.some(item => item.stickerId === sticker.id)
     );
 
     // Remove deleted stickers from overlay
@@ -351,7 +351,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Only check for timing changes in existing items
     let hasTimingChanges = false;
     const updatedStickers = state.stickerOverlays.map(sticker => {
-      const timelineItem = timelineItems.find(item => item.stickerId === sticker.id);
+      const timelineItem = allStickerItems.find((item: any) => item.stickerId === sticker.id);
       if (!timelineItem) return sticker;
 
       // Only check for timing changes
@@ -382,7 +382,8 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }, 50);
     }
   }, [
-    timelineContext?.timelineState.tracks.find(track => track.type === 'sticker')?.items,
+    // Theo dõi tất cả sticker items trong mọi track
+    timelineContext?.timelineState.tracks.flatMap(track => track.items.filter(item => item.type === 'sticker')).map(item => `${item.id}-${item.startTime}-${item.duration}`).join(','),
     state.stickerOverlays.map(sticker => `${sticker.id}-${sticker.timing.startTime}-${sticker.timing.endTime}`).join(',')
   ]);
 
@@ -419,17 +420,17 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // Also remove from timeline if operations are available
     if (timelineOperations && timelineContext) {
-      const stickerTrack = timelineContext.timelineState.tracks.find(track => track.type === 'sticker');
-      if (stickerTrack) {
-        const timelineItem = stickerTrack.items.find(item => item.stickerId === id);
+      for (const track of timelineContext.timelineState.tracks) {
+        const timelineItem = track.items.find((item: any) => item.type === 'sticker' && item.stickerId === id);
         if (timelineItem) {
           // Set flag to prevent sync loop
           isUpdatingFromSticker.current = true;
-          timelineOperations.removeItemFromTrack(stickerTrack.id, timelineItem.id);
+          timelineOperations.removeItemFromTrack(track.id, timelineItem.id);
           // Reset flag after a short delay
           setTimeout(() => {
             isUpdatingFromSticker.current = false;
           }, 50);
+          break;
         }
       }
     }
@@ -469,13 +470,12 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // Also update on timeline if operations are available
     if (timelineOperations && timelineContext) {
-      const stickerTrack = timelineContext.timelineState.tracks.find(track => track.type === 'sticker');
-      if (stickerTrack) {
-        const timelineItem = stickerTrack.items.find(item => item.stickerId === id);
+      for (const track of timelineContext.timelineState.tracks) {
+        const timelineItem = track.items.find((item: any) => item.type === 'sticker' && item.stickerId === id);
         if (timelineItem) {
           // Set flag to prevent sync loop
           isUpdatingFromSticker.current = true;
-          timelineOperations.updateItem(stickerTrack.id, timelineItem.id, {
+          timelineOperations.updateItem(track.id, timelineItem.id, {
             startTime: timing.startTime,
             duration: timing.endTime - timing.startTime
           });
@@ -483,6 +483,7 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setTimeout(() => {
             isUpdatingFromSticker.current = false;
           }, 50);
+          break;
         }
       }
     }
@@ -565,15 +566,12 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } 
     });
     
-    // No need to update timing separately since it's included in ADD_STICKER
-
     // Add to timeline if operations are available
     if (timelineOperations) {
-      // Find or create sticker track
-      const stickerTrackId = timelineOperations.findOrCreateStickerTrack();
+      const availableTrackId = timelineOperations.getFirstAvailableTrack();
       
-      // Add item to sticker track
-      timelineOperations.addItemToTrack(stickerTrackId, {
+      // Add item to track
+      timelineOperations.addItemToTrack(availableTrackId, {
         type: 'sticker',
         name: stickerName,
         startTime: currentTime,
@@ -584,7 +582,9 @@ export const StickerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         size: { width: 100, height: 100 },
         rotation: 0,
         opacity: 1,
-        animation: { type: 'none' }
+        animation: { type: 'none' },
+        isLocked: false,
+        isMainVideoUnit: false
       });
     }
     
