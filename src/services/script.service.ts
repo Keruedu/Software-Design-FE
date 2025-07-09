@@ -15,10 +15,14 @@ export const ScriptService = {
   /**
    * Generate a new script based on topic/keywords using real AI API
    */
-  generateScript: async (topic: string, keywords: string[] = []): Promise<Script> => {
+  generateScript: async (
+    topic: string, 
+    keywords: string[] = [], 
+    aiModel: 'gemini' | 'deepseek' = 'deepseek'
+  ): Promise<Script> => {
     try {
       // Create cache key to prevent duplicate requests
-      const cacheKey = `${topic}-${keywords.join(',')}`;
+      const cacheKey = `${topic}-${keywords.join(',')}-${aiModel}`;
       const now = Date.now();
       
       // Check if we have a recent request for the same parameters
@@ -37,10 +41,10 @@ export const ScriptService = {
       const requestPromise = (async () => {
         // Call the backend API
         const formData = new FormData();
-        formData.append('model', 'deepseek'); // Using DeepSeek model
+        formData.append('model', aiModel); // Use selected AI model
         formData.append('prompt', prompt);
         
-        console.log('🚀 Making API request for script generation:', { topic, keywords });
+        console.log('🚀 Making API request for script generation:', { topic, keywords, aiModel });
         
         const response = await fetch(`${API_BASE_URL}/media/generate-text`, {
           method: 'POST',

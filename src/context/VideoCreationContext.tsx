@@ -27,6 +27,7 @@ interface VideoCreationState {
   selectedBackgrounds: Background[]; // New multi-selection
   subtitleOptions: SubtitleOptions | null;
   editSettings: VideoEditParams;
+  selectedAIModel: 'gemini' | 'deepseek'; // New: AI model selection for text generation
 }
 
 interface VideoCreationContextType {
@@ -42,6 +43,7 @@ interface VideoCreationContextType {
   setSelectedBackgrounds: (backgrounds: Background[]) => void; // New method
   setSubtitleOptions: (options: SubtitleOptions | null) => void;
   setEditSettings: (settings: Partial<VideoEditParams>) => void;
+  setSelectedAIModel: (model: 'gemini' | 'deepseek') => void; // New method for AI model selection
   resetState: () => void;
 }
 
@@ -64,7 +66,8 @@ const initialState: VideoCreationState = {
     backgroundMusic: undefined,
     subtitles: true,
     filters: []
-  }
+  },
+  selectedAIModel: 'deepseek' // Default to deepseek
 };
 
 const VideoCreationContext = createContext<VideoCreationContextType | undefined>(undefined);
@@ -98,6 +101,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
           selectedBackgrounds: parsed.selectedBackgrounds || [],
           selectedBackground: parsed.selectedBackground || null,
           subtitleOptions: parsed.subtitleOptions || null,
+          selectedAIModel: parsed.selectedAIModel || 'deepseek', // Add AI model to persistence
           step: parsed.step || 'topic'
         };
       }
@@ -124,6 +128,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
         selectedBackgrounds: newState.selectedBackgrounds,
         selectedBackground: newState.selectedBackground,
         subtitleOptions: newState.subtitleOptions,
+        selectedAIModel: newState.selectedAIModel, // Add AI model to persistence
         step: newState.step
       };
       localStorage.setItem('videoCreationState', JSON.stringify(stateToPersist));
@@ -248,6 +253,14 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     });
   };
   
+  const setSelectedAIModel = (model: 'gemini' | 'deepseek') => {
+    setState(prev => {
+      const newState = { ...prev, selectedAIModel: model };
+      persistState(newState);
+      return newState;
+    });
+  };
+  
   const resetState = () => {
     setState(initialState);
     // Clear persisted state
@@ -269,6 +282,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setSelectedBackgrounds, // Add new method
     setSubtitleOptions,
     setEditSettings,
+    setSelectedAIModel, // Add AI model setter
     resetState
   };
   

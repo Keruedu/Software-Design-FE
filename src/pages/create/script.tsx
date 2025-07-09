@@ -57,9 +57,9 @@ export default function ScriptPage() {
       const topic = state.selectedTopic?.title || state.keyword;
       const keywords = state.selectedTopic?.keywords || [];
       
-      console.log('🚀 Generating script for topic:', topic, 'with keywords:', keywords);
+      console.log('🚀 Generating script for topic:', topic, 'with keywords:', keywords, 'using AI model:', state.selectedAIModel);
       
-      const script = await ScriptService.generateScript(topic, keywords);
+      const script = await ScriptService.generateScript(topic, keywords, state.selectedAIModel);
       
       // Add topic to script for tracking
       const scriptWithTopic = {
@@ -135,8 +135,15 @@ export default function ScriptPage() {
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500"></div>
               <p className="mt-4 text-gray-500">
-                Our AI is creating an engaging script based on your topic...
+                Our AI ({state.selectedAIModel === 'deepseek' ? 'DeepSeek' : 'Gemini'}) is creating an engaging script based on your topic...
               </p>
+              <div className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${
+                state.selectedAIModel === 'deepseek'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-green-100 text-green-800'
+              }`}>
+                {state.selectedAIModel === 'deepseek' ? '🚀 DeepSeek' : '✨ Gemini'}
+              </div>
             </div>
           </div>
         </div>
@@ -153,7 +160,19 @@ export default function ScriptPage() {
       
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-lg shadow px-6 py-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Your Script</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Edit Your Script</h1>
+          
+          {/* AI Model Indicator */}
+          <div className="mb-6 flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Generated using:</span>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              state.selectedAIModel === 'deepseek'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-green-100 text-green-800'
+            }`}>
+              {state.selectedAIModel === 'deepseek' ? '🚀 DeepSeek' : '✨ Gemini'}
+            </span>
+          </div>
           
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">

@@ -13,7 +13,7 @@ import { HotTrends } from '../../components/features/HotTrends/HotTrends';
 export default function CreatePage() {
   const router = useRouter();
   const { topicId } = router.query;
-  const { setSelectedTopic, setKeyword, setStep } = useVideoCreation();
+  const { setSelectedTopic, setKeyword, setStep, state, setSelectedAIModel } = useVideoCreation();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<TrendingTopic[]>([]);
@@ -88,6 +88,39 @@ export default function CreatePage() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow px-6 py-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-6">Create a New Video</h1>
+              
+              {/* AI Model Selection */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">AI Model for Text Generation</h3>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setSelectedAIModel('deepseek')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      state.selectedAIModel === 'deepseek'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    🚀 DeepSeek
+                    {state.selectedAIModel === 'deepseek' && (
+                      <span className="ml-2 text-xs bg-blue-500 px-2 py-1 rounded-full">Default</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setSelectedAIModel('gemini')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      state.selectedAIModel === 'gemini'
+                        ? 'bg-green-600 text-white shadow'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    ✨ Gemini
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Selected: <span className="font-medium">{state.selectedAIModel === 'deepseek' ? 'DeepSeek' : 'Gemini'}</span> will be used for generating video scripts
+                </p>
+              </div>
               
               <div className="mb-8">
                 <h2 className="text-lg font-medium text-gray-900 mb-2">Choose a Topic</h2>
