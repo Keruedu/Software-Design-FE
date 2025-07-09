@@ -513,7 +513,7 @@ export const BackgroundService = {
       const requestBody = {
         prompt: params.prompt,
         style: params.style || "realistic",
-        resolution: params.resolution || "1080x1920"
+        resolution: params.resolution || "720x1280"
       };
       
       const response = await fetch(`${API_BASE_URL}/backgrounds/generate`, {
@@ -547,7 +547,7 @@ export const BackgroundService = {
         imageUrl: '/assets/images/backgrounds/generated-sample.jpg',
         prompt: params.prompt,
         style: params.style || "realistic",
-        resolution: params.resolution || "1080x1920"
+        resolution: params.resolution || "720x1280"
       };
 
       return mockApiCall(result, 0.05, 5000);
@@ -560,7 +560,7 @@ export const BackgroundService = {
   generateBackgroundFromScript: async (
     scriptContent: string, 
     style: string = "realistic", 
-    resolution: string = "1080x1920"
+    resolution: string = "720x1280"
   ): Promise<BackgroundGenerationResult> => {
     try {
       const params = new URLSearchParams();
