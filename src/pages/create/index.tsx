@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { FiZap, FiStar } from 'react-icons/fi';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
@@ -101,7 +102,8 @@ export default function CreatePage() {
                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                     }`}
                   >
-                    🚀 DeepSeek
+                    <FiZap className="w-4 h-4 mr-2" />
+                    DeepSeek
                     {state.selectedAIModel === 'deepseek' && (
                       <span className="ml-2 text-xs bg-blue-500 px-2 py-1 rounded-full">Default</span>
                     )}
@@ -114,7 +116,8 @@ export default function CreatePage() {
                         : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                     }`}
                   >
-                    ✨ Gemini
+                    <FiStar className="w-4 h-4 mr-2" />
+                    Gemini
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">

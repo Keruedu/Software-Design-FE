@@ -9,7 +9,7 @@ import { Modal } from '../../components/common/Modal/Modal';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { SubtitleOptions, SubtitleStyle, SUBTITLE_STYLES } from '../../types/subtitle';
 import { VideoService } from '../../services/video.service';
-import { HiDownload, HiPencil } from 'react-icons/hi';
+import { HiDownload, HiPencil, HiLightBulb } from 'react-icons/hi';
 
 export default function SubtitlePage() {
   const router = useRouter();
@@ -307,8 +307,9 @@ export default function SubtitlePage() {
                 {state.generatedAudio && !state.selectedUploadedAudio && (
                   <p className="text-sm">Voice: {state.selectedVoice?.name}</p>
                 )}
-                <p className="text-xs mt-1 text-blue-600">
-                  💡 Language will be automatically detected from audio
+                <p className="text-xs mt-1 text-blue-600 flex items-center">
+                  <HiLightBulb className="w-3 h-3 mr-1" />
+                  Language will be automatically detected from audio
                 </p>
               </div>
             ) : (

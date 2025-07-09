@@ -247,8 +247,14 @@ export default function LoginPage() {
                   <div className="text-center">
                     <h4 className="text-xs font-semibold text-gray-700 mb-1">Demo Credentials</h4>
                     <div className="text-xs text-gray-600 flex justify-center gap-4">
-                      <span>📧Email: demo@example.com</span>
-                      <span>🔑Password: password</span>
+                      <span className="flex items-center">
+                        <FiMail className="w-3 h-3 mr-1" />
+                        Email: demo@example.com
+                      </span>
+                      <span className="flex items-center">
+                        <FiLock className="w-3 h-3 mr-1" />
+                        Password: password
+                      </span>
                     </div>
                   </div>
                 </div>

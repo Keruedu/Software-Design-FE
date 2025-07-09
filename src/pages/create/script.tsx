@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { FiZap, FiStar } from 'react-icons/fi';
+import { HiLightBulb } from 'react-icons/hi';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
@@ -137,12 +139,22 @@ export default function ScriptPage() {
               <p className="mt-4 text-gray-500">
                 Our AI ({state.selectedAIModel === 'deepseek' ? 'DeepSeek' : 'Gemini'}) is creating an engaging script based on your topic...
               </p>
-              <div className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${
+              <div className={`mt-2 px-3 py-1 rounded-full text-xs font-medium flex items-center ${
                 state.selectedAIModel === 'deepseek'
                   ? 'bg-blue-100 text-blue-800'
                   : 'bg-green-100 text-green-800'
               }`}>
-                {state.selectedAIModel === 'deepseek' ? '🚀 DeepSeek' : '✨ Gemini'}
+                {state.selectedAIModel === 'deepseek' ? (
+                  <>
+                    <FiZap className="w-3 h-3 mr-1" />
+                    DeepSeek
+                  </>
+                ) : (
+                  <>
+                    <FiStar className="w-3 h-3 mr-1" />
+                    Gemini
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -165,12 +177,22 @@ export default function ScriptPage() {
           {/* AI Model Indicator */}
           <div className="mb-6 flex items-center space-x-2">
             <span className="text-sm text-gray-600">Generated using:</span>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${
               state.selectedAIModel === 'deepseek'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-green-100 text-green-800'
             }`}>
-              {state.selectedAIModel === 'deepseek' ? '🚀 DeepSeek' : '✨ Gemini'}
+              {state.selectedAIModel === 'deepseek' ? (
+                <>
+                  <FiZap className="w-3 h-3 mr-1" />
+                  DeepSeek
+                </>
+              ) : (
+                <>
+                  <FiStar className="w-3 h-3 mr-1" />
+                  Gemini
+                </>
+              )}
             </span>
           </div>
           
@@ -279,8 +301,9 @@ export default function ScriptPage() {
                     </div>
                   )}
                   
-                  <div className="text-xs text-gray-500 mt-1">
-                    💡 These sources were found using AI-powered keyword extraction to enhance your content accuracy.
+                  <div className="text-xs text-gray-500 mt-1 flex items-center">
+                    <HiLightBulb className="w-3 h-3 mr-1" />
+                    These sources were found using AI-powered keyword extraction to enhance your content accuracy.
                   </div>
                 </div>
               )}

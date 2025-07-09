@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FaPlay, FaDownload, FaEdit, FaClock, FaMusic, FaCut, FaArrowLeft } from 'react-icons/fa';
+import { FaPlay, FaDownload, FaEdit, FaClock, FaMusic, FaCut, FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa';
 import { videoExportService } from '@/services/videoExport.service';
 
 interface EditedVideo {
@@ -93,7 +93,7 @@ const EditedVideosPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <FaExclamationTriangle className="text-red-500 text-6xl mb-4 mx-auto" />
           <h2 className="text-xl font-semibold text-gray-800 mb-2">An error occurred</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
