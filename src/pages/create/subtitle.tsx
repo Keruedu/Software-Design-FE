@@ -26,7 +26,7 @@ export default function SubtitlePage() {
   // Subtitle configuration - only style selection
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [selectedStyleName, setSelectedStyleName] = useState('default');
-  
+  const [enable, setEnable] = useState(true);
   // Preview
   const [previewHtml, setPreviewHtml] = useState('');
   
@@ -75,7 +75,7 @@ export default function SubtitlePage() {
   const handleExportVideo = async () => {
     setIsExporting(true);
     setError(null);
-    
+    setEnable(false);
     try {
       // Save subtitle options to context first
       const subtitleOptions: SubtitleOptions = {
@@ -121,14 +121,6 @@ export default function SubtitlePage() {
         subtitle_style: subtitleOptions?.style || SUBTITLE_STYLES.default // Send full style object
       };
       
-      console.log('🎬 Video creation params:', params);
-      console.log('📝 Subtitle debug info:');
-      console.log('  - subtitleEnabled:', subtitleEnabled);
-      console.log('  - subtitleOptions:', subtitleOptions);
-      console.log('  - subtitle_enabled in params:', params.subtitle_enabled);
-      console.log('  - subtitle_language in params:', params.subtitle_language);
-      console.log('  - subtitle_style in params:', params.subtitle_style);
-      
       const result = await VideoService.createCompleteVideo(params);
       
       if (result && result.id) {
@@ -150,6 +142,7 @@ export default function SubtitlePage() {
       console.error('Video export error:', err);
     } finally {
       setIsExporting(false);
+      setEnable(true);
     }
   };
 
@@ -426,8 +419,8 @@ export default function SubtitlePage() {
               <Button 
                 variant="outline"
                 onClick={handleEditVideo}
-                disabled={!hasAudio && subtitlesEnabled}
-                isLoading={isExporting}
+                disabled={!hasAudio || isExporting}
+                isLoading={isExporting&&enable}
                 className="flex items-center space-x-2"
               >
                 <HiPencil className="h-4 w-4" />
@@ -435,8 +428,8 @@ export default function SubtitlePage() {
               </Button>
               <Button 
                 onClick={handleExportVideo}
-                disabled={!hasAudio && subtitlesEnabled}
-                isLoading={isExporting}
+                disabled={!hasAudio ||isExporting}
+                isLoading={isExporting||!enable}
                 className="flex items-center space-x-2"
               >
                 <HiDownload className="h-4 w-4" />

@@ -317,6 +317,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 fontWeight: string;
                 fontStyle: string;
                 textAlign: string;
+                textDecoration?: string;
             };
             timing: {
                 startTime: number;
@@ -378,13 +379,44 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             const outputName = `output_${timestamp}.mp4`;
              const fontsUsed = new Set<string>();
             await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
-            const filterResults = textOverlayParams.map((params) => {
-            const { textFilter, font } = this.buildTextFilter(params, videoSize);
-            if (font) fontsUsed.add(font); 
-            return textFilter;
+            const filterResults = textOverlayParams.map((params, index) => {
+                const { textFilter, font } = this.buildTextFilter(params, videoSize);
+                if (font) fontsUsed.add(font); 
+                
+                // For multiple overlays, we need to chain them properly
+                // Each filter should have a unique label if there are multiple overlays
+                if (textOverlayParams.length > 1) {
+                    // Add a label to the filter for chaining
+                    return `${textFilter}[overlay${index}]`;
+                } else {
+                    return textFilter;
+                }
             });
-            const textFilters = filterResults.join(',');
-            console.log("Text filters:", textFilters);
+            
+            let finalFilterComplex;
+            if (textOverlayParams.length > 1) {
+                // For multiple text overlays, we need to chain them
+                // Start with the input video
+                let currentInput = '[0:v]';
+                const overlayChain = filterResults.map((filter, index) => {
+                    if (index === filterResults.length - 1) {
+                        // Last overlay, no output label needed
+                        return `${currentInput}${filter.replace(`[overlay${index}]`, '')}`;
+                    } else {
+                        // Intermediate overlay, needs output label
+                        const result = `${currentInput}${filter}`;
+                        currentInput = `[overlay${index}]`;
+                        return result;
+                    }
+                }).join(';');
+                
+                finalFilterComplex = overlayChain;
+            } else {
+                // Single text overlay
+                finalFilterComplex = filterResults[0];
+            }
+            
+            console.log("Final filter complex:", finalFilterComplex);
             console.log("Fonts used:", Array.from(fontsUsed));
             
             // Load fonts and handle loading errors gracefully
@@ -412,7 +444,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
 
             const ffmpegCommand = [
             "-i", inputVideoName,
-            "-vf", textFilters,
+            "-vf", finalFilterComplex,
             "-c:a", "copy",
             outputName
             ];
@@ -519,10 +551,47 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             font = 'Roboto-Regular.ttf';
         }
 
-        if (timing.startTime > 0) {
-            textFilter += `:enable='between(t,${timing.startTime},${timing.startTime + timing.duration})'`;
-        } else {
-            textFilter += `:enable='between(t,0,${timing.duration})'`;
+        const enableTiming = timing.startTime > 0 
+            ? `enable='between(t,${timing.startTime},${timing.startTime + timing.duration})'`
+            : `enable='between(t,0,${timing.duration})'`;
+        
+        textFilter += `:${enableTiming}`;
+        
+        // Add underline if textDecoration is underline
+        if (style.textDecoration === 'underline') {
+            const underlineMetrics = this.calculateUnderlineMetrics(
+                text,
+                style.fontSize,
+                style.fontFamily || 'Roboto',
+                style.fontWeight || 'normal',
+                style.fontStyle || 'normal'
+            );
+            
+            // Calculate underline position
+            const underlineX = x;
+            const underlineY = y + underlineMetrics.offsetY;
+            const underlineWidth = underlineMetrics.width;
+            const underlineHeight = underlineMetrics.height;
+            
+            // Get underline color (same as text color)
+            const underlineColor = opacity < 1 
+                ? `${style.color}${Math.round(opacity * 255).toString(16).padStart(2, '0').toUpperCase()}`
+                : style.color;
+            
+            console.log("Underline calculation:", {
+                text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
+                textPosition: { x, y },
+                underlinePosition: { x: underlineX, y: underlineY },
+                underlineSize: { width: underlineWidth, height: underlineHeight },
+                underlineColor,
+                metrics: underlineMetrics
+            });
+            
+            // Create underline filter using drawbox
+            const underlineFilter = `drawbox=x=${underlineX}:y=${underlineY}:w=${underlineWidth}:h=${underlineHeight}:color=${underlineColor}:t=fill:${enableTiming}`;
+            
+            // Combine text and underline filters
+            textFilter = `${textFilter},${underlineFilter}`;
         }
         
         console.log("Generated text filter:", textFilter);
@@ -1148,6 +1217,84 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const finalY = Math.min(y, maxY);
         
         return { x: finalX, y: finalY, width, height };
+    }
+
+    // Helper method to calculate underline position and dimensions using canvas
+    private calculateUnderlineMetrics(
+        text: string,
+        fontSize: number,
+        fontFamily: string,
+        fontWeight: string,
+        fontStyle: string
+    ): { width: number; height: number; offsetY: number } {
+        // Create a canvas element for text measurement
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+            // Fallback if canvas is not available
+            return {
+                width: text.length * fontSize * 0.6, // Approximate width
+                height: Math.max(2, Math.round(fontSize * 0.1)), // Thicker underline
+                offsetY: Math.round(fontSize * 0.9) // Place underline below text baseline
+            };
+        }
+
+        // Set font properties to match the text
+        let fontString = '';
+        if (fontStyle === 'italic') fontString += 'italic ';
+        if (fontWeight === 'bold') fontString += 'bold ';
+        fontString += `${fontSize}px `;
+        
+        // Map font family to match the ones available
+        const mappedFontFamily = this.mapFontFamily(fontFamily) || 'Roboto';
+        fontString += mappedFontFamily;
+        
+        ctx.font = fontString;
+        
+        // Measure text width and height
+        const textMetrics = ctx.measureText(text);
+        const textWidth = textMetrics.width;
+        
+        // Get actual text height using Canvas TextMetrics
+        const textHeight = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent;
+        const ascent = textMetrics.actualBoundingBoxAscent || fontSize * 0.8;
+        const descent = textMetrics.actualBoundingBoxDescent || fontSize * 0.2;
+        
+        // Calculate underline properties
+        // Underline should be placed below the text baseline + descent
+        const underlineHeight = Math.max(2, Math.round(fontSize * 0.1)); // 10% of font size, minimum 2px
+        const underlineOffsetY = Math.round(ascent + descent + fontSize * 0.1); // Below text + small gap
+        
+        console.log("Canvas underline calculation:", {
+            text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
+            fontSize,
+            fontString,
+            textWidth,
+            textHeight,
+            ascent,
+            descent,
+            underlineHeight,
+            underlineOffsetY,
+            explanation: {
+                textBaseline: "Text Y position in FFmpeg",
+                ascentFromBaseline: ascent,
+                descentFromBaseline: descent,
+                underlinePosition: `${ascent} + ${descent} + gap = ${underlineOffsetY}px below text Y`,
+                underlineThickness: `${underlineHeight}px`
+            },
+            textMetrics: {
+                width: textMetrics.width,
+                actualBoundingBoxAscent: textMetrics.actualBoundingBoxAscent,
+                actualBoundingBoxDescent: textMetrics.actualBoundingBoxDescent
+            }
+        });
+        
+        return {
+            width: Math.round(textWidth),
+            height: underlineHeight,
+            offsetY: underlineOffsetY
+        };
     }
 
 }
