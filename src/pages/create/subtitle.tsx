@@ -251,6 +251,11 @@ export default function SubtitlePage() {
     router.push('/dashboard');
   };
 
+    const handleCreateAnother= () => {
+    setStep('topic'); // Reset creation flow
+    router.push('/create');
+  };
+
 
 
   const handleBack = () => {
@@ -450,7 +455,7 @@ export default function SubtitlePage() {
             <Button variant="outline" onClick={handleDownloadVideo}>
               Download Video
             </Button>
-            <Button variant="outline" onClick={() => setShowSuccessModal(false)}>
+            <Button variant="outline" onClick={handleCreateAnother}>
               Create Another
             </Button>
             <Button onClick={handleGoToDashboard}>
