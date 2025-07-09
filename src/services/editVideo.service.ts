@@ -317,6 +317,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 fontWeight: string;
                 fontStyle: string;
                 textAlign: string;
+                textDecoration?: string;
             };
             timing: {
                 startTime: number;
@@ -349,19 +350,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         if (!this.ffmpeg || !this.isLoaded) {
             throw new Error("FFmpeg is not initialized. Call initialize() first.");
         }
-
-        console.log("Adding multiple text overlays:", {
-            overlayCount: textOverlayParams.length,
-            videoSize,
-            overlays: textOverlayParams.map((p, i) => ({
-                index: i,
-                text: p.text,
-                timing: p.timing,
-                position: p.position,
-                style: p.style
-            }))
-        });
-
         try {
             let videoData: ArrayBuffer;
             if (videoFile instanceof File || videoFile instanceof Blob) {
@@ -378,16 +366,36 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             const outputName = `output_${timestamp}.mp4`;
              const fontsUsed = new Set<string>();
             await this.ffmpeg.writeFile(inputVideoName, new Uint8Array(videoData));
-            const filterResults = textOverlayParams.map((params) => {
-            const { textFilter, font } = this.buildTextFilter(params, videoSize);
-            if (font) fontsUsed.add(font); 
-            return textFilter;
+            const filterResults = textOverlayParams.map((params, index) => {
+                const { textFilter, font } = this.buildTextFilter(params, videoSize);
+                if (font) fontsUsed.add(font); 
+                if (textOverlayParams.length > 1) {
+                    return `${textFilter}[overlay${index}]`;
+                } else {
+                    return textFilter;
+                }
             });
-            const textFilters = filterResults.join(',');
-            console.log("Text filters:", textFilters);
-            console.log("Fonts used:", Array.from(fontsUsed));
             
-            // Load fonts and handle loading errors gracefully
+            let finalFilterComplex;
+            if (textOverlayParams.length > 1) {
+                let currentInput = '[0:v]';
+                const overlayChain = filterResults.map((filter, index) => {
+                    if (index === filterResults.length - 1) {
+                        // Last overlay, no output label needed
+                        return `${currentInput}${filter.replace(`[overlay${index}]`, '')}`;
+                    } else {
+                        // Intermediate overlay, needs output label
+                        const result = `${currentInput}${filter}`;
+                        currentInput = `[overlay${index}]`;
+                        return result;
+                    }
+                }).join(';');
+                
+                finalFilterComplex = overlayChain;
+            } else {
+                // Single text overlay
+                finalFilterComplex = filterResults[0];
+            }
             try {
                 await Promise.all(Array.from(fontsUsed).map(async (font) => {
                     if (!this.ffmpeg) return;
@@ -412,12 +420,10 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
 
             const ffmpegCommand = [
             "-i", inputVideoName,
-            "-vf", textFilters,
+            "-vf", finalFilterComplex,
             "-c:a", "copy",
             outputName
-            ];
-            console.log("FFmpeg text overlay command:", ffmpegCommand.join(" "));
-            
+            ];            
             try {
                 await this.ffmpeg.exec(ffmpegCommand);
                 console.log("Text overlay FFmpeg command completed successfully");
@@ -462,22 +468,12 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             opacity = 1,
         } = params;
         
-        console.log("Building text filter for:", {
-            text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
-            position,
-            style,
-            timing,
-            opacity,
-            videoSize
-        });
         
         let font='';
         const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
-        console.log("Debug timing", timing)
         const x = Math.round(Math.min(Math.max(((position.x - 14)  / 100),0 ),1) * videoSize.width);
         const y = Math.round(Math.min(Math.max(((position.y + 8)  / 100),0 ),1)* videoSize.height);
         
-        console.log("Text position calculated:", { x, y, originalPosition: position });
         
         let textFilter = `drawtext=text='${escapedText}'`;
         textFilter += `:x=${x}:y=${y}`;
@@ -519,15 +515,40 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             font = 'Roboto-Regular.ttf';
         }
 
-        if (timing.startTime > 0) {
-            textFilter += `:enable='between(t,${timing.startTime},${timing.startTime + timing.duration})'`;
-        } else {
-            textFilter += `:enable='between(t,0,${timing.duration})'`;
+        const enableTiming = timing.startTime > 0 
+            ? `enable='between(t,${timing.startTime},${timing.startTime + timing.duration})'`
+            : `enable='between(t,0,${timing.duration})'`;
+        
+        textFilter += `:${enableTiming}`;
+        
+        // Add underline if textDecoration is underline
+        if (style.textDecoration === 'underline') {
+            const underlineMetrics = this.calculateUnderlineMetrics(
+                text,
+                style.fontSize,
+                style.fontFamily || 'Roboto',
+                style.fontWeight || 'normal',
+                style.fontStyle || 'normal'
+            );
+            
+            // Calculate underline position
+            const underlineX = x;
+            const underlineY = y + underlineMetrics.offsetY;
+            const underlineWidth = underlineMetrics.width;
+            const underlineHeight = underlineMetrics.height;
+            
+            // Get underline color (same as text color)
+            const underlineColor = opacity < 1 
+                ? `${style.color}${Math.round(opacity * 255).toString(16).padStart(2, '0').toUpperCase()}`
+                : style.color;
+          
+            
+            // Create underline filter using drawbox
+            const underlineFilter = `drawbox=x=${underlineX}:y=${underlineY}:w=${underlineWidth}:h=${underlineHeight}:color=${underlineColor}:t=fill:${enableTiming}`;
+            
+            // Combine text and underline filters
+            textFilter = `${textFilter},${underlineFilter}`;
         }
-        
-        console.log("Generated text filter:", textFilter);
-        console.log("Font file:", font);
-        
         return { textFilter, font };
     }
 
@@ -1125,7 +1146,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const width = Math.max(20, Math.round(scaledSizeWidth * adjustedSizeFactor));
         const height = Math.max(20, Math.round(scaledSizeHeight * adjustedSizeFactor));
         
-        // Use custom offsets if provided, otherwise use default positioning logic
         let positionOffsetX, positionOffsetY;
         
         if (customOffsets) {
@@ -1148,6 +1168,53 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const finalY = Math.min(y, maxY);
         
         return { x: finalX, y: finalY, width, height };
+    }
+
+
+    private calculateUnderlineMetrics(
+        text: string,
+        fontSize: number,
+        fontFamily: string,
+        fontWeight: string,
+        fontStyle: string
+    ): { width: number; height: number; offsetY: number } {
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+
+            return {
+                width: text.length * fontSize * 0.6, 
+                height: Math.max(2, Math.round(fontSize * 0.1)), 
+                offsetY: Math.round(fontSize * 0.8) 
+            };
+        }
+        let fontString = '';
+        if (fontStyle === 'italic') fontString += 'italic ';
+        if (fontWeight === 'bold') fontString += 'bold ';
+        fontString += `${fontSize}px `;
+
+        const mappedFontFamily = this.mapFontFamily(fontFamily) || 'Roboto';
+        fontString += mappedFontFamily;
+        
+        ctx.font = fontString;
+        
+        const textMetrics = ctx.measureText(text);
+        const textWidth = textMetrics.width;
+        
+        const ascent = textMetrics.actualBoundingBoxAscent || fontSize * 0.8;
+        const descent = textMetrics.actualBoundingBoxDescent || fontSize * 0.2;
+        
+
+        const underlineHeight = Math.max(2, Math.round(fontSize * 0.1)); 
+        const underlineOffsetY = Math.round(ascent + descent + fontSize * 0.01); 
+        
+        return {
+            width: Math.round(textWidth),
+            height: underlineHeight,
+            offsetY: underlineOffsetY
+        };
     }
 
 }

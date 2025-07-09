@@ -1081,7 +1081,6 @@ const VideoEditorContent: React.FC = () => {
         
         // Process all text overlays in one step for better performance
         const adjustedTextOverlays = [];
-        
         for (const textOverlay of effectiveTextOverlays) {
           // Adjust timing for trimmed video
           let adjustedStartTime = textOverlay.timing.startTime;
@@ -1133,6 +1132,7 @@ const VideoEditorContent: React.FC = () => {
         
         // Add all text overlays in one processing step
         if (adjustedTextOverlays.length > 0) {
+          console.log('Adjust:', adjustedTextOverlays);
           await videoProcessor.addProcessingStep({
             type: 'addMultipleTextOverlays',
             params: {
