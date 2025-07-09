@@ -350,19 +350,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         if (!this.ffmpeg || !this.isLoaded) {
             throw new Error("FFmpeg is not initialized. Call initialize() first.");
         }
-
-        console.log("Adding multiple text overlays:", {
-            overlayCount: textOverlayParams.length,
-            videoSize,
-            overlays: textOverlayParams.map((p, i) => ({
-                index: i,
-                text: p.text,
-                timing: p.timing,
-                position: p.position,
-                style: p.style
-            }))
-        });
-
         try {
             let videoData: ArrayBuffer;
             if (videoFile instanceof File || videoFile instanceof Blob) {
@@ -382,11 +369,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             const filterResults = textOverlayParams.map((params, index) => {
                 const { textFilter, font } = this.buildTextFilter(params, videoSize);
                 if (font) fontsUsed.add(font); 
-                
-                // For multiple overlays, we need to chain them properly
-                // Each filter should have a unique label if there are multiple overlays
                 if (textOverlayParams.length > 1) {
-                    // Add a label to the filter for chaining
                     return `${textFilter}[overlay${index}]`;
                 } else {
                     return textFilter;
@@ -395,8 +378,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             
             let finalFilterComplex;
             if (textOverlayParams.length > 1) {
-                // For multiple text overlays, we need to chain them
-                // Start with the input video
                 let currentInput = '[0:v]';
                 const overlayChain = filterResults.map((filter, index) => {
                     if (index === filterResults.length - 1) {
@@ -415,11 +396,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
                 // Single text overlay
                 finalFilterComplex = filterResults[0];
             }
-            
-            console.log("Final filter complex:", finalFilterComplex);
-            console.log("Fonts used:", Array.from(fontsUsed));
-            
-            // Load fonts and handle loading errors gracefully
             try {
                 await Promise.all(Array.from(fontsUsed).map(async (font) => {
                     if (!this.ffmpeg) return;
@@ -447,9 +423,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             "-vf", finalFilterComplex,
             "-c:a", "copy",
             outputName
-            ];
-            console.log("FFmpeg text overlay command:", ffmpegCommand.join(" "));
-            
+            ];            
             try {
                 await this.ffmpeg.exec(ffmpegCommand);
                 console.log("Text overlay FFmpeg command completed successfully");
@@ -494,22 +468,12 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             opacity = 1,
         } = params;
         
-        console.log("Building text filter for:", {
-            text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
-            position,
-            style,
-            timing,
-            opacity,
-            videoSize
-        });
         
         let font='';
         const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
-        console.log("Debug timing", timing)
         const x = Math.round(Math.min(Math.max(((position.x - 14)  / 100),0 ),1) * videoSize.width);
         const y = Math.round(Math.min(Math.max(((position.y + 8)  / 100),0 ),1)* videoSize.height);
         
-        console.log("Text position calculated:", { x, y, originalPosition: position });
         
         let textFilter = `drawtext=text='${escapedText}'`;
         textFilter += `:x=${x}:y=${y}`;
@@ -577,15 +541,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             const underlineColor = opacity < 1 
                 ? `${style.color}${Math.round(opacity * 255).toString(16).padStart(2, '0').toUpperCase()}`
                 : style.color;
-            
-            console.log("Underline calculation:", {
-                text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
-                textPosition: { x, y },
-                underlinePosition: { x: underlineX, y: underlineY },
-                underlineSize: { width: underlineWidth, height: underlineHeight },
-                underlineColor,
-                metrics: underlineMetrics
-            });
+          
             
             // Create underline filter using drawbox
             const underlineFilter = `drawbox=x=${underlineX}:y=${underlineY}:w=${underlineWidth}:h=${underlineHeight}:color=${underlineColor}:t=fill:${enableTiming}`;
@@ -593,10 +549,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
             // Combine text and underline filters
             textFilter = `${textFilter},${underlineFilter}`;
         }
-        
-        console.log("Generated text filter:", textFilter);
-        console.log("Font file:", font);
-        
         return { textFilter, font };
     }
 
@@ -1194,7 +1146,6 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         const width = Math.max(20, Math.round(scaledSizeWidth * adjustedSizeFactor));
         const height = Math.max(20, Math.round(scaledSizeHeight * adjustedSizeFactor));
         
-        // Use custom offsets if provided, otherwise use default positioning logic
         let positionOffsetX, positionOffsetY;
         
         if (customOffsets) {
@@ -1219,7 +1170,7 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         return { x: finalX, y: finalY, width, height };
     }
 
-    // Helper method to calculate underline position and dimensions using canvas
+
     private calculateUnderlineMetrics(
         text: string,
         fontSize: number,
@@ -1227,68 +1178,37 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         fontWeight: string,
         fontStyle: string
     ): { width: number; height: number; offsetY: number } {
-        // Create a canvas element for text measurement
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
         if (!ctx) {
-            // Fallback if canvas is not available
+
             return {
-                width: text.length * fontSize * 0.6, // Approximate width
-                height: Math.max(2, Math.round(fontSize * 0.1)), // Thicker underline
-                offsetY: Math.round(fontSize * 0.9) // Place underline below text baseline
+                width: text.length * fontSize * 0.6, 
+                height: Math.max(2, Math.round(fontSize * 0.1)), 
+                offsetY: Math.round(fontSize * 0.8) 
             };
         }
-
-        // Set font properties to match the text
         let fontString = '';
         if (fontStyle === 'italic') fontString += 'italic ';
         if (fontWeight === 'bold') fontString += 'bold ';
         fontString += `${fontSize}px `;
-        
-        // Map font family to match the ones available
+
         const mappedFontFamily = this.mapFontFamily(fontFamily) || 'Roboto';
         fontString += mappedFontFamily;
         
         ctx.font = fontString;
         
-        // Measure text width and height
         const textMetrics = ctx.measureText(text);
         const textWidth = textMetrics.width;
         
-        // Get actual text height using Canvas TextMetrics
-        const textHeight = textMetrics.actualBoundingBoxAscent + textMetrics.actualBoundingBoxDescent;
         const ascent = textMetrics.actualBoundingBoxAscent || fontSize * 0.8;
         const descent = textMetrics.actualBoundingBoxDescent || fontSize * 0.2;
         
-        // Calculate underline properties
-        // Underline should be placed below the text baseline + descent
-        const underlineHeight = Math.max(2, Math.round(fontSize * 0.1)); // 10% of font size, minimum 2px
-        const underlineOffsetY = Math.round(ascent + descent + fontSize * 0.1); // Below text + small gap
-        
-        console.log("Canvas underline calculation:", {
-            text: text.substring(0, 20) + (text.length > 20 ? '...' : ''),
-            fontSize,
-            fontString,
-            textWidth,
-            textHeight,
-            ascent,
-            descent,
-            underlineHeight,
-            underlineOffsetY,
-            explanation: {
-                textBaseline: "Text Y position in FFmpeg",
-                ascentFromBaseline: ascent,
-                descentFromBaseline: descent,
-                underlinePosition: `${ascent} + ${descent} + gap = ${underlineOffsetY}px below text Y`,
-                underlineThickness: `${underlineHeight}px`
-            },
-            textMetrics: {
-                width: textMetrics.width,
-                actualBoundingBoxAscent: textMetrics.actualBoundingBoxAscent,
-                actualBoundingBoxDescent: textMetrics.actualBoundingBoxDescent
-            }
-        });
+
+        const underlineHeight = Math.max(2, Math.round(fontSize * 0.1)); 
+        const underlineOffsetY = Math.round(ascent + descent + fontSize * 0.01); 
         
         return {
             width: Math.round(textWidth),
