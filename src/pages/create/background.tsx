@@ -45,6 +45,7 @@ export default function BackgroundPage() {
 
   // 👇 FLAG chống gọi nhiều lần (dù useEffect chạy 2 lần trong Strict Mode)
   const hasGeneratedAudio = useRef(false);
+  const isGeneratingAudio = useRef(false);
 
   useEffect(() => {
     if (!state.script || !state.selectedVoice) {
@@ -52,7 +53,7 @@ export default function BackgroundPage() {
     }
   }, [state.script, state.selectedVoice, router]);
 
-  // 🎵 Generate audio once when entering background step (if using AI voice and no audio yet)
+  // 🎵 Single useEffect to handle audio generation - CONSOLIDATED
   useEffect(() => {
     const generateAudioOnce = async () => {
       // Reset flag if audio was cleared (to allow regeneration)
@@ -60,8 +61,9 @@ export default function BackgroundPage() {
         hasGeneratedAudio.current = false;
       }
       
-      // Skip if already generated, using uploaded audio, or missing requirements
-      if (hasGeneratedAudio.current || 
+      // Skip if already generating, already generated, using uploaded audio, or missing requirements
+      if (isGeneratingAudio.current ||
+          hasGeneratedAudio.current || 
           state.selectedUploadedAudio || 
           state.generatedAudio?.audioUrl ||
           !state.selectedVoice || 
@@ -78,8 +80,9 @@ export default function BackgroundPage() {
 
       try {
         console.log('🎤 Generating audio in background step...');
-        setGeneratingAudio(true);
+        isGeneratingAudio.current = true; // Set generating flag
         hasGeneratedAudio.current = true; // Prevent multiple calls
+        setGeneratingAudio(true);
         
         const result = await VoiceService.generateVoiceAudio({
           text: state.script.content,
@@ -93,16 +96,19 @@ export default function BackgroundPage() {
           console.log('✅ Audio generated successfully in background step:', result.audioUrl);
         } else {
           console.warn('⚠️ Audio generation failed in background step');
+          hasGeneratedAudio.current = false; // Reset on failure to allow retry
         }
       } catch (error) {
         console.error('❌ Error generating audio in background step:', error);
+        hasGeneratedAudio.current = false; // Reset on error to allow retry
       } finally {
         setGeneratingAudio(false);
+        isGeneratingAudio.current = false; // Clear generating flag
       }
     };
 
     generateAudioOnce();
-  }, [state.script, state.selectedVoice, state.voiceSettings, state.selectedUploadedAudio, state.generatedAudio, setGeneratedAudio]);
+  }, [state.script, state.selectedVoice, state.voiceSettings, state.selectedUploadedAudio, state.generatedAudio, setGeneratedAudio, audioPreview]);
 
   useEffect(() => {
     setSelectedBackgrounds([]);
@@ -139,34 +145,6 @@ export default function BackgroundPage() {
 
     initializeData();
   }, []);
-
-  // ✅ FIX gọi generateVoiceAudio() 2 lần
-  useEffect(() => {
-    const generateAudioPreview = async () => {
-      if (
-        state.script &&
-        state.selectedVoice &&
-        !hasGeneratedAudio.current
-      ) {
-        hasGeneratedAudio.current = true;
-        setGeneratingAudio(true);
-        try {
-          const result = await VoiceService.generateVoiceAudio({
-            text: state.script.content || 'Preview text',
-            voiceId: state.selectedVoice.id,
-            settings: state.voiceSettings
-          });
-          setAudioPreview(result);
-        } catch (err) {
-          console.error('Failed to generate audio preview:', err);
-        } finally {
-          setGeneratingAudio(false);
-        }
-      }
-    };
-
-    generateAudioPreview();
-  }, [state.script, state.selectedVoice, state.voiceSettings]);
 
   const handleSelectBackground = (background: Background) => {
     const isSelected = selectedBackgrounds.some(bg => bg.id === background.id);
