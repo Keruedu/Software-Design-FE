@@ -5,8 +5,11 @@ import Head from 'next/head';
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
 import { Progress } from '../../components/common/Progress/Progress';
+import { Modal } from '../../components/common/Modal/Modal';
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { SubtitleOptions, SubtitleStyle, SUBTITLE_STYLES } from '../../types/subtitle';
+import { VideoService } from '../../services/video.service';
+import { HiDownload, HiPencil } from 'react-icons/hi';
 
 export default function SubtitlePage() {
   const router = useRouter();
@@ -14,6 +17,11 @@ export default function SubtitlePage() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Video export states
+  const [isExporting, setIsExporting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [exportedVideoUrl, setExportedVideoUrl] = useState<string | null>(null);
   
   // Subtitle configuration - only style selection
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
@@ -64,30 +72,193 @@ export default function SubtitlePage() {
     }
   };
 
-  const handleContinue = () => {
-    // Save subtitle options to context
-    const subtitleOptions: SubtitleOptions = {
-      enabled: subtitlesEnabled,
-      language: 'auto', // Will be detected from audio
-      style: SUBTITLE_STYLES[selectedStyleName] || SUBTITLE_STYLES.default,
-      autoGenerate: false // Always generate from audio
-    };
-
-    setSubtitleOptions(subtitleOptions);
-    setStep('preview');
-    router.push('/create/preview');
+  const handleExportVideo = async () => {
+    setIsExporting(true);
+    setError(null);
+    
+    try {
+      // Save subtitle options to context first
+      const subtitleOptions: SubtitleOptions = {
+        enabled: subtitlesEnabled,
+        language: 'auto',
+        style: SUBTITLE_STYLES[selectedStyleName] || SUBTITLE_STYLES.default,
+        autoGenerate: false
+      };
+      setSubtitleOptions(subtitleOptions);
+      
+      // Get subtitle enabled state
+      const subtitleEnabled = subtitleOptions?.enabled ?? true;
+      
+      // Create complete video using real API
+      const params = {
+        script_text: state.script?.content || '',
+        // Priority: uploaded audio URL > generated audio URL > voice_id for generation
+        ...(state.selectedUploadedAudio 
+          ? { 
+              audio_url: state.selectedUploadedAudio.audioUrl,
+              audio_source: 'uploaded' as const,
+              uploaded_audio_id: state.selectedUploadedAudio.id
+            }
+          : state.generatedAudio?.audioUrl 
+            ? { 
+                audio_url: state.generatedAudio.audioUrl,
+                audio_source: 'generated' as const,
+                voice_id: state.generatedAudio.voiceId,
+                voice_settings: state.generatedAudio.settings
+              }
+            : { 
+                voice_id: state.selectedVoice?.id || 'default',
+                audio_source: 'voice_generation' as const,
+                voice_settings: state.voiceSettings
+              }
+        ),
+        background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
+        background_image_ids: state.selectedBackgrounds?.length > 0 
+          ? state.selectedBackgrounds.map(bg => bg.id)
+          : undefined, // Send multiple backgrounds if available
+        subtitle_enabled: subtitleEnabled,
+        subtitle_language: subtitleOptions?.language || 'auto',
+        subtitle_style: subtitleOptions?.style || SUBTITLE_STYLES.default // Send full style object
+      };
+      
+      console.log('🎬 Video creation params:', params);
+      console.log('📝 Subtitle debug info:');
+      console.log('  - subtitleEnabled:', subtitleEnabled);
+      console.log('  - subtitleOptions:', subtitleOptions);
+      console.log('  - subtitle_enabled in params:', params.subtitle_enabled);
+      console.log('  - subtitle_language in params:', params.subtitle_language);
+      console.log('  - subtitle_style in params:', params.subtitle_style);
+      
+      const result = await VideoService.createCompleteVideo(params);
+      
+      if (result && result.id) {
+        // Get video preview URL
+        const previewData = await VideoService.getVideoPreview(result.id);
+        setExportedVideoUrl(previewData.video_url);
+        setShowSuccessModal(true);
+      } else {
+        throw new Error('Failed to create video');
+      }
+    } catch (err: any) {
+      if (err.message?.includes('session has expired') || err.message?.includes('login again')) {
+        // Redirect to login page
+        router.push('/login?returnUrl=/create/subtitle');
+        return;
+      }
+      
+      setError(err.message || 'Failed to export video. Please try again.');
+      console.error('Video export error:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleSkip = () => {
-    setSubtitleOptions({
-      enabled: false,
-      language: 'auto',
-      style: SUBTITLE_STYLES.default,
-      autoGenerate: false
-    });
-    setStep('preview');
-    router.push('/create/preview');
+  const handleEditVideo = async () => {
+    setIsExporting(true);
+    setError(null);
+    
+    try {
+      // Save subtitle options to context first
+      const subtitleOptions: SubtitleOptions = {
+        enabled: subtitlesEnabled,
+        language: 'auto',
+        style: SUBTITLE_STYLES[selectedStyleName] || SUBTITLE_STYLES.default,
+        autoGenerate: false
+      };
+      setSubtitleOptions(subtitleOptions);
+      
+      // Get subtitle enabled state
+      const subtitleEnabled = subtitleOptions?.enabled ?? true;
+      
+      // Create complete video using real API
+      const params = {
+        script_text: state.script?.content || '',
+        // Priority: uploaded audio URL > generated audio URL > voice_id for generation
+        ...(state.selectedUploadedAudio 
+          ? { 
+              audio_url: state.selectedUploadedAudio.audioUrl,
+              audio_source: 'uploaded' as const,
+              uploaded_audio_id: state.selectedUploadedAudio.id
+            }
+          : state.generatedAudio?.audioUrl 
+            ? { 
+                audio_url: state.generatedAudio.audioUrl,
+                audio_source: 'generated' as const,
+                voice_id: state.generatedAudio.voiceId,
+                voice_settings: state.generatedAudio.settings
+              }
+            : { 
+                voice_id: state.selectedVoice?.id || 'default',
+                audio_source: 'voice_generation' as const,
+                voice_settings: state.voiceSettings
+              }
+        ),
+        background_image_id: state.selectedBackground?.id || 'default', // Legacy fallback
+        background_image_ids: state.selectedBackgrounds?.length > 0 
+          ? state.selectedBackgrounds.map(bg => bg.id)
+          : undefined, // Send multiple backgrounds if available
+        subtitle_enabled: subtitleEnabled,
+        subtitle_language: subtitleOptions?.language || 'auto',
+        subtitle_style: subtitleOptions?.style || SUBTITLE_STYLES.default // Send full style object
+      };
+      
+      const result = await VideoService.createCompleteVideo(params);
+      
+      if (result && result.id) {
+        // Get video preview URL
+        const previewData = await VideoService.getVideoPreview(result.id);
+        const urlParams = new URLSearchParams();
+        urlParams.append('videoUrl', previewData.video_url);
+        if (state.script?.title) {
+          urlParams.append('title', state.script.title);
+        }
+        router.push(`/create/edit?${urlParams.toString()}`);
+      } else {
+        throw new Error('Failed to create video');
+      }
+    } catch (err: any) {
+      if (err.message?.includes('session has expired') || err.message?.includes('login again')) {
+        // Redirect to login page
+        router.push('/login?returnUrl=/create/subtitle');
+        return;
+      }
+      
+      setError(err.message || 'Failed to create video for editing. Please try again.');
+      console.error('Video creation error:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
+
+  const handleDownloadVideo = async () => {
+    if (!exportedVideoUrl) return;
+    
+    try {
+      // Extract video ID from URL or use a stored ID
+      const videoId = exportedVideoUrl.split('/').pop()?.split('.')[0];
+      if (videoId) {
+        const blob = await VideoService.downloadVideo(videoId);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `video-${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download video. Please try again.');
+    }
+  };
+  
+  const handleGoToDashboard = () => {
+    setStep('topic'); // Reset creation flow
+    router.push('/dashboard');
+  };
+
+
 
   const handleBack = () => {
     router.push('/create/background');
@@ -112,8 +283,7 @@ export default function SubtitlePage() {
             { id: 'script', name: 'Script' },
             { id: 'voice', name: 'Voice' },
             { id: 'background', name: 'Background' },
-            { id: 'subtitle', name: 'Subtitle' },
-            { id: 'preview', name: 'Preview' }
+            { id: 'subtitle', name: 'Subtitle' }
           ]}
           currentStep="subtitle"
         />
@@ -252,21 +422,78 @@ export default function SubtitlePage() {
             <Button variant="outline" onClick={handleBack}>
               Back
             </Button>
-            <div className="space-x-4">
-              <Button variant="outline" onClick={handleSkip}>
-                Skip Subtitles
+            <div className="flex space-x-4">
+              <Button 
+                variant="outline"
+                onClick={handleEditVideo}
+                disabled={!hasAudio && subtitlesEnabled}
+                isLoading={isExporting}
+                className="flex items-center space-x-2"
+              >
+                <HiPencil className="h-4 w-4" />
+                <span>Edit Video</span>
               </Button>
               <Button 
-                onClick={handleContinue}
+                onClick={handleExportVideo}
                 disabled={!hasAudio && subtitlesEnabled}
-                isLoading={loading}
+                isLoading={isExporting}
+                className="flex items-center space-x-2"
               >
-                Continue
+                <HiDownload className="h-4 w-4" />
+                <span>Export Video</span>
               </Button>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Success Modal */}
+      <Modal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Video Created Successfully!"
+        footer={
+          <>
+            <Button variant="outline" onClick={handleDownloadVideo}>
+              Download Video
+            </Button>
+            <Button variant="outline" onClick={() => setShowSuccessModal(false)}>
+              Create Another
+            </Button>
+            <Button onClick={handleGoToDashboard}>
+              Go to Dashboard
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="text-center py-4">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="mb-4">Your video has been created successfully!</p>
+          </div>
+          
+          {exportedVideoUrl && (
+            <div className="mt-4">
+              <video
+                src={exportedVideoUrl}
+                controls
+                className="w-full max-w-md mx-auto rounded-lg"
+                style={{ maxHeight: '300px' }}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <p className="font-medium text-gray-900">{state.script?.title || 'Untitled Video'}</p>
+            <p className="text-sm text-gray-500 mb-3">Created with AI technology</p>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 }
