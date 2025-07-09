@@ -59,6 +59,11 @@ export default function BackgroundPage() {
       // Reset flag if audio was cleared (to allow regeneration)
       if (!state.generatedAudio) {
         hasGeneratedAudio.current = false;
+        // Clear audio preview when generatedAudio is cleared
+        if (audioPreview) {
+          console.log('🔄 Clearing audio preview as generatedAudio was cleared');
+          setAudioPreview(null);
+        }
       }
       
       // Skip if already generating, already generated, using uploaded audio, or missing requirements
@@ -274,12 +279,12 @@ export default function BackgroundPage() {
     if (state.selectedUploadedAudio) {
       return (
         <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-col md:flex-row">
             <div>
-              <p className="text-sm font-medium text-green-800 mb-1">✅ Using Uploaded Audio</p>
+              <p className="text-sm font-medium text-green-800 mb-1 max-md:text-center">✅ Using Uploaded Audio</p>
               <p className="text-green-700 font-medium">{state.selectedUploadedAudio.title}</p>
             </div>
-            <audio controls className="h-8" src={state.selectedUploadedAudio.audioUrl}>
+            <audio controls className="h-8 w-full md:w-3/5" src={state.selectedUploadedAudio.audioUrl}>
               Your browser does not support the audio element.
             </audio>
           </div>
@@ -292,14 +297,14 @@ export default function BackgroundPage() {
       const audio = audioPreview || state.generatedAudio;
       return (
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-col md:flex-row">
             <div>
-              <p className="text-sm font-medium text-blue-800 mb-1">🎤 AI Generated Audio</p>
+              <p className="text-sm font-medium text-blue-800 mb-1 max-md:text-center">🎤 AI Generated Audio</p>
               <p className="text-blue-700">
                 Voice: {state.selectedVoice?.name} • Duration: {Math.round(audio?.duration || 0)}s
               </p>
             </div>
-            <audio controls className="h-8" src={audio?.audioUrl}>
+            <audio controls className="h-8 w-full md:w-3/5" src={audio?.audioUrl}>
               Your browser does not support the audio element.
             </audio>
           </div>

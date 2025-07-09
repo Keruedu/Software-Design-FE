@@ -146,36 +146,65 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   };
     const setSelectedTopic = (topic: TrendingTopic | null) => {
     setState(prev => {
-      // If topic changed, reset script to force regeneration
+      // If topic changed, reset script and audio to force regeneration
       const shouldResetScript = prev.selectedTopic?.id !== topic?.id;
       const newState = {
         ...prev,
         selectedTopic: topic,
-        script: shouldResetScript ? null : prev.script
+        script: shouldResetScript ? null : prev.script,
+        // Clear audio when topic changes
+        generatedAudio: shouldResetScript ? null : prev.generatedAudio,
+        selectedUploadedAudio: shouldResetScript ? null : prev.selectedUploadedAudio
       };
       persistState(newState);
+      
+      if (shouldResetScript) {
+        console.log('🔄 Topic changed - clearing script and audio to force regeneration');
+      }
+      
       return newState;
     });
   };
   
   const setKeyword = (keyword: string) => {
     setState(prev => {
-      // If keyword changed, reset script to force regeneration
+      // If keyword changed, reset script and audio to force regeneration
       const shouldResetScript = prev.keyword !== keyword;
       const newState = {
         ...prev,
         keyword,
-        script: shouldResetScript ? null : prev.script
+        script: shouldResetScript ? null : prev.script,
+        // Clear audio when keyword changes
+        generatedAudio: shouldResetScript ? null : prev.generatedAudio,
+        selectedUploadedAudio: shouldResetScript ? null : prev.selectedUploadedAudio
       };
       persistState(newState);
+      
+      if (shouldResetScript) {
+        console.log('🔄 Keyword changed - clearing script and audio to force regeneration');
+      }
+      
       return newState;
     });
   };
   
   const setScript = (script: Script | null) => {
     setState(prev => {
-      const newState = { ...prev, script };
+      // If script content changed, clear audio to force regeneration
+      const shouldClearAudio = prev.script?.content !== script?.content;
+      const newState = { 
+        ...prev, 
+        script,
+        // Clear audio when script content changes
+        generatedAudio: shouldClearAudio ? null : prev.generatedAudio,
+        selectedUploadedAudio: shouldClearAudio ? null : prev.selectedUploadedAudio
+      };
       persistState(newState);
+      
+      if (shouldClearAudio && script?.content && prev.script?.content) {
+        console.log('🔄 Script content changed - clearing audio to force regeneration');
+      }
+      
       return newState;
     });
   };
@@ -262,6 +291,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   };
   
   const resetState = () => {
+    console.log('🔄 Resetting entire video creation state - clearing all data including audio');
     setState(initialState);
     // Clear persisted state
     if (typeof window !== 'undefined') {
