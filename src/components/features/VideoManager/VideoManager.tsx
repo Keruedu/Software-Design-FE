@@ -13,12 +13,26 @@ import { Video } from '../../../mockdata/videos';
 import { Modal } from '../../common/Modal/Modal';
 import { Button } from '../../common/Button/Button';
 import { useVideoThumbnailSimple } from '../../../hooks/useVideoThumbnail';
+import { useVideoDuration } from '../../../hooks/useVideoDuration';
 
 interface VideoManagerProps {
   videos: Video[];
   onDelete?: (videoId: string) => void;
   isLoading?: boolean;
 }
+
+const DurationDisplay: React.FC<{ video: Video }> = ({ video }) => {
+  const { formattedDuration, isLoading } = useVideoDuration(
+    video.videoUrl || video.url, 
+    video.duration
+  );
+
+  if (isLoading) {
+    return <span className="text-xs">Loading...</span>;
+  }
+
+  return <span>{formattedDuration}</span>;
+};
 
 // Video Card Component with thumbnail hook
 const VideoCard: React.FC<{ 
@@ -120,7 +134,7 @@ const VideoCard: React.FC<{
         <p className="text-sm text-gray-500 mt-1 truncate">{video.description}</p>
         
         <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-          <span>{Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}</span>
+          <DurationDisplay video={video} />
           <span>{video.views} views</span>
         </div>
       </div>
@@ -423,12 +437,12 @@ const VideoManager: React.FC<VideoManagerProps> = ({
               
               <div className="mt-1 flex items-center text-sm text-gray-500">
                 <p>
-                  {new Date(video.createdAt).toLocaleDateString()}
+                  {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'Unknown date'}
                   &nbsp;&bull;&nbsp;
-                  {video.duration} sec
+                  <DurationDisplay video={video} />
                 </p>
               </div>
-                <div className="mt-3 flex flex-wrap gap-1">
+                {/* <div className="mt-3 flex flex-wrap gap-1">
                 {video.tags && video.tags.length > 0 ? (
                   <>
                     {video.tags.slice(0, 2).map((tag, index) => (
@@ -450,7 +464,7 @@ const VideoManager: React.FC<VideoManagerProps> = ({
                     No tags
                   </span>
                 )}
-              </div>
+              </div> */}
             </div>
           </div>
           // <VideoCard

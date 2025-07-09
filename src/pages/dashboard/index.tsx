@@ -236,53 +236,57 @@ export default function Dashboard() {
             {/* Pagination */}
             {totalVideos > videosPerPage && (
               <div className="mt-6 flex justify-center">
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1 || loading}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    Previous
-                  </button>
-                  
-                  <div className="flex items-center space-x-1">
-                    {/* Hiển thị số trang */}
-                    {Array.from({ length: Math.min(5, Math.ceil(totalVideos / videosPerPage)) }, (_, i) => {
-                      const pageNum = currentPage <= 3 ? i + 1 : 
-                                     currentPage >= Math.ceil(totalVideos / videosPerPage) - 2 ? 
-                                     Math.ceil(totalVideos / videosPerPage) - 4 + i : 
-                                     currentPage - 2 + i;
-                      
-                      if (pageNum < 1 || pageNum > Math.ceil(totalVideos / videosPerPage)) return null;
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          disabled={loading}
-                          className={`px-3 py-2 text-sm rounded-md transition-colors ${
-                            currentPage === pageNum 
-                              ? 'bg-blue-600 text-white' 
-                              : 'border border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1 || loading}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    >
+                      Previous
+                    </button>
+
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, Math.ceil(totalVideos / videosPerPage)) }, (_, i) => {
+                        const totalPages = Math.ceil(totalVideos / videosPerPage);
+                        const pageNum =
+                          currentPage <= 3
+                            ? i + 1
+                            : currentPage >= totalPages - 2
+                            ? totalPages - 4 + i
+                            : currentPage - 2 + i;
+
+                        if (pageNum < 1 || pageNum > totalPages) return null;
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            disabled={loading}
+                            className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={!hasNextPage || loading}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    >
+                      Next
+                    </button>
                   </div>
-                  
-                  <span className="text-sm text-gray-700 px-2">
+
+                  <span className="text-sm text-gray-700">
                     Page {currentPage} of {Math.ceil(totalVideos / videosPerPage)}
                   </span>
-                  
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={!hasNextPage || loading}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-                  >
-                    Next
-                  </button>
                 </div>
               </div>
             )}

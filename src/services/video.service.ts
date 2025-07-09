@@ -97,6 +97,33 @@ const getThumbnailUrl = async (videoData: any): Promise<string> => {
   return '/assets/images/thumbnails/default-video-thumbnail.svg';
 };
 
+/**
+ * Get video duration from URL by creating a video element
+ */
+const getVideoDurationFromUrl = (videoUrl: string): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    video.muted = true;
+    
+    video.onloadedmetadata = () => {
+      const duration = Math.round(video.duration) || 0;
+      resolve(duration);
+    };
+    
+    video.onerror = () => {
+      reject(new Error('Failed to load video for duration detection'));
+    };
+    
+    setTimeout(() => {
+      reject(new Error('Duration detection timeout'));
+    }, 10000);
+    
+    video.src = videoUrl;
+  });
+};
+
 export interface VideoCreationParams {
   title: string;
   description: string;
@@ -252,13 +279,43 @@ export const VideoService = {
     });
     if (!response.ok) return null;
     const v = await response.json();
+
+    // Get video duration from Cloudinary URL if not available in database
+    let videoDuration = v.duration || 0;
+    if (!videoDuration && v.url) {
+      try {
+        videoDuration = await getVideoDurationFromUrl(v.url);
+      } catch (error) {
+        console.warn('Failed to get video duration from URL:', error);
+        videoDuration = 0;
+      }
+    }
+
     return {
-      ...v,
+      id: v._id || v.id,
+      title: v.title || '',
+      description: v.content || '',
+      scriptId: v.metadata?.script_id || '',
+      voiceId: v.metadata?.voice_id || '',
+      backgroundId: v.metadata?.background_image_id || '',
+      duration: videoDuration,
+      thumbnailUrl: v.thumbnail_url || '',
+      videoUrl: v.url || '',
+      status: v.status || 'completed',
+      createdAt: v.created_at,
+      updatedAt: v.updated_at,
+      topics: [],
+      tags: v.metadata?.tags || [],
+      views: v.views || 0,
+      url: v.url || '',
+      voiceName: v.metadata?.voice_name || '',
+      backgroundName: v.metadata?.background_name || '',
       script: {
         id: v.metadata?.script_id || '',
         title: v.title,
-        content: v.metadata?.script_content || '',
+        content: v.metadata?.script_content || v.content || '',
         topic: v.metadata?.topic || '',
+        duration: videoDuration,
         createdAt: v.created_at,
         updatedAt: v.updated_at
       },
@@ -266,19 +323,20 @@ export const VideoService = {
         id: v.metadata?.voice_id || '',
         name: v.metadata?.voice_name || '',
         language: v.metadata?.voice_language || '',
-        gender: v.metadata?.voice_gender || ''
+        gender: v.metadata?.voice_gender || '',
+        previewUrl: '',
+        tags: []
       },
       background: {
         id: v.metadata?.background_image_id || '',
         title: v.metadata?.background_name || '',
-        url: v.metadata?.background_url || '',
-        category: v.metadata?.background_category || ''
+        imageUrl: v.metadata?.background_url || '',
+        category: v.metadata?.background_category || '',
+        tags: [],
+        premium: false
       },
       relatedTopics: []
     };
-
-
-    
   },
   
   
@@ -552,6 +610,10 @@ export const VideoService = {
     const processedVideos = await Promise.all((data.media || []).map(async (v: any) => {
       const thumbnailUrl = await getThumbnailUrl(v);
       
+      // Get video duration from metadata, but don't auto-detect from URL for performance
+      // Duration detection will be handled lazily in the UI components if needed
+      let videoDuration = v.metadata?.duration || v.duration || 0;
+      
       return {
         id: v.id,
         title: v.title || 'Untitled Video',
@@ -559,7 +621,7 @@ export const VideoService = {
         scriptId: v.metadata?.script_id || '',
         voiceId: v.metadata?.voice_id || '',
         backgroundId: v.metadata?.background_image_id || '',
-        duration: v.metadata?.duration || v.duration || 0,
+        duration: videoDuration,
         thumbnailUrl: thumbnailUrl,
         videoUrl: v.url,
         status: v.status || 'completed',
@@ -631,4 +693,17 @@ export const VideoService = {
     
     return response.json();
   },
-};
+
+  /**
+   * Get video duration from URL - can be called separately for lazy loading
+   */
+  getVideoDuration: async (videoUrl: string): Promise<number> => {
+    try {
+      return await getVideoDurationFromUrl(videoUrl);
+    } catch (error) {
+      console.warn('Failed to get video duration:', error);
+      return 0;
+    }
+  },
+  
+  };

@@ -653,11 +653,14 @@ useEffect(() => {
             <div className="flex items-center gap-6 text-slate-600 text-sm mb-4">
               <span className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                Created {new Date(video.createdAt).toLocaleDateString()}
+                Created {video.createdAt ? new Date(video.createdAt).toLocaleDateString() : 'Unknown date'}
               </span>
               <span className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                {video.duration} seconds
+                {video.duration ? 
+                  `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}` : 
+                  'Duration unknown'
+                }
               </span>
             </div>
             
