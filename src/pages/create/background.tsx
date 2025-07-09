@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { FiCheck, FiMic, FiRotateCcw, FiUpload } from 'react-icons/fi';
+import { MdPalette } from 'react-icons/md';
 
 import { Layout } from '../../components/layout/Layout';
 import { Button } from '../../components/common/Button/Button';
@@ -281,7 +283,10 @@ export default function BackgroundPage() {
         <div className="bg-green-50 p-4 rounded-lg border border-green-200">
           <div className="flex items-center justify-between flex-col md:flex-row">
             <div>
-              <p className="text-sm font-medium text-green-800 mb-1 max-md:text-center">✅ Using Uploaded Audio</p>
+              <p className="text-sm font-medium text-green-800 mb-1 max-md:text-center flex items-center">
+                <FiCheck className="w-4 h-4 mr-2" />
+                Using Uploaded Audio
+              </p>
               <p className="text-green-700 font-medium">{state.selectedUploadedAudio.title}</p>
             </div>
             <audio controls className="h-8 w-full md:w-3/5" src={state.selectedUploadedAudio.audioUrl}>
@@ -299,7 +304,10 @@ export default function BackgroundPage() {
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between flex-col md:flex-row">
             <div>
-              <p className="text-sm font-medium text-blue-800 mb-1 max-md:text-center">🎤 AI Generated Audio</p>
+              <p className="text-sm font-medium text-blue-800 mb-1 max-md:text-center flex items-center">
+                <FiMic className="w-4 h-4 mr-2" />
+                AI Generated Audio
+              </p>
               <p className="text-blue-700">
                 Voice: {state.selectedVoice?.name} • Duration: {Math.round(audio?.duration || 0)}s
               </p>
@@ -316,8 +324,9 @@ export default function BackgroundPage() {
     if (state.selectedVoice && !generatingAudio) {
       return (
         <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-800">
-            🔄 Audio will be generated using <strong>{state.selectedVoice.name}</strong> voice
+          <p className="text-sm text-yellow-800 flex items-center">
+            <FiRotateCcw className="w-4 h-4 mr-2" />
+            Audio will be generated using <strong>{state.selectedVoice.name}</strong> voice
           </p>
         </div>
       );
@@ -381,7 +390,7 @@ export default function BackgroundPage() {
               {/* Fallback content when no image or load error */}
               {(!style.previewImage || imageLoadErrors.has(style.id)) && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-white text-6xl opacity-30">{style.emoji || '🎨'}</div>
+                  <MdPalette className="text-white text-6xl opacity-30" />
                 </div>
               )}
               
@@ -392,7 +401,7 @@ export default function BackgroundPage() {
 
               {/* Art style icon */}
               <div className="absolute top-3 right-3 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-xl">{style.emoji || '🎨'}</span>
+                <MdPalette className="text-xl text-gray-700" />
               </div>
 
               {/* Hover effect overlay */}
@@ -471,9 +480,7 @@ export default function BackgroundPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 flex items-center">
-                <svg className="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
+                <FiUpload className="w-4 h-4 mr-2 text-purple-600" />
                 Upload Your Own Background
               </h3>
               <p className="text-xs text-gray-500">Upload a custom image to use as your video background</p>
@@ -489,8 +496,9 @@ export default function BackgroundPage() {
           {uploadedBackgrounds.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-green-600 font-medium">
-                  ✅ {uploadedBackgrounds.length} custom background{uploadedBackgrounds.length !== 1 ? 's' : ''} uploaded
+                <p className="text-xs text-green-600 font-medium flex items-center">
+                  <FiCheck className="w-3 h-3 mr-1" />
+                  {uploadedBackgrounds.length} custom background{uploadedBackgrounds.length !== 1 ? 's' : ''} uploaded
                 </p>
                 <button
                   onClick={() => {
@@ -650,8 +658,7 @@ export default function BackgroundPage() {
             { id: 'script', name: 'Script' },
             { id: 'voice', name: 'Voice' },
             { id: 'background', name: 'Background' },
-            { id: 'subtitle', name: 'Subtitle' },
-            { id: 'preview', name: 'Preview' }
+            { id: 'subtitle', name: 'Subtitle' }
           ]}
           currentStep="background"
         />
@@ -704,7 +711,7 @@ export default function BackgroundPage() {
               Back
             </Button>
             <Button onClick={handleContinue} disabled={selectedBackgrounds.length === 0} className="px-6 py-2 w-full md:w-auto">
-              Continue to Video Editor ({selectedBackgrounds.length} background
+              Continue to Subtitle ({selectedBackgrounds.length} background
               {selectedBackgrounds.length !== 1 ? 's' : ''})
             </Button>
           </div>
