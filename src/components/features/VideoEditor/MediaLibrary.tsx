@@ -39,6 +39,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaItem | null>(null);
+  const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use external media items if provided, otherwise use internal state
@@ -51,7 +52,6 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
     Array.from(files).forEach(file => {
       
       if (!file.type.startsWith('audio/')) {
-        // Có thể thêm cảnh báo nếu muốn: toast.warning('Chỉ cho phép file âm thanh');
         toast.error('Only audio files are allowed',
           {
             position: "bottom-right",
@@ -67,7 +67,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
         const url = e.target?.result as string;
         // const mediaType = file.type.startsWith('image/') ? 'image' : 
         //                  file.type.startsWith('video/') ? 'video' : 'audio';
-        const mediaType = 'audio'; // Mặc định là audio
+        const mediaType = 'audio'; 
         
         const newMedia: MediaItem = {
           id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -77,38 +77,6 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
           size: file.size,
           uploadedAt: new Date()
         };
-
-        // Create thumbnail for images and videos
-        // if (mediaType === 'image') {
-        //   newMedia.thumbnail = url;
-        // } else if (mediaType === 'video') {
-        //   // Create video thumbnail
-        //   const video = document.createElement('video');
-        //   video.src = url;
-        //   video.currentTime = 1; // Get frame at 1 second
-        //   video.addEventListener('loadedmetadata', () => {
-        //     newMedia.duration = video.duration;
-        //   });
-        //   video.addEventListener('seeked', () => {
-        //     const canvas = document.createElement('canvas');
-        //     canvas.width = video.videoWidth;
-        //     canvas.height = video.videoHeight;
-        //     const ctx = canvas.getContext('2d');
-        //     ctx?.drawImage(video, 0, 0);
-        //     newMedia.thumbnail = canvas.toDataURL();
-        //     if (setExternalMediaItems) {
-        //       setExternalMediaItems(prev => 
-        //         prev.map(item => item.id === newMedia.id ? newMedia : item)
-        //       );
-        //     } else {
-        //       setInternalMediaItems(prev => 
-        //         prev.map(item => item.id === newMedia.id ? newMedia : item)
-        //       );
-        //     }
-        //   });
-        // } else 
-        // if (mediaType === 'audio') {
-          // Get audio duration
           
         const audio = document.createElement('audio');
         audio.src = url;
@@ -218,6 +186,22 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
     setItemToDelete(null);
   };
 
+  // Handle delete all media
+  const handleDeleteAllMedia = () => {
+    setDeleteAllModalOpen(true);
+  };
+
+  const confirmDeleteAllMedia = () => {
+    setMediaItems([]);
+    mediaItems.forEach(item => onDeleteMedia?.(item.id));
+    showNotification?.('All media have been deleted.', 'success');
+    setDeleteAllModalOpen(false);
+  };
+
+  const cancelDeleteAllMedia = () => {
+    setDeleteAllModalOpen(false);
+  };
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col">
       {/* Header */}
@@ -234,30 +218,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             </button>
           </div>
 
-          {/* Filter Tabs - Chỉ hiển thị Music */}
           <div className="flex space-x-1">
-            {/* Comment code cũ - Hiển thị tất cả tab
-            {[
-              { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
-              { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
-              { key: 'video', label: 'Video', icon: <FaVideo className="w-3 h-3" /> },
-              { key: 'audio', label: 'Audio', icon: <FaMusic className="w-3 h-3" /> }
-            ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setSelectedType(tab.key as any)}
-              className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${
-                selectedType === tab.key 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))} */}
-            
-            {/* Chỉ hiển thị Music tab */}
             {[
               { key: 'audio', label: 'Music', icon: <FaMusic className="w-3 h-3" /> }
             ].map(tab => (
@@ -298,13 +259,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                   {filteredMedia.length} media
                 </span>
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete all media?')) {
-                      setMediaItems([]);
-                      mediaItems.forEach(item => onDeleteMedia?.(item.id));
-                      showNotification?.('All media have been deleted.', 'success');
-                    }
-                  }}
+                  onClick={handleDeleteAllMedia}
                   className="text-xs text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
                   title="Delete all media"
                 >
@@ -313,28 +268,6 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               </div>
             )}
           </div>
-
-          {/* <div className="flex space-x-1">
-            {[
-              { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
-              { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
-              { key: 'video', label: 'Video', icon: <FaVideo className="w-3 h-3" /> },
-              { key: 'audio', label: 'Audio', icon: <FaMusic className="w-3 h-3" /> }
-            ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setSelectedType(tab.key as any)}
-              className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${
-                selectedType === tab.key 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-          </div> */}
         </div>
       )}
 
@@ -510,6 +443,57 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
         onChange={(e) => handleFileUpload(e.target.files)}
         className="hidden"
       />
+
+      {/* Delete All Confirmation Modal */}
+      {deleteAllModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Delete All Media</h3>
+              <button
+                onClick={cancelDeleteAllMedia}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-3">
+                Are you sure you want to delete all media files? This action cannot be undone.
+              </p>
+              <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                <div className="flex items-center space-x-2">
+                  <FaTrash className="w-4 h-4 text-red-600" />
+                  <span className="font-medium text-red-900">
+                    {filteredMedia.length} media file{filteredMedia.length !== 1 ? 's' : ''} will be deleted
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDeleteAllMedia}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteAllMedia}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete All
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && itemToDelete && (
