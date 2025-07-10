@@ -22,6 +22,10 @@ export const authService = {
     const response = await api.get('/user/facebook/auth');
     return response.data;
   },
+  async getTikTokAuthUrl(): Promise<{ auth_url: string }> {
+    const response = await api.get('/user/tiktok/auth');
+    return response.data;
+  },
   async logout(): Promise<void> {
     await api.post('/user/logout');
   },

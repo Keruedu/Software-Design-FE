@@ -53,5 +53,27 @@ export const SocialService = {
       throw new Error(error.detail || 'Failed to upload video to YouTube');
     }
     return response;
+  },
+  uploadVideoToTikTok: async (
+    mediaId: string,
+    title: string,
+  ): Promise<Response> => {
+    const token = localStorage.getItem('access_token');
+    const formData = new FormData();
+    formData.append('platform', 'tiktok');
+    formData.append('media_id', mediaId);
+    formData.append('title', title);
+
+    const response = await fetch(`${API_BASE_URL}/social/upload-video`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to upload video to TikTok');
+    }
+    return response;
   }
 };
+

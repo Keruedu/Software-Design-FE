@@ -18,6 +18,7 @@ export interface AuthContextType {
   register: (username: string, email: string, fullName: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithFacebook: () => Promise<void>;
+  loginWithTikTok: () => Promise<void>;
 }
 
 const initialState: AuthState = {
@@ -117,7 +118,14 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       throw new Error('Không thể bắt đầu đăng nhập Facebook');
     }
   };
-
+ const loginWithTikTok = async (): Promise<void> => {
+    try {
+      const response = await authService.getTikTokAuthUrl();
+      window.location.href = response.auth_url;
+    } catch (error) {
+      throw new Error('Không thể bắt đầu đăng nhập TikTok');
+    }
+  };
   const register = async (username: string, email: string, fullName: string, password: string): Promise<void> => {
     try {
       await authService.register({ username, email, fullName, password });
@@ -156,6 +164,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     logout,
     loginWithGoogle,
     loginWithFacebook,
+    loginWithTikTok,
     register
   };
   

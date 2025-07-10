@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import { FiMail, FiLock, FiLogIn, FiUser } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
-import { FaFacebook } from 'react-icons/fa';
+import { FaFacebook,FaTiktok } from 'react-icons/fa';
 
 
 import { Button } from '../../components/common/Button/Button';
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
-  const { login, loginWithGoogle, loginWithFacebook } = useAuth();
+  const { login, loginWithGoogle, loginWithFacebook,loginWithTikTok } = useAuth();
   
   
   useEffect(() => {
@@ -226,6 +226,15 @@ export default function LoginPage() {
                     icon={<FaFacebook className="h-5 w-5" />}
                   >
                     Sign in with Facebook
+                  </Button>
+                   <Button
+                    type="button"
+                    variant="primary"
+                    className="w-full flex items-center justify-center gap-3 bg-gray-900 border-2 border-gray-600 text-white hover:bg-gray-700 hover:border-gray-700 py-3 rounded-xl font-medium transition-all duration-200"
+                    onClick={loginWithTikTok}
+                    icon={<FaTiktok className="h-5 w-5" />}
+                  >
+                    Sign in with TikTok
                   </Button>
                 </div>
 

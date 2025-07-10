@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef, use } from 'react';
 import { FiDownload, FiShare2, FiTrash2, FiArrowLeft, FiChevronDown, FiEye, FiHeart, FiMessageCircle, FiRefreshCw } from 'react-icons/fi';
-import { FaYoutube, FaFacebook, FaInstagram, FaThumbsUp, FaShare } from 'react-icons/fa';
+import { FaYoutube, FaFacebook, FaInstagram, FaThumbsUp, FaShare,FaTiktok } from 'react-icons/fa';
 import ReactPlayer from 'react-player';
 import { Layout } from '../../../components/layout/Layout';
 import { Button } from '../../../components/common/Button/Button';
@@ -152,7 +152,10 @@ const VideoDetailPage = () => {
   const [selectedPageId, setSelectedPageId] = useState('');
   const [isUploadingFb, setIsUploadingFb] = useState(false);
   const [downloadLoading, setDownloadLoading] = useState(false);
-  
+  //TikTok upload states
+  const [tiktokTitle, setTikTokTitle] = useState('');
+  const [isUploadingTikTok, setIsUploadingTikTok] = useState(false);
+  const [showTikTokModal, setShowTikTokModal] = useState(false);
   useEffect(() => {
     const fetchVideo = async () => {
       if (!id) return;
@@ -457,7 +460,7 @@ useEffect(() => {
   };
 
   const handleShareToYoutube = () => {
-    if (!auth.user?.social_credentials?.google) {
+    if (!auth.user?.social_credentials?.google?.email) {
       toast.error('You need to link your Google account first!');
       setTimeout(() => {
         window.location.href = '/auth/linkGoogle';
@@ -469,7 +472,7 @@ useEffect(() => {
   };
 
   const handleShareToFacebook = () => {
-    if (!auth.user?.social_credentials?.facebook) {
+    if (!auth.user?.social_credentials?.facebook?.email) {
       toast.error('You need to link your Facebook account first!',
         {
           position: 'bottom-right',
@@ -484,12 +487,24 @@ useEffect(() => {
     handleOpenFacebookModal();
     setShowShareDropdown(false);
   };
-
-  const handleShareToInstagram = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/dashboard/video/${id}`);
-    toast.success('Link copied! Paste it in your Instagram post or story');
+  const handleShareToTikTok = () => {
+    if (!auth.user?.social_credentials?.tiktok?.open_id) {
+      toast.error('You need to link your TikTok account first!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      setTimeout(() => {
+        window.location.href = '/auth/linkTikTok';
+      }, 1200);
+      return;
+    }
+    handleOpenTikTokModal();
     setShowShareDropdown(false);
   };
+
+
   
   const handleOpenUploadModal = () => {
     setYtTitle(video?.title || '');
@@ -504,10 +519,14 @@ useEffect(() => {
     setFbDesc(video?.description || '');
     setShowFacebookModal(true);
   };
+  const handleOpenTikTokModal = () => {
+    setTikTokTitle(video?.title || '');
+    setShowTikTokModal(true);
+  };
   
   const handleUploadToYouTube = async () => {
     if (!video) return;
-    if (!auth.user?.social_credentials?.google) {
+    if (!auth.user?.social_credentials?.google?.email) {
       toast.error('You need to link your Google account before uploading to YouTube!',
         {
           position: 'bottom-right',
@@ -553,7 +572,7 @@ useEffect(() => {
   const handleUploadToFacebook = async () => {
     if (!video || !selectedPageId) return;
     
-    if (!auth.user?.social_credentials?.facebook) {
+    if (!auth.user?.social_credentials?.facebook?.email) {
       toast.error('You need to link your Facebook account before uploading!',
         {
           position: 'bottom-right',
@@ -610,6 +629,57 @@ useEffect(() => {
       );
     } finally {
       setIsUploadingFb(false);
+    }
+  };
+
+  const handleUploadToTikTok = async () => {
+    if (!video) return;
+    
+    if (!auth.user?.social_credentials?.tiktok?.open_id) {
+      toast.error('You need to link your TikTok account before uploading!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      setTimeout(() => {
+        window.location.href = '/auth/linkTikTok';
+      }, 1200);
+      return;
+    }
+
+    try {
+      setIsUploadingTikTok(true);
+      const response = await SocialService.uploadVideoToTikTok(
+        video.id,
+        tiktokTitle
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'TikTok upload failed');
+      }
+
+      const result = await response.json();
+      
+      toast.success('Successfully uploaded to TikTok!',
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+      
+      setShowTikTokModal(false);
+      
+    } catch (err: any) {
+      toast.error('TikTok upload failed: ' + err.message,
+        {
+          position: 'bottom-right',
+          autoClose: 3000,
+        }
+      );
+    } finally {
+      setIsUploadingTikTok(false);
     }
   };
   
@@ -913,13 +983,13 @@ useEffect(() => {
                             <FaFacebook className="text-blue-500" />
                             Facebook
                           </button>
-                          {/* <button
-                            onClick={handleShareToInstagram}
+                          <button
+                            onClick={handleShareToTikTok}
                             className="w-full px-4 py-2.5 text-left hover:bg-pink-50 flex items-center gap-3 text-slate-700 hover:text-pink-600 text-sm transition-colors"
                           >
-                            <FaInstagram className="text-pink-500" />
-                            Instagram
-                          </button> */}
+                            <FaTiktok className="text-black" />
+                            TikTok
+                          </button> 
                         </div>
                       </div>
                     )}
@@ -1103,6 +1173,48 @@ useEffect(() => {
               className="bg-red-500 hover:bg-red-600 text-white border-0"
             >
               {isUploading ? 'Uploading...' : 'Upload to YouTube'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        isOpen={showTikTokModal}
+        onClose={() => setShowTikTokModal(false)}
+        title="Upload to TikTok"
+      >
+        <div className="p-6">
+          <div className="text-center mb-6">
+            <FaTiktok className="w-10 h-10 text-black mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-slate-800 mb-1">Upload to TikTok</h3>
+            <p className="text-slate-600 text-sm">Customize your video information before uploading</p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+              <input
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-gray-800"
+                value={tiktokTitle}
+                onChange={e => setTikTokTitle(e.target.value)}
+                placeholder="Enter video title"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowTikTokModal(false)}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUploadToTikTok} 
+              disabled={isUploadingTikTok|| !tiktokTitle.trim()}
+              className="bg-gray-950 hover:bg-black text-white border-0"
+            >
+              {isUploadingTikTok ? 'Uploading...' : 'Upload to TikTok'}
             </Button>
           </div>
         </div>
