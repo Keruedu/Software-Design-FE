@@ -18,11 +18,12 @@ export const ScriptService = {
   generateScript: async (
     topic: string, 
     keywords: string[] = [], 
-    aiModel: 'gemini' | 'deepseek' = 'deepseek'
+    aiModel: 'gemini' | 'deepseek' = 'deepseek',
+    styleTags: string[] = []
   ): Promise<Script> => {
     try {
       // Create cache key to prevent duplicate requests
-      const cacheKey = `${topic}-${keywords.join(',')}-${aiModel}`;
+      const cacheKey = `${topic}-${keywords.join(',')}-${aiModel}-${styleTags.join(',')}`;
       const now = Date.now();
       
       // Check if we have a recent request for the same parameters
@@ -35,7 +36,12 @@ export const ScriptService = {
       }
       
       // Create the prompt for AI generation
-      const prompt = `Create a video script about: ${topic}. Keywords: ${keywords.join(', ')}`;
+      let prompt = `Create a video script about: ${topic}. Keywords: ${keywords.join(', ')}`;
+      
+      // Add style tags to the prompt if available
+      if (styleTags && styleTags.length > 0) {
+        prompt += `. Style: ${styleTags.join(', ')}`;
+      }
       
       // Create the request promise
       const requestPromise = (async () => {

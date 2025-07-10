@@ -396,7 +396,7 @@ export default function BackgroundPage() {
               
               {/* Style name overlay */}
               <div className="absolute bottom-3 left-3 right-3">
-                <h3 className="font-bold text-white text-lg drop-shadow-lg">{style.name}</h3>
+                <span className="font-bold text-white text-lg drop-shadow-lg">{style.name}</span>
               </div>
 
               {/* Art style icon */}

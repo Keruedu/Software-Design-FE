@@ -28,6 +28,7 @@ interface VideoCreationState {
   subtitleOptions: SubtitleOptions | null;
   editSettings: VideoEditParams;
   selectedAIModel: 'gemini' | 'deepseek'; // New: AI model selection for text generation
+  scriptStyleTags: string[]; // New: style tags for script generation personalization
 }
 
 interface VideoCreationContextType {
@@ -44,6 +45,7 @@ interface VideoCreationContextType {
   setSubtitleOptions: (options: SubtitleOptions | null) => void;
   setEditSettings: (settings: Partial<VideoEditParams>) => void;
   setSelectedAIModel: (model: 'gemini' | 'deepseek') => void; // New method for AI model selection
+  setScriptStyleTags: (styleTags: string[]) => void; // New method for script style personalization
   resetState: () => void;
 }
 
@@ -67,7 +69,8 @@ const initialState: VideoCreationState = {
     subtitles: true,
     filters: []
   },
-  selectedAIModel: 'deepseek' // Default to deepseek
+  selectedAIModel: 'deepseek', // Default to deepseek
+  scriptStyleTags: [] // Initialize with empty array
 };
 
 const VideoCreationContext = createContext<VideoCreationContextType | undefined>(undefined);
@@ -102,6 +105,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
           selectedBackground: parsed.selectedBackground || null,
           subtitleOptions: parsed.subtitleOptions || null,
           selectedAIModel: parsed.selectedAIModel || 'deepseek', // Add AI model to persistence
+          scriptStyleTags: parsed.scriptStyleTags || [], // Add script style tags to persistence
           step: parsed.step || 'topic'
         };
       }
@@ -129,6 +133,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
         selectedBackground: newState.selectedBackground,
         subtitleOptions: newState.subtitleOptions,
         selectedAIModel: newState.selectedAIModel, // Add AI model to persistence
+        scriptStyleTags: newState.scriptStyleTags, // Add script style tags to persistence
         step: newState.step
       };
       localStorage.setItem('videoCreationState', JSON.stringify(stateToPersist));
@@ -189,9 +194,16 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setState(prev => {
       // If script content changed, clear audio to force regeneration
       const shouldClearAudio = prev.script?.content !== script?.content;
+      
+      // If the script has style tags, use them; otherwise, keep current style tags
+      const updatedScript = script ? {
+        ...script,
+        styleTags: script.styleTags || prev.scriptStyleTags
+      } : null;
+      
       const newState = { 
         ...prev, 
-        script,
+        script: updatedScript,
         // Clear audio when script content changes
         generatedAudio: shouldClearAudio ? null : prev.generatedAudio,
         selectedUploadedAudio: shouldClearAudio ? null : prev.selectedUploadedAudio
@@ -287,6 +299,14 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     });
   };
   
+  const setScriptStyleTags = (styleTags: string[]) => {
+    setState(prev => {
+      const newState = { ...prev, scriptStyleTags: styleTags };
+      persistState(newState);
+      return newState;
+    });
+  };
+  
   const resetState = () => {
     console.log('🔄 Resetting entire video creation state - clearing all data including audio');
     setState(initialState);
@@ -310,6 +330,7 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
     setSubtitleOptions,
     setEditSettings,
     setSelectedAIModel, // Add AI model setter
+    setScriptStyleTags, // Add script style tags setter
     resetState
   };
   
