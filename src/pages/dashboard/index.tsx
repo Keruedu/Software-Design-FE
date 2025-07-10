@@ -10,7 +10,6 @@ import { VideoService } from '../../services/video.service';
 import { Video } from '../../mockdata/videos';
 import VideoManager from '../../components/features/VideoManager/VideoManager';
 import { useAuth } from '../../context/AuthContext';
-import { formatNumber } from '../../utils/format';
 import { toast } from 'react-toastify';
 
 export default function Dashboard() {
@@ -25,9 +24,9 @@ export default function Dashboard() {
   
   const [stats, setStats] = useState({
     totalVideos: 0,
-    totalViews: 0,
-    totalDuration: 0,
-    videosThisMonth: 0
+    videosThisMonth: 0,
+    videosToday: 0,
+    videosThisWeek: 0
   });
   
   useEffect(() => {
@@ -54,13 +53,13 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const statsData = await VideoService.getVideoStats();
+        const statsData = await VideoService.getEnhancedVideoStats();
         
         setStats({
           totalVideos: statsData.total_videos,
-          totalViews: statsData.total_views,
-          totalDuration: statsData.total_duration,
-          videosThisMonth: statsData.videos_this_month || 0
+          videosThisMonth: statsData.videos_this_month,
+          videosToday: statsData.videos_today,
+          videosThisWeek: statsData.videos_this_week
         });
       } catch (err) {
         console.error('Error fetching video stats:', err);
@@ -78,12 +77,12 @@ export default function Dashboard() {
       setVideos(videos.filter(video => video.id !== id));
       
       try {
-        const statsData = await VideoService.getVideoStats();
+        const statsData = await VideoService.getEnhancedVideoStats();
         setStats({
           totalVideos: statsData.total_videos,
-          totalViews: statsData.total_views,
-          totalDuration: statsData.total_duration,
-          videosThisMonth: statsData.videos_this_month || 0
+          videosThisMonth: statsData.videos_this_month,
+          videosToday: statsData.videos_today,
+          videosThisWeek: statsData.videos_this_week
         });
       } catch (statsErr) {
         if (videoToDelete) {
@@ -96,12 +95,33 @@ export default function Dashboard() {
             );
           })();
 
+          const isVideoFromToday = (() => {
+            const createdAt = new Date(videoToDelete.createdAt);
+            const now = new Date();
+            return (
+              createdAt.getDate() === now.getDate() &&
+              createdAt.getMonth() === now.getMonth() && 
+              createdAt.getFullYear() === now.getFullYear()
+            );
+          })();
+
+          const isVideoFromThisWeek = (() => {
+            const createdAt = new Date(videoToDelete.createdAt);
+            const now = new Date();
+            const daysSinceMonday = now.getDay() === 0 ? 6 : now.getDay() - 1; // Convert Sunday (0) to 6
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - daysSinceMonday);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            return createdAt >= startOfWeek;
+          })();
+
           setStats(prev => ({
             ...prev,
             totalVideos: prev.totalVideos - 1,
-            totalViews: prev.totalViews - videoToDelete.views,
-            totalDuration: prev.totalDuration - videoToDelete.duration,
-            videosThisMonth: isVideoFromThisMonth ? prev.videosThisMonth - 1 : prev.videosThisMonth
+            videosThisMonth: isVideoFromThisMonth ? prev.videosThisMonth - 1 : prev.videosThisMonth,
+            videosToday: isVideoFromToday ? prev.videosToday - 1 : prev.videosToday,
+            videosThisWeek: isVideoFromThisWeek ? prev.videosThisWeek - 1 : prev.videosThisWeek
           }));
         }
       }
@@ -166,11 +186,13 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <FiTrendingUp className="h-6 w-6" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Total Views</p>
-                  <p className="text-2xl font-semibold text-gray-900">{formatNumber(stats.totalViews)}</p>
+                  <p className="text-sm font-medium text-gray-500">Videos Today</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.videosToday}</p>
                 </div>
               </div>
             </div>
@@ -178,11 +200,13 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                  <FiClock className="h-6 w-6" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Total Duration</p>
-                  <p className="text-2xl font-semibold text-gray-900">{Math.round(stats.totalDuration / 60)} min</p>
+                  <p className="text-sm font-medium text-gray-500">Videos This Week</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.videosThisWeek}</p>
                 </div>
               </div>
             </div>
@@ -203,7 +227,8 @@ export default function Dashboard() {
           </div>
           
           {/* Videos Section */}
-          <div className="mb-8">              <div className="flex justify-between items-center mb-4">
+          <div className="mb-8">              
+            {/* <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-gray-900">Your Videos</h2>
                 <div className="flex items-center">
                   <span className="text-gray-500 text-sm mr-4">
@@ -219,7 +244,7 @@ export default function Dashboard() {
                     <option value="oldest">Oldest First</option>
                   </select>
                 </div>
-              </div>
+              </div> */}
             
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">

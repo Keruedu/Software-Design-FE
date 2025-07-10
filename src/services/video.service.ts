@@ -135,6 +135,7 @@ export interface VideoCreationParams {
 
 export interface CompleteVideoCreationParams {
   script_text: string;
+  title?: string; // Optional video title
   voice_id?: string; // Optional for backward compatibility
   audio_url?: string; // Audio URL from upload or AI generation
   audio_source?: 'uploaded' | 'generated' | 'voice_generation'; // Track audio source
@@ -691,6 +692,79 @@ export const VideoService = {
       throw new Error('Failed to get video statistics');
     }
     
+    return response.json();
+  },
+
+  /**
+   * Enhanced video statistics with daily, weekly, and monthly stats
+   */
+  getEnhancedVideoStats: async (): Promise<{
+    total_videos: number;
+    videos_this_month: number;
+    videos_today: number;
+    videos_this_week: number;
+  }> => {
+    const token = localStorage.getItem('access_token');
+    
+    const response = await fetch(`${API_BASE_URL}/media/video/stats/enhanced`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get enhanced video statistics');
+    }
+
+    return response.json();
+  },
+
+  // Daily video statistics
+  getDailyVideoStats: async (date?: string): Promise<{
+    date: string;
+    videos_today: number;
+    videos: any[];
+  }> => {
+    const token = localStorage.getItem('access_token');
+    
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    
+    const queryString = params.toString();
+    const url = `${API_BASE_URL}/media/video/stats/daily${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get daily video statistics');
+    }
+
+    return response.json();
+  },
+
+  // Weekly video statistics
+  getWeeklyVideoStats: async (date?: string): Promise<{
+    week_start: string;
+    week_end: string;
+    videos_this_week: number;
+    videos: any[];
+  }> => {
+    const token = localStorage.getItem('access_token');
+    
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    
+    const queryString = params.toString();
+    const url = `${API_BASE_URL}/media/video/stats/weekly${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get weekly video statistics');
+    }
+
     return response.json();
   },
 

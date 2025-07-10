@@ -27,6 +27,7 @@ export default function SubtitlePage() {
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [selectedStyleName, setSelectedStyleName] = useState('default');
   const [enable, setEnable] = useState(true);
+  const [videoTitle, setVideoTitle] = useState(state.script?.title || 'Untitled Video');
   // Preview
   const [previewHtml, setPreviewHtml] = useState('');
   
@@ -47,6 +48,13 @@ export default function SubtitlePage() {
   useEffect(() => {
     generateStylePreview(selectedStyleName);
   }, [selectedStyleName]);
+
+  // Update video title when script changes
+  useEffect(() => {
+    if (state.script?.title && !videoTitle.trim()) {
+      setVideoTitle(state.script.title);
+    }
+  }, [state.script?.title, videoTitle]);
 
   const generateStylePreview = (styleName: string) => {
     try {
@@ -92,6 +100,7 @@ export default function SubtitlePage() {
       // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
+        title: videoTitle.trim() || 'Untitled Video',
         // Priority: uploaded audio URL > generated audio URL > voice_id for generation
         ...(state.selectedUploadedAudio 
           ? { 
@@ -166,6 +175,7 @@ export default function SubtitlePage() {
       // Create complete video using real API
       const params = {
         script_text: state.script?.content || '',
+        title: videoTitle.trim() || 'Untitled Video',
         // Priority: uploaded audio URL > generated audio URL > voice_id for generation
         ...(state.selectedUploadedAudio 
           ? { 
@@ -319,6 +329,33 @@ export default function SubtitlePage() {
             )}
           </div>
 
+          {/* Video Title Configuration */}
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="font-medium text-gray-900 mb-3">🏷️ Video Title</h3>
+            <div className="space-y-2">
+              <label htmlFor="videoTitle" className="block text-sm font-medium text-gray-700">
+                Enter a title for your video
+              </label>
+              <input
+                type="text"
+                id="videoTitle"
+                value={videoTitle}
+                onChange={(e) => setVideoTitle(e.target.value)}
+                placeholder="Enter video title..."
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  !videoTitle.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+                maxLength={100}
+              />
+              <p className={`text-xs ${!videoTitle.trim() ? 'text-red-500' : 'text-gray-500'}`}>
+                {!videoTitle.trim() ? 
+                  'Title is required to create video' : 
+                  `This title will be used when saving and displaying your video (${videoTitle.length}/100 characters)`
+                }
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-6">
             {/* Enable/Disable Subtitles */}
             <div>
@@ -425,7 +462,7 @@ export default function SubtitlePage() {
               <Button 
                 variant="outline"
                 onClick={handleEditVideo}
-                disabled={!hasAudio || isExporting}
+                disabled={!hasAudio || isExporting || !videoTitle.trim()}
                 isLoading={isExporting&&enable}
                 className="flex items-center space-x-2"
               >
@@ -434,7 +471,7 @@ export default function SubtitlePage() {
               </Button>
               <Button 
                 onClick={handleExportVideo}
-                disabled={!hasAudio ||isExporting}
+                disabled={!hasAudio || isExporting || !videoTitle.trim()}
                 isLoading={isExporting||!enable}
                 className="flex items-center space-x-2"
               >
@@ -488,7 +525,7 @@ export default function SubtitlePage() {
             </div>
           )}
           <div className="bg-gray-100 p-4 rounded-lg">
-            <p className="font-medium text-gray-900">{state.script?.title || 'Untitled Video'}</p>
+            <p className="font-medium text-gray-900">{videoTitle || 'Untitled Video'}</p>
             <p className="text-sm text-gray-500 mb-3">Created with AI technology</p>
           </div>
         </div>
