@@ -423,7 +423,7 @@ export default function VoicePage() {
             </div>
           </div>
           
-          {/* Voice settings - only show if using AI voice */}
+          {/* Voice settings - only show if using AI voice
           {!useUploadedAudio && (
             <div className="mb-10">
               <h2 className="text-lg font-medium text-gray-900 mb-6">Voice Settings</h2>
@@ -472,7 +472,7 @@ export default function VoicePage() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
           
           <div className="flex flex-col md:flex-row md:justify-between gap-4 pt-6 border-t border-gray-200">
             <Button variant="outline" onClick={handleBack} className="px-6 py-2 w-full md:w-auto">
