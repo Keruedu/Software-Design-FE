@@ -223,28 +223,29 @@ export default function SubtitlePage() {
     }
   };
 
-  const handleDownloadVideo = async () => {
-    if (!exportedVideoUrl) return;
-    
-    try {
-      // Extract video ID from URL or use a stored ID
-      const videoId = exportedVideoUrl.split('/').pop()?.split('.')[0];
-      if (videoId) {
-        const blob = await VideoService.downloadVideo(videoId);
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `video-${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download video. Please try again.');
+ const handleDownloadVideo = async () => {
+  if (!exportedVideoUrl) return;
+  
+  try {
+    const response = await fetch(exportedVideoUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error('Download error:', err);
+    alert('Failed to download video. Please try again.');
+  }
+};
+
   
   const handleGoToDashboard = () => {
     setStep('topic'); // Reset creation flow
