@@ -16,6 +16,7 @@ export interface Script {
   imagePrompts?: string[]; // AI-generated image prompts for backgrounds
   wikipediaSources?: WikipediaSource[]; // Wikipedia sources used for generation
   wikipediaTopic?: string; // Main Wikipedia topic searched
+  styleTags?: string[]; // Style tags for personalized script generation
 }
 
 export const mockScripts: Script[] = [

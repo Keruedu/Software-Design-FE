@@ -174,5 +174,45 @@ export const TrendsService = {
       console.error('Error tracking search:', error);
       return { success: false, message: 'Failed to track search' };
     }
-  }
+  },
+
+  /**
+   * Get search suggestions for trending topics as user types
+   */
+  getSuggestions: async (query: string): Promise<{ text: string, type: 'topic' | 'keyword' }[]> => {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/trending/suggestions?q=${encodeURIComponent(query)}&limit=5`);
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.suggestions;
+      
+    } catch (error) {
+      console.error('Error fetching search suggestions:', error);
+      
+      // Fallback to mock suggestions if API fails
+      const normalizedQuery = query.toLowerCase();
+      
+      // Create mock suggestions based on existing topics
+      const mockSuggestions = trendingTopics
+        .filter(topic => 
+          topic.title.toLowerCase().includes(normalizedQuery) || 
+          topic.keywords.some(kw => kw.toLowerCase().includes(normalizedQuery))
+        )
+        .slice(0, 5)
+        .map(topic => ({
+          text: topic.title,
+          type: 'topic' as const
+        }));
+      
+      return mockApiCall(mockSuggestions);
+    }
+  },
 };
