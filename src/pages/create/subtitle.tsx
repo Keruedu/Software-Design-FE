@@ -26,8 +26,8 @@ export default function SubtitlePage() {
   // Subtitle configuration - only style selection
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [selectedStyleName, setSelectedStyleName] = useState('default');
-  const [enable, setEnable] = useState(true);
   const [videoTitle, setVideoTitle] = useState(state.script?.title || 'Untitled Video');
+  const [isEditing, setIsEditing] = useState(false);
   // Preview
   const [previewHtml, setPreviewHtml] = useState('');
   
@@ -83,7 +83,6 @@ export default function SubtitlePage() {
   const handleExportVideo = async () => {
     setIsExporting(true);
     setError(null);
-    setEnable(false);
     try {
       // Save subtitle options to context first
       const subtitleOptions: SubtitleOptions = {
@@ -151,12 +150,11 @@ export default function SubtitlePage() {
       console.error('Video export error:', err);
     } finally {
       setIsExporting(false);
-      setEnable(true);
     }
   };
 
   const handleEditVideo = async () => {
-    setIsExporting(true);
+    setIsEditing(true);
     setError(null);
     
     try {
@@ -229,32 +227,33 @@ export default function SubtitlePage() {
       setError(err.message || 'Failed to create video for editing. Please try again.');
       console.error('Video creation error:', err);
     } finally {
-      setIsExporting(false);
+      setIsEditing(false);
     }
   };
 
-  const handleDownloadVideo = async () => {
-    if (!exportedVideoUrl) return;
-    
-    try {
-      // Extract video ID from URL or use a stored ID
-      const videoId = exportedVideoUrl.split('/').pop()?.split('.')[0];
-      if (videoId) {
-        const blob = await VideoService.downloadVideo(videoId);
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `video-${Date.now()}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
-    } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download video. Please try again.');
+ const handleDownloadVideo = async () => {
+  if (!exportedVideoUrl) return;
+  
+  try {
+    const response = await fetch(exportedVideoUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `video-${Date.now()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (err) {
+    console.error('Download error:', err);
+    alert('Failed to download video. Please try again.');
+  }
+};
+
   
   const handleGoToDashboard = () => {
     setStep('topic'); // Reset creation flow
@@ -462,8 +461,8 @@ export default function SubtitlePage() {
               <Button 
                 variant="outline"
                 onClick={handleEditVideo}
-                disabled={!hasAudio || isExporting || !videoTitle.trim()}
-                isLoading={isExporting&&enable}
+                disabled={!hasAudio || !videoTitle.trim()}
+                isLoading={isEditing}
                 className="flex items-center space-x-2"
               >
                 <HiPencil className="h-4 w-4" />
@@ -471,8 +470,8 @@ export default function SubtitlePage() {
               </Button>
               <Button 
                 onClick={handleExportVideo}
-                disabled={!hasAudio || isExporting || !videoTitle.trim()}
-                isLoading={isExporting||!enable}
+                disabled={!hasAudio || !videoTitle.trim()}
+                isLoading={isExporting}
                 className="flex items-center space-x-2"
               >
                 <HiDownload className="h-4 w-4" />
