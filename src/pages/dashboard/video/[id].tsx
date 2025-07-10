@@ -237,33 +237,6 @@ useEffect(() => {
 }, [id, listVideoFacebook, listVideoYoutube]);
 
   
-  // // Fetch social media statistics
-  // useEffect(() => {
-  //   const fetchSocialStats = async () => {
-  //     if (!id) return;
-      
-  //     try {
-  //       setLoadingStats(true);
-  //       // Replace with actual API endpoint
-  //       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/video/${id}/social-stats`, {
-  //         headers: {
-  //           Authorization: `Bearer ${auth.token}`,
-  //         },
-  //       });
-        
-  //       if (response.ok) {
-  //         const stats = await response.json();
-  //         setSocialStats(stats);
-  //       }
-  //     } catch (err) {
-  //       console.error('Failed to fetch social media statistics:', err);
-  //     } finally {
-  //       setLoadingStats(false);
-  //     }
-  //   };
-    
-  //   fetchSocialStats();
-  // }, [id, auth.token]);
 
 
   useEffect(() => {
@@ -795,8 +768,8 @@ useEffect(() => {
                             <div className="grid grid-cols-3 gap-4">
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-blue-600 mb-1">
-                                  <FiEye className="text-sm" />
-                                  <span className="text-xs font-medium">Views</span>
+                                  <FiEye className="text-base" />
+                                  <span className="text-sm font-medium">Views</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.view_count.toLocaleString()}
@@ -805,8 +778,8 @@ useEffect(() => {
                               
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-red-600 mb-1">
-                                  <FiHeart className="text-sm" />
-                                  <span className="text-xs font-medium">Likes</span>
+                                  <FiHeart className="text-base" />
+                                  <span className="text-sm font-medium">Likes</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.like_count.toLocaleString()}
@@ -815,8 +788,8 @@ useEffect(() => {
                               
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
-                                  <FiMessageCircle className="text-sm" />
-                                  <span className="text-xs font-medium">Comments</span>
+                                  <FiMessageCircle className="text-base" />
+                                  <span className="text-sm font-medium">Comments</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.comment_count.toLocaleString()}
@@ -852,8 +825,8 @@ useEffect(() => {
                             <div className="grid grid-cols-3 gap-4 mb-4">
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-blue-600 mb-1">
-                                  <FiEye className="text-sm" />
-                                  <span className="text-xs font-medium">Views</span>
+                                  <FiEye className="text-base" />
+                                  <span className="text-sm font-medium">Views</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.view_count.toLocaleString()}
@@ -862,8 +835,8 @@ useEffect(() => {
                               
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-purple-600 mb-1">
-                                  <FaShare className="text-sm" />
-                                  <span className="text-xs font-medium">Shares</span>
+                                  <FaShare className="text-base" />
+                                  <span className="text-sm font-medium">Shares</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.share_count.toLocaleString()}
@@ -872,8 +845,8 @@ useEffect(() => {
                               
                               <div className="text-center">
                                 <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
-                                  <FiMessageCircle className="text-sm" />
-                                  <span className="text-xs font-medium">Comments</span>
+                                  <FiMessageCircle className="text-base" />
+                                  <span className="text-sm font-medium">Comments</span>
                                 </div>
                                 <div className="text-lg font-bold text-slate-800">
                                   {stat.comment_count.toLocaleString()}

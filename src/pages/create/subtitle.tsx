@@ -26,7 +26,7 @@ export default function SubtitlePage() {
   // Subtitle configuration - only style selection
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [selectedStyleName, setSelectedStyleName] = useState('default');
-  const [enable, setEnable] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   // Preview
   const [previewHtml, setPreviewHtml] = useState('');
   
@@ -75,7 +75,6 @@ export default function SubtitlePage() {
   const handleExportVideo = async () => {
     setIsExporting(true);
     setError(null);
-    setEnable(false);
     try {
       // Save subtitle options to context first
       const subtitleOptions: SubtitleOptions = {
@@ -142,12 +141,11 @@ export default function SubtitlePage() {
       console.error('Video export error:', err);
     } finally {
       setIsExporting(false);
-      setEnable(true);
     }
   };
 
   const handleEditVideo = async () => {
-    setIsExporting(true);
+    setIsEditing(true);
     setError(null);
     
     try {
@@ -219,7 +217,7 @@ export default function SubtitlePage() {
       setError(err.message || 'Failed to create video for editing. Please try again.');
       console.error('Video creation error:', err);
     } finally {
-      setIsExporting(false);
+      setIsEditing(false);
     }
   };
 
@@ -426,8 +424,8 @@ export default function SubtitlePage() {
               <Button 
                 variant="outline"
                 onClick={handleEditVideo}
-                disabled={!hasAudio || isExporting}
-                isLoading={isExporting&&enable}
+                disabled={!hasAudio}
+                isLoading={isEditing}
                 className="flex items-center space-x-2"
               >
                 <HiPencil className="h-4 w-4" />
@@ -435,8 +433,8 @@ export default function SubtitlePage() {
               </Button>
               <Button 
                 onClick={handleExportVideo}
-                disabled={!hasAudio ||isExporting}
-                isLoading={isExporting||!enable}
+                disabled={!hasAudio}
+                isLoading={isExporting}
                 className="flex items-center space-x-2"
               >
                 <HiDownload className="h-4 w-4" />
