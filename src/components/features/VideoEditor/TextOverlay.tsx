@@ -78,20 +78,20 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
   // Calculate responsive dimensions first
   console.log('videoWidth:', videoWidth, 'videoHeight:', videoHeight);
   // Use fallback dimensions if video dimensions are not available
-  const actualVideoWidth = videoWidth || 640;
-  const actualVideoHeight = videoHeight || 360;
-
+  const actualVideoWidth = videoWidth || 0;
+  const actualVideoHeight = videoHeight || 0;
+  // alert(`Video dimensions: ${actualVideoHeight}`);
   // Calculate responsive font size based on video dimensions
   // Use a base reference size and scale font size proportionally
   // This ensures text appears consistent across different video sizes
-  const baseVideoWidth = originalVideoSize.width || 1920; // Use original video size or fallback
-  const baseVideoHeight = originalVideoSize.height || 1080; // Use original video
+  const baseVideoWidth = originalVideoSize.width || 720; // Use original video size or fallback
+  const baseVideoHeight = originalVideoSize.height || 1280; // Use original video
   const scaleFactor = Math.min(actualVideoWidth / baseVideoWidth, actualVideoHeight / baseVideoHeight);
   
   // Ensure minimum scaling to keep text readable
   const minScaleFactor = 0.3; // Minimum 30% of original size
   const maxScaleFactor = 2.0; // Maximum 200% of original size
-  const clampedScaleFactor = Math.max(minScaleFactor, Math.min(maxScaleFactor, scaleFactor));
+  const clampedScaleFactor = Math.max(minScaleFactor, Math.min(maxScaleFactor, scaleFactor)) ;
   
   const responsiveFontSize = overlay.style.fontSize * clampedScaleFactor;
 
@@ -116,12 +116,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     y: (overlay.position.y / 100) * actualVideoHeight - responsiveSize.height / 2,
   };
 
-  console.log('Position Debug:', {
-    overlayPosition: overlay.position,
-    actualVideoSize: { width: actualVideoWidth, height: actualVideoHeight },
-    responsivePosition,
-    responsiveSize
-  });
+  
 
   // Calculate responsive shadow and outline based on scale factor
   const responsiveShadow = overlay.shadow?.enabled 
@@ -190,7 +185,7 @@ const TextOverlay: React.FC<TextOverlayProps> = ({
     // Convert to percentage based on center position
     const percentageX = (constrainedX  / containerRect.width) * 100;
     const percentageY = (constrainedY / containerRect.height) * 100;
-    moveTextOverlay(overlay.id, { x: percentageX  + 12, y: percentageY - 12 });
+    moveTextOverlay(overlay.id, { x: percentageX  , y: percentageY  });
   }, [isDragging, isPreviewMode, overlay.isLocked, dragStart, responsiveSize, moveTextOverlay, overlay.id]);
 
   // Handle mouse up for dragging

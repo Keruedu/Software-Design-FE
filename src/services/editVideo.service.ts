@@ -471,8 +471,8 @@ async hasAudioStream(videoFile: File | string | Blob): Promise<boolean> {
         
         let font='';
         const escapedText = text.replace(/'/g, "\\'").replace(/:/g, "\\:");
-        const x = Math.round(Math.min(Math.max(((position.x - 14)  / 100),0 ),1) * videoSize.width);
-        const y = Math.round(Math.min(Math.max(((position.y + 8)  / 100),0 ),1)* videoSize.height);
+        const x = Math.round(Math.min(Math.max(((position.x - 10 )  / 100),0 ),1) * videoSize.width);
+        const y = Math.round(Math.min(Math.max(((position.y )  / 100),0 ),1)* videoSize.height);
         
         
         let textFilter = `drawtext=text='${escapedText}'`;

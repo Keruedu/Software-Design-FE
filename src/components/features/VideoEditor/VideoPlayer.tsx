@@ -87,6 +87,7 @@ const[isProcessing, setIsProcessing] = useState(false);
 const [url, setUrl] = useState(videoUrl);
 const [forceUpdate, setForceUpdate] = useState(true)
 const [originalVideoSize, setOriginalVideoSize] = useState({ width: 720, height: 1280 }); // Default to vertical video
+const reactPlayerRef = useRef<HTMLDivElement>(null); // Ref để lấy kích thước ReactPlayer UI
 const audioItems = timelineState.tracks.flatMap(track => 
     track.items.filter(item => item.type === 'audio')
 );
@@ -161,33 +162,65 @@ useEffect(() => {
         const updateSize = () => {
             const playerElement = playerRef.current?.getInternalPlayer();
             if (playerElement && playerElement.videoWidth && playerElement.videoHeight) {
+                // Cách 1: Lấy kích thước từ container
                 const containerRect = videoContainerRef.getBoundingClientRect();
-                const videoAspectRatio = playerElement.videoWidth / playerElement.videoHeight;
-                const containerAspectRatio = containerRect.width / containerRect.height;
                 
-                let videoWidth, videoHeight;
-                if (videoAspectRatio > containerAspectRatio) {
-                    videoWidth = containerRect.width;
-                    videoHeight = containerRect.width / videoAspectRatio;
-                } else {
-                    videoHeight = containerRect.height;
-                    videoWidth = containerRect.height * videoAspectRatio;
+                // Cách 2: Lấy kích thước từ ReactPlayer wrapper element
+                const reactPlayerElement = reactPlayerRef.current;
+                let playerRect = null;
+                if (reactPlayerElement) {
+                    playerRect = reactPlayerElement.getBoundingClientRect();
+                    console.log('ReactPlayer UI size:', playerRect);
                 }
                 
-                // Update sizes in multiple places
-                const originalVideoSize = { width: playerElement.videoWidth, height: playerElement.videoHeight };
-                setExternalVideoSize(originalVideoSize);
-                setStickerVideoSize(originalVideoSize); // Keep sticker context updated
-                setVideoSize({ width: videoWidth, height: videoHeight });
+                // Cách 3: Lấy kích thước từ video element thực tế
+                const videoElement = playerElement as HTMLVideoElement;
+                if (videoElement) {
+                    const videoRect = videoElement.getBoundingClientRect();
+                    console.log('Video element UI size:', videoRect);
+                }
+                
+                // Debug logs
+                console.log('Container rect:', containerRect);
+                console.log('Player element video size:', {
+                    width: playerElement.videoWidth,
+                    height: playerElement.videoHeight
+                });
+                
+                // Sử dụng kích thước video element thực tế nếu có, nếu không thì dùng container
+                const targetRect = videoElement ? videoElement.getBoundingClientRect() : containerRect;
+                
+                // Check if target has valid dimensions
+                if (targetRect.width > 0 && targetRect.height > 0) {
+                    const videoWidth = targetRect.width;
+                    const videoHeight = targetRect.height;
+                    
+                    console.log('Setting videoSize to (from video element UI):', { width: videoWidth, height: videoHeight });
+                    
+                    // Update sizes in multiple places
+                    const originalVideoSize = { width: playerElement.videoWidth, height: playerElement.videoHeight };
+                    setExternalVideoSize(originalVideoSize);
+                    setStickerVideoSize(originalVideoSize);
+                    setVideoSize({ width: videoWidth, height: videoHeight });
+                } else {
+                    console.warn('Target element has invalid dimensions:', targetRect);
+                }
+            } else {
+                console.warn('Player element not ready or missing video dimensions');
             }
         };
         
-        updateSize();
+        // Add a small delay to ensure DOM is fully rendered
+        const timeoutId = setTimeout(updateSize, 100);
+        
         window.addEventListener('resize', updateSize);
         
-        return () => window.removeEventListener('resize', updateSize);
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('resize', updateSize);
+        };
     }
-}, [videoContainerRef, url]);
+}, [videoContainerRef, url, setExternalVideoSize, setStickerVideoSize]);
 
 // Handle text overlay double click for editing
 const handleTextOverlayDoubleClick = useCallback((textId: string) => {
@@ -407,9 +440,9 @@ useEffect(() => {
                 className="flex-1 relative min-h-0"
             >
                 <ReactPlayer
+                    ref={playerRef}
                     onReady={handleReady}
-                    ref ={playerRef}
-                    url={ url}
+                    url={url}
                     playing={isPlaying}
                     onProgress={handleProgress}
                     onDuration={handlDuration}
@@ -429,6 +462,11 @@ useEffect(() => {
                         }
                     }}
                     stopOnUnmount={true}
+                    style={{ position: 'absolute' }}
+                />
+                <div 
+                    ref={reactPlayerRef}
+                    className="absolute inset-0 pointer-events-none"
                 />
                 
                 {/* Text Overlays */}
