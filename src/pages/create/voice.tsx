@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
@@ -8,6 +8,22 @@ import { AudioUpload, UploadedAudio, UploadedAudioItem } from '../../components/
 import { useVideoCreation } from '../../context/VideoCreationContext';
 import { VoiceService } from '../../services/voice.service';
 import { Voice } from '../../mockdata/voices';
+
+// Static voice preview URLs mapping
+const voicePreviewUrls: {[key: string]: string} = {
+  'zephyr': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135482/zephyr_nelkvt.wav',
+  'puck': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135481/puck_grjtt8.wav',
+  'charon': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135480/charon_cvqifd.wav',
+  'kore': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135478/kore_wtwmkj.wav',
+  'fenrir': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135477/fenrir_sx8cfr.wav',
+  'leda': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135476/leda_tzzina.wav',
+  'orus': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135476/orus_sweci4.wav',
+  'aoede': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135475/aoede_wpxdpo.wav',
+  'callirrhoe': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135475/callirrhoe_bgda92.wav',
+  'autonoe': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135474/autonoe_w8robg.wav',
+  'enceladus': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135474/enceladus_wzx5wc.wav',
+  'iapetus': 'https://res.cloudinary.com/dpoc6susa/video/upload/v1752135474/iapetus_dvea3h.wav',
+};
 
 export default function VoicePage() {
   const router = useRouter();
@@ -22,9 +38,20 @@ export default function VoicePage() {
   const [speed, setSpeed] = useState(state.voiceSettings.speed);
   const [pitch, setPitch] = useState(state.voiceSettings.pitch);
   const [generatingPreview, setGeneratingPreview] = useState<string | null>(null);
-  const [audioCache, setAudioCache] = useState<{[key: string]: string}>({});
   const [useUploadedAudio, setUseUploadedAudio] = useState(false);
+  // Lưu trữ tham chiếu đến audio đang phát
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
+  // Clean up audio when component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   // Check if we have a script, if not redirect to script step
   useEffect(() => {
     if (!state.script) {
@@ -71,63 +98,76 @@ export default function VoicePage() {
   }, [setSelectedVoice, state.selectedVoice]);
     const handlePlayPreview = async (voiceId: string) => {
     try {
-      // Stop any currently playing audio
-      if (previewPlaying) {
-        setPreviewPlaying(null);
-      }
-      
-      // If clicking on the same voice that's playing, just stop it
+      // Nếu đang nhấn vào voice đang phát, dừng lại
       if (previewPlaying === voiceId) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioRef.current = null;
+        }
+        setPreviewPlaying(null);
         return;
       }
       
-      // Create cache key with current settings
-      const cacheKey = `${voiceId}_${speed}_${pitch}`;
-      
-      // Check if we have cached audio
-      if (audioCache[cacheKey]) {
-        const audio = new Audio(audioCache[cacheKey]);
-        audio.play();
-        setPreviewPlaying(voiceId);
-        
-        audio.onended = () => {
-          setPreviewPlaying(null);
-        };
-        return;
+      // Dừng audio đang phát (nếu có)
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
       }
+      setPreviewPlaying(null);
       
-      // Generate new audio preview
+      // Set generating preview state to show loading indicator
       setGeneratingPreview(voiceId);
       
-      // Use a short preview text
-      const previewText = "Hello! This is how I sound with your current settings. I can help narrate your video content.";
+      // Mapping from voice IDs (v1, v2, etc.) to voice names in voicePreviewUrls
+      const voiceIdToNameMap: {[key: string]: string} = {
+        'v1': 'zephyr',
+        'v2': 'puck',
+        'v3': 'charon',
+        'v4': 'kore',
+        'v5': 'fenrir',
+        'v6': 'leda',
+        'v7': 'orus',
+        'v8': 'aoede',
+        'v9': 'callirrhoe',
+        'v10': 'autonoe',
+        'v11': 'enceladus',
+        'v12': 'iapetus'
+      };
       
-      const result = await VoiceService.generateVoiceAudio({
-        text: previewText,
-        voiceId: voiceId,
-        settings: { speed, pitch }
-      });
+      // Get the voice name from the ID
+      const voiceName = voiceIdToNameMap[voiceId];
       
-      if (result?.audioUrl) {
-        // Cache the audio URL
-        setAudioCache(prev => ({
-          ...prev,
-          [cacheKey]: result.audioUrl
-        }));
-        
-        // Play the audio
-        const audio = new Audio(result.audioUrl);
-        audio.play();
-        setPreviewPlaying(voiceId);
-        
-        audio.onended = () => {
-          setPreviewPlaying(null);
-        };
+      if (!voiceName) {
+        console.error(`No voice name mapping for voice ID: ${voiceId}`);
+        alert('Could not find voice preview. Please try another voice.');
+        return;
       }
       
+      // Get the static preview URL using the voice name
+      const previewUrl = voicePreviewUrls[voiceName];
+      
+      if (!previewUrl) {
+        console.error(`No preview URL found for voice name: ${voiceName}`);
+        alert('Could not find voice preview. Please try another voice.');
+        return;
+      }
+      
+      // Play the audio using the static URL
+      const audio = new Audio(previewUrl);
+      audioRef.current = audio;
+      audio.play();
+      setPreviewPlaying(voiceId);
+      
+      audio.onended = () => {
+        audioRef.current = null;
+        setPreviewPlaying(null);
+      };
+      
     } catch (err) {
-      console.error('Error generating audio preview:', err);
-      alert('Could not generate audio preview. Please try again.');
+      console.error('Error playing audio preview:', err);
+      alert('Could not play audio preview. Please try again.');
     } finally {
       setGeneratingPreview(null);
     }
@@ -368,7 +408,7 @@ export default function VoicePage() {
                     {generatingPreview === voice.id ? (
                       <div className="flex items-center gap-2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                        Generating...
+                        Loading...
                       </div>
                     ) : previewPlaying === voice.id ? (
                       'Stop Preview'
