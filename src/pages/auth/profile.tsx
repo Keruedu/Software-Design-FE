@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { authService } from '@/services/authService';
 import Head from 'next/head';
 import { Layout } from '@/components/layout/Layout';
-import { FaPenAlt, FaKey, FaGoogle, FaUser, FaFacebook } from 'react-icons/fa';
+import { FaPenAlt, FaKey, FaGoogle, FaUser, FaFacebook,FaTiktok } from 'react-icons/fa';
 import { useRouter } from 'next/router';
 import api from '@/services/api';
 
@@ -54,6 +54,19 @@ export default function ProfilePage() {
       refreshUserData();
       // Clean up URL
       router.replace('/auth/profile', undefined, { shallow: true });
+      
+    }
+    else if (router.query.linked === 'tiktok') {
+      toast.success("TikTok account linked successfully! You can now manage Facebook pages.",
+        {
+          position: "bottom-right",
+          autoClose: 3000,
+        }
+      );
+      refreshUserData();
+      // Clean up URL
+      router.replace('/auth/profile', undefined, { shallow: true });
+      
     } else if (router.query.link_error) {
       const errorMessage = Array.isArray(router.query.link_error) 
         ? router.query.link_error[0] 
@@ -335,6 +348,32 @@ export default function ProfilePage() {
                       <FaFacebook className="mr-2" />
                       Link Facebook Account
                     </Button>                  </div>
+                )}
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                  <FaTiktok className="text-red-500" />
+                  TikTok Account
+                </h3>
+                {user?.social_credentials?.tiktok.open_id ? (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <span className="font-medium">✓ TikTok account linked</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="text-gray-600 mb-3">
+                      Link your TikTok account to upload videos to TikTok
+                    </p>
+                    <Button
+                      onClick={() => router.push('/auth/linkTikTok')}
+                      className="bg-gray-900 hover:bg-gray-600 text-white"
+                    >
+                      <FaTiktok className="mr-2" />
+                      Link TikTok Account
+                    </Button>
+                  </div>
                 )}
               </div>
 
