@@ -33,11 +33,17 @@ const Sidebar:React.FC<SidebarProps>=({
       description: 'Add text overlays and titles'
     },
 
+    // {
+    //   id: 'media',
+    //   label: 'Media',
+    //   icon: FaImages,
+    //   description: 'Images, videos, and assets'
+    // },
     {
       id: 'media',
-      label: 'Media',
-      icon: FaImages,
-      description: 'Images, videos, and assets'
+      label: 'Music',
+      icon: FaMusic,
+      description: 'Add background music and audio'
     },
     {
       id: 'stickers',
@@ -93,12 +99,12 @@ const Sidebar:React.FC<SidebarProps>=({
                         key={item.id}
                         whileHover={{ x: 2 }}
                         onClick={() => {
-                            // Toggle logic: if clicking on active tab, deactivate it
-                            if (activeTab === item.id) {
-                                setActiveTab(null); // Deactivate all tabs
-                            } else {
-                                setActiveTab(item.id as ActiveTab);
-                            }
+                            // if (activeTab === item.id) {
+                            //     setActiveTab(null); 
+                            // } else {
+                            //     setActiveTab(item.id as ActiveTab);
+                            // }
+                            setActiveTab(item.id as ActiveTab);
                         }}
                         className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${
                                 activeTab === item.id

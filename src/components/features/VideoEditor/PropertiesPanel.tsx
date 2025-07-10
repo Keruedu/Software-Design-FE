@@ -128,7 +128,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div className="text-xs text-gray-500 text-center">
               {expandedSection 
                 ? `${sections.find(s => s.id === expandedSection)?.title}`
-                : 'Chọn một mục để bắt đầu chỉnh sửa'
+                : 'Select an item to start editing'
               }
             </div>
           </div>

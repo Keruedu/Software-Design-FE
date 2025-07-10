@@ -66,7 +66,7 @@ export const DEFAULT_STICKER_ANIMATION = {
 export const STICKER_PACKS = {
   ANIMALS: 'Animals',
   CAT: 'Cat',
-  DOWM: 'DoWM',
+  DOWM: 'Day and Month',
   FROG: 'Frog',
   MISC: 'Misc',
 } as const;

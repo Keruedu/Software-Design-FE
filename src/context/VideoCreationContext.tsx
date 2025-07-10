@@ -146,21 +146,18 @@ export const VideoCreationProvider: React.FC<{children: ReactNode}> = ({ childre
   };
     const setSelectedTopic = (topic: TrendingTopic | null) => {
     setState(prev => {
-      // If topic changed, reset script and audio to force regeneration
-      const shouldResetScript = prev.selectedTopic?.id !== topic?.id;
+      // Always reset script and audio when a topic is selected to allow regeneration
       const newState = {
         ...prev,
         selectedTopic: topic,
-        script: shouldResetScript ? null : prev.script,
-        // Clear audio when topic changes
-        generatedAudio: shouldResetScript ? null : prev.generatedAudio,
-        selectedUploadedAudio: shouldResetScript ? null : prev.selectedUploadedAudio
+        script: null, // Always reset script to force regeneration
+        // Clear audio when topic is selected
+        generatedAudio: null,
+        selectedUploadedAudio: null
       };
       persistState(newState);
       
-      if (shouldResetScript) {
-        console.log('🔄 Topic changed - clearing script and audio to force regeneration');
-      }
+      console.log('🔄 Topic selected - clearing script and audio to force regeneration');
       
       return newState;
     });
