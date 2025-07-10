@@ -1707,7 +1707,7 @@ const VideoEditorContent: React.FC = () => {
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
                       <h3 className="text-lg font-semibold text-gray-900">Media Library</h3>
-                      <button
+                      {/* <button
                         onClick={() => {
                           setIsPropertiesPanelOpen(false);
                           setActiveTab(null);
@@ -1717,7 +1717,7 @@ const VideoEditorContent: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      </button>
+                      </button> */}
                     </div>
                     
                     {/* Media Library */}
@@ -1743,7 +1743,7 @@ const VideoEditorContent: React.FC = () => {
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
                       <h3 className="text-lg font-semibold text-gray-900">Text Overlay</h3>
-                      <button
+                      {/* <button
                         onClick={() => {
                           setIsPropertiesPanelOpen(false);
                           setActiveTab(null);
@@ -1753,7 +1753,7 @@ const VideoEditorContent: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      </button>
+                      </button> */}
                     </div>
                     
                     {/* Text Overlay Panel */}
@@ -1773,8 +1773,8 @@ const VideoEditorContent: React.FC = () => {
                   <div className="h-full flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                      <h3 className="text-lg font-semibold text-gray-900">Sticker</h3>
-                      <button
+                      <h3 className="text-lg font-semibold text-gray-900">Sticker Library</h3>
+                      {/* <button
                         onClick={() => {
                           setIsPropertiesPanelOpen(false);
                           setActiveTab(null);
@@ -1784,7 +1784,7 @@ const VideoEditorContent: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      </button>
+                      </button> */}
                     </div>
                     
                     {/* Sticker Panel */}

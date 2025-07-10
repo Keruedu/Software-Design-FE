@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FaImage, FaMusic, FaVideo, FaUpload, FaFolder, FaTrash, FaTimes } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 interface MediaItem {
   id: string;
@@ -32,7 +33,8 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   showNotification
 }) => {
   const [internalMediaItems, setInternalMediaItems] = useState<MediaItem[]>([]);
-  const [selectedType, setSelectedType] = useState<'all' | 'image' | 'video' | 'audio'>('all');
+  const [selectedType, setSelectedType] = useState<'all' | 'image' | 'video' | 'audio'>('all'); // Comment code cũ
+  // const [selectedType, setSelectedType] = useState<'all' | 'image' | 'video' | 'audio'>('audio'); // Mặc định chọn Music/Audio
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -47,11 +49,25 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
     if (!files) return;
 
     Array.from(files).forEach(file => {
+      
+      if (!file.type.startsWith('audio/')) {
+        // Có thể thêm cảnh báo nếu muốn: toast.warning('Chỉ cho phép file âm thanh');
+        toast.error('Only audio files are allowed',
+          {
+            position: "bottom-right",
+            autoClose: 3000,
+          }
+        );
+        return;
+      }
+      
+      
       const reader = new FileReader();
       reader.onload = (e) => {
         const url = e.target?.result as string;
-        const mediaType = file.type.startsWith('image/') ? 'image' : 
-                         file.type.startsWith('video/') ? 'video' : 'audio';
+        // const mediaType = file.type.startsWith('image/') ? 'image' : 
+        //                  file.type.startsWith('video/') ? 'video' : 'audio';
+        const mediaType = 'audio'; // Mặc định là audio
         
         const newMedia: MediaItem = {
           id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -63,50 +79,52 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
         };
 
         // Create thumbnail for images and videos
-        if (mediaType === 'image') {
-          newMedia.thumbnail = url;
-        } else if (mediaType === 'video') {
-          // Create video thumbnail
-          const video = document.createElement('video');
-          video.src = url;
-          video.currentTime = 1; // Get frame at 1 second
-          video.addEventListener('loadedmetadata', () => {
-            newMedia.duration = video.duration;
-          });
-          video.addEventListener('seeked', () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(video, 0, 0);
-            newMedia.thumbnail = canvas.toDataURL();
-            if (setExternalMediaItems) {
-              setExternalMediaItems(prev => 
-                prev.map(item => item.id === newMedia.id ? newMedia : item)
-              );
-            } else {
-              setInternalMediaItems(prev => 
-                prev.map(item => item.id === newMedia.id ? newMedia : item)
-              );
-            }
-          });
-        } else if (mediaType === 'audio') {
+        // if (mediaType === 'image') {
+        //   newMedia.thumbnail = url;
+        // } else if (mediaType === 'video') {
+        //   // Create video thumbnail
+        //   const video = document.createElement('video');
+        //   video.src = url;
+        //   video.currentTime = 1; // Get frame at 1 second
+        //   video.addEventListener('loadedmetadata', () => {
+        //     newMedia.duration = video.duration;
+        //   });
+        //   video.addEventListener('seeked', () => {
+        //     const canvas = document.createElement('canvas');
+        //     canvas.width = video.videoWidth;
+        //     canvas.height = video.videoHeight;
+        //     const ctx = canvas.getContext('2d');
+        //     ctx?.drawImage(video, 0, 0);
+        //     newMedia.thumbnail = canvas.toDataURL();
+        //     if (setExternalMediaItems) {
+        //       setExternalMediaItems(prev => 
+        //         prev.map(item => item.id === newMedia.id ? newMedia : item)
+        //       );
+        //     } else {
+        //       setInternalMediaItems(prev => 
+        //         prev.map(item => item.id === newMedia.id ? newMedia : item)
+        //       );
+        //     }
+        //   });
+        // } else 
+        // if (mediaType === 'audio') {
           // Get audio duration
-          const audio = document.createElement('audio');
-          audio.src = url;
-          audio.addEventListener('loadedmetadata', () => {
-            newMedia.duration = audio.duration;
-            if (setExternalMediaItems) {
-              setExternalMediaItems(prev => 
-                prev.map(item => item.id === newMedia.id ? newMedia : item)
-              );
-            } else {
-              setInternalMediaItems(prev => 
-                prev.map(item => item.id === newMedia.id ? newMedia : item)
-              );
-            }
-          });
-        }
+          
+        const audio = document.createElement('audio');
+        audio.src = url;
+        audio.addEventListener('loadedmetadata', () => {
+          newMedia.duration = audio.duration;
+          if (setExternalMediaItems) {
+            setExternalMediaItems(prev => 
+              prev.map(item => item.id === newMedia.id ? newMedia : item)
+            );
+          } else {
+            setInternalMediaItems(prev => 
+              prev.map(item => item.id === newMedia.id ? newMedia : item)
+            );
+          }
+        });
+        
 
         if (setExternalMediaItems) {
           setExternalMediaItems(prev => [...prev, newMedia]);
@@ -216,13 +234,32 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             </button>
           </div>
 
-          {/* Filter Tabs */}
+          {/* Filter Tabs - Chỉ hiển thị Music */}
           <div className="flex space-x-1">
+            {/* Comment code cũ - Hiển thị tất cả tab
             {[
               { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
               { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
               { key: 'video', label: 'Video', icon: <FaVideo className="w-3 h-3" /> },
               { key: 'audio', label: 'Audio', icon: <FaMusic className="w-3 h-3" /> }
+            ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setSelectedType(tab.key as any)}
+              className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${
+                selectedType === tab.key 
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))} */}
+            
+            {/* Chỉ hiển thị Music tab */}
+            {[
+              { key: 'audio', label: 'Music', icon: <FaMusic className="w-3 h-3" /> }
             ].map(tab => (
             <button
               key={tab.key}
@@ -257,13 +294,13 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             {mediaItems.length > 0 && (
               <div className="flex items-center space-x-2">
                 <span className="text-xs text-gray-500">
-                  {filteredMedia.length} / {mediaItems.length} media
+                  {/* {filteredMedia.length} / {mediaItems.length} media */}
+                  {filteredMedia.length} media
                 </span>
                 <button
                   onClick={() => {
                     if (window.confirm('Are you sure you want to delete all media?')) {
                       setMediaItems([]);
-                      // Call delete for each item individually since onDeleteMedia expects single id
                       mediaItems.forEach(item => onDeleteMedia?.(item.id));
                       showNotification?.('All media have been deleted.', 'success');
                     }
@@ -277,8 +314,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
             )}
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex space-x-1">
+          {/* <div className="flex space-x-1">
             {[
               { key: 'all', label: 'All', icon: <FaFolder className="w-3 h-3" /> },
               { key: 'image', label: 'Image', icon: <FaImage className="w-3 h-3" /> },
@@ -298,7 +334,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               <span>{tab.label}</span>
             </button>
           ))}
-          </div>
+          </div> */}
         </div>
       )}
 
@@ -345,7 +381,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                   }}
                   onMouseEnter={() => setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
-                  title={`Kéo thả ${item.name} vào timeline`}
+                  title={`Drag and drop ${item.name} into the timeline`}
                 >
                 {/* Delete Button - Hide for main video */}
                 {!item.isMainVideo && (
@@ -358,7 +394,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
                       handleDeleteMedia(item);
                     }}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 z-10 shadow-lg"
-                    title="Xóa media"
+                    title="Delete media"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >

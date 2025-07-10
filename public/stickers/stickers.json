@@ -7,157 +7,346 @@
     "url": "/stickers/Animals/crocodile.png"
   },
   {
+    "pack": "Animals",
+    "id": "crocodile1_png",
+    "name": "Crocodile",
+    "category": "sticker",
+    "url": "/stickers/Animals/crocodile1.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "bear_png",
+    "name": "Bear",
+    "category": "sticker",
+    "url": "/stickers/Animals/bear.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "bison_png",
+    "name": "Bison",
+    "category": "sticker",
+    "url": "/stickers/Animals/bison.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "elephant_png",
+    "name": "Elephant",
+    "category": "sticker",
+    "url": "/stickers/Animals/elephant.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "fox_png",
+    "name": "Fox",
+    "category": "sticker",
+    "url": "/stickers/Animals/fox.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "horse_png",
+    "name": "Horse",
+    "category": "sticker",
+    "url": "/stickers/Animals/horse.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "lynx_png",
+    "name": "Lynx",
+    "category": "sticker",
+    "url": "/stickers/Animals/lynx.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "panda_png",
+    "name": "Panda",
+    "category": "sticker",
+    "url": "/stickers/Animals/panda.png"
+  },
+  {
+    "pack": "Animals",
+    "id": "tiger_png",
+    "name": "Tiger",
+    "category": "sticker",
+    "url": "/stickers/Animals/tiger.png"
+  },
+  {
     "pack": "Cat",
     "id": "boxer_png",
-    "name": "Boxer Cat",
+    "name": "Boxer",
     "category": "sticker",
     "url": "/stickers/Cat/boxer.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "Cat",
+    "id": "smile_png",
+    "name": "Smile",
+    "category": "sticker",
+    "url": "/stickers/Cat/smile.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "idea_png",
+    "name": "Idea",
+    "category": "sticker",
+    "url": "/stickers/Cat/idea.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "award_png",
+    "name": "Award",
+    "category": "sticker",
+    "url": "/stickers/Cat/award.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "karaoke_png",
+    "name": "Karaoke",
+    "category": "sticker",
+    "url": "/stickers/Cat/karaoke.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "love_png",
+    "name": "Love",
+    "category": "sticker",
+    "url": "/stickers/Cat/love.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "question_png",
+    "name": "Question",
+    "category": "sticker",
+    "url": "/stickers/Cat/question.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "referee_png",
+    "name": "Referee",
+    "category": "sticker",
+    "url": "/stickers/Cat/referee.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "relaxation_png",
+    "name": "Relaxation",
+    "category": "sticker",
+    "url": "/stickers/Cat/relaxation.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "tired_png",
+    "name": "Tired",
+    "category": "sticker",
+    "url": "/stickers/Cat/tired.png"
+  },
+  {
+    "pack": "Cat",
+    "id": "rich_png",
+    "name": "Rich",
+    "category": "sticker",
+    "url": "/stickers/Cat/rich.png"
+  },
+  {
+    "pack": "DayAndMonth",
     "id": "january_png",
     "name": "January",
     "category": "sticker",
-    "url": "/stickers/DoWM/january.png"
+    "url": "/stickers/DayAndMonth/january.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "february_png",
     "name": "February",
     "category": "sticker",
-    "url": "/stickers/DoWM/february.png"
+    "url": "/stickers/DayAndMonth/february.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "march_png",
     "name": "March",
     "category": "sticker",
-    "url": "/stickers/DoWM/march.png"
+    "url": "/stickers/DayAndMonth/march.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "april_png",
     "name": "April",
     "category": "sticker",
-    "url": "/stickers/DoWM/april.png"
+    "url": "/stickers/DayAndMonth/april.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "may_png",
     "name": "May",
     "category": "sticker",
-    "url": "/stickers/DoWM/may.png"
+    "url": "/stickers/DayAndMonth/may.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "june_png",
     "name": "June",
     "category": "sticker",
-    "url": "/stickers/DoWM/june.png"
+    "url": "/stickers/DayAndMonth/june.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "july_png",
     "name": "July",
     "category": "sticker",
-    "url": "/stickers/DoWM/july.png"
+    "url": "/stickers/DayAndMonth/july.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "august_png",
     "name": "August",
     "category": "sticker",
-    "url": "/stickers/DoWM/august.png"
+    "url": "/stickers/DayAndMonth/august.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "september_png",
     "name": "September",
     "category": "sticker",
-    "url": "/stickers/DoWM/september.png"
+    "url": "/stickers/DayAndMonth/september.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "october_png",
     "name": "October",
     "category": "sticker",
-    "url": "/stickers/DoWM/october.png"
+    "url": "/stickers/DayAndMonth/october.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "november_png",
     "name": "November",
     "category": "sticker",
-    "url": "/stickers/DoWM/november.png"
+    "url": "/stickers/DayAndMonth/november.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "december_png",
     "name": "December",
     "category": "sticker",
-    "url": "/stickers/DoWM/december.png"
+    "url": "/stickers/DayAndMonth/december.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "monday_png",
     "name": "Monday",
     "category": "sticker",
-    "url": "/stickers/DoWM/monday.png"
+    "url": "/stickers/DayAndMonth/monday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "tuesday_png",
     "name": "Tuesday",
     "category": "sticker",
-    "url": "/stickers/DoWM/tuesday.png"
+    "url": "/stickers/DayAndMonth/tuesday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "wednesday_png",
     "name": "Wednesday",
     "category": "sticker",
-    "url": "/stickers/DoWM/wednesday.png"
+    "url": "/stickers/DayAndMonth/wednesday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "thursday_png",
     "name": "Thursday",
     "category": "sticker",
-    "url": "/stickers/DoWM/thursday.png"
+    "url": "/stickers/DayAndMonth/thursday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "friday_png",
     "name": "Friday",
     "category": "sticker",
-    "url": "/stickers/DoWM/friday.png"
+    "url": "/stickers/DayAndMonth/friday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "saturday_png",
     "name": "Saturday",
     "category": "sticker",
-    "url": "/stickers/DoWM/saturday.png"
+    "url": "/stickers/DayAndMonth/saturday.png"
   },
   {
-    "pack": "DoWM",
+    "pack": "DayAndMonth",
     "id": "sunday_png",
     "name": "Sunday",
     "category": "sticker",
-    "url": "/stickers/DoWM/sunday.png"
+    "url": "/stickers/DayAndMonth/sunday.png"
   },
   {
     "pack": "Frog",
     "id": "award_png",
-    "name": "Award Frog",
+    "name": "Award",
     "category": "sticker",
     "url": "/stickers/Frog/award.png"
   },
   {
-    "pack": "Misc",
-    "id": "smile_png",
-    "name": "Smile",
+    "pack": "Frog",
+    "id": "beer_png",
+    "name": "Beer",
     "category": "sticker",
-    "url": "/stickers/smile.png"
+    "url": "/stickers/Frog/beer.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "celebration_png",
+    "name": "Celebration",
+    "category": "sticker",
+    "url": "/stickers/Frog/celebration.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "computer_png",
+    "name": "Computer",
+    "category": "sticker",
+    "url": "/stickers/Frog/computer.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "idea_png",
+    "name": "Idea",
+    "category": "sticker",
+    "url": "/stickers/Frog/idea.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "love_png",
+    "name": "Love",
+    "category": "sticker",
+    "url": "/stickers/Frog/love.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "meditation_png",
+    "name": "Meditation",
+    "category": "sticker",
+    "url": "/stickers/Frog/meditation.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "selfie_png",
+    "name": "Selfie",
+    "category": "sticker",
+    "url": "/stickers/Frog/selfie.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "tired_png",
+    "name": "Tired",
+    "category": "sticker",
+    "url": "/stickers/Frog/tired.png"
+  },
+  {
+    "pack": "Frog",
+    "id": "winner_png",
+    "name": "Winner",
+    "category": "sticker",
+    "url": "/stickers/Frog/winner.png"
   }
 ]

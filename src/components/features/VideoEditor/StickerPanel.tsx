@@ -186,7 +186,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-transparent hover:border-gray-300'
               }`}
             >
-              {pack === 'all' ? 'Tất cả' : pack}
+              {pack === 'all' ? 'All' : pack}
             </button>
           ))}
         </div>
@@ -293,7 +293,7 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
       return (
         <div className="text-center py-8 text-gray-500">
           <FaSmile className="mx-auto mb-2 text-2xl" />
-          <p>Chọn sticker để chỉnh sửa</p>
+          <p>Choose a sticker to edit</p>
         </div>
       );
     }
@@ -367,7 +367,6 @@ const StickerPanel: React.FC<StickerPanelProps> = ({
         <div className="flex-1 p-4 space-y-6 overflow-y-auto">
           {/* Sticker Library */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Sticker Library</h4>
             {renderStickerLibrary()}
           </div>
 
