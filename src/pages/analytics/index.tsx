@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChartComponent, VideoStats } from '../../components/analytics/ChartComponent';
+import { ChartComponent } from '../../components/analytics/ChartComponent';
 import { StatsCards } from '../../components/analytics/StatsCards';
-import { mockVideoStats } from '../../data/mockVideoStats';
-import { Layout } from '../../components/layout/Layout';
+import { getFilteredVideoData, convertToChartFormat, VideoStats, VideoPerformanceData } from '../../data/mockVideoStats';
 import { 
   FaCalendarAlt, 
   FaChartBar, 
@@ -20,23 +19,38 @@ import { Header } from '@/components/layout/Header/Header';
 const AnalyticsPage: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'7days' | '30days' | 'all'>('7days');
   const [metricType, setMetricType] = useState<'views' | 'likes' | 'comments'>('views');
+  const [topCount, setTopCount] = useState<5 | 10 | 15>(10);
   const [filteredData, setFilteredData] = useState<VideoStats[]>([]);
+  const [backendFormatData, setBackendFormatData] = useState<{
+    facebook: VideoPerformanceData[];
+    youtube: VideoPerformanceData[];
+    tiktok: VideoPerformanceData[];
+  }>({
+    facebook: [],
+    youtube: [],
+    tiktok: []
+  });
 
-  // Lọc dữ liệu theo thời gian
+  // Cập nhật dữ liệu khi filter thay đổi
   useEffect(() => {
-    const now = new Date();
-    let filtered = mockVideoStats;
+    // Lấy dữ liệu từ backend format - giống như API call thật
+    const facebookData = getFilteredVideoData('facebook', metricType, timeFilter, topCount);
+    const youtubeData = getFilteredVideoData('youtube', metricType, timeFilter, topCount);
+    const tiktokData = getFilteredVideoData('tiktok', metricType, timeFilter, topCount);
+    
+    const backendData = {
+      facebook: facebookData,
+      youtube: youtubeData,
+      tiktok: tiktokData
+    };
 
-    if (timeFilter === '7days') {
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filtered = mockVideoStats.filter(video => new Date(video.createdAt) >= sevenDaysAgo);
-    } else if (timeFilter === '30days') {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filtered = mockVideoStats.filter(video => new Date(video.createdAt) >= thirtyDaysAgo);
-    }
+    // Lưu backend format để hiển thị demo
+    setBackendFormatData(backendData);
 
-    setFilteredData(filtered);
-  }, [timeFilter]);
+    // Chuyển đổi sang format cho biểu đồ
+    const chartData = convertToChartFormat(backendData, metricType);
+    setFilteredData(chartData);
+  }, [timeFilter, topCount, metricType]);
 
   // Get metric label
   const getMetricLabel = () => {
@@ -55,11 +69,11 @@ const AnalyticsPage: React.FC = () => {
           <div className="container mx-auto px-4 py-8">
             <div className="space-y-8">
               <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-gray-900 mb-3">
                   Video Performance Analytics
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Analyze top 10 highest performing videos across social media platforms
+                  Analyze top {topCount} highest performing videos across social media platforms
                 </p>
                 <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
                   <div className="flex items-center">
@@ -76,7 +90,7 @@ const AnalyticsPage: React.FC = () => {
             {/* Filters */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Data Filters</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     <span className="flex items-center">
@@ -122,6 +136,29 @@ const AnalyticsPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <span className="flex items-center">
+                      <FaInfoCircle className="w-4 h-4 mr-2" />
+                      Top Videos Count
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <select 
+                      value={topCount} 
+                      onChange={(e) => setTopCount(Number(e.target.value) as 5 | 10 | 15)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white shadow-sm"
+                    >
+                      <option value={5}>Top 5 videos</option>
+                      <option value={10}>Top 10 videos</option>
+                      <option value={15}>Top 15 videos</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <FaChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
               </div>
               
               {/* Current filter information */}
@@ -129,13 +166,43 @@ const AnalyticsPage: React.FC = () => {
                 <div className="flex items-center text-sm text-blue-800">
                   <FaInfoCircle className="w-4 h-4 mr-2" />
                   <span>
-                    Showing <strong>{getMetricLabel()}</strong> of <strong>{filteredData.length} videos</strong> from{' '}
+                    Showing <strong>{getMetricLabel()}</strong> for <strong>top {topCount} videos</strong> from{' '}
                     <strong>
                       {timeFilter === '7days' ? 'last 7 days' : 
                       timeFilter === '30days' ? 'last 30 days' : 'all time'}
                     </strong>
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Backend Response Format Demo */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Backend Response Format Demo</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Based on current filters: <strong>{timeFilter}</strong>, <strong>{metricType}</strong>, <strong>top {topCount}</strong>
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {Object.entries(backendFormatData).map(([platform, data]) => (
+                  <div key={platform} className="border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-3 capitalize flex items-center">
+                      {platform === 'facebook' && '📘'}
+                      {platform === 'youtube' && '📹'}
+                      {platform === 'tiktok' && '🎵'}
+                      {' '}{platform} Response
+                    </h4>
+                    <div className="bg-gray-50 p-3 rounded text-xs font-mono max-h-40 overflow-y-auto">
+                      <pre>{JSON.stringify(data.slice(0, 3), null, 2)}</pre>
+                      {data.length > 3 && (
+                        <div className="text-gray-500 mt-2">... và {data.length - 3} video khác</div>
+                      )}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      Sum: {data.length} videos • Top {topCount} {metricType}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -186,11 +253,11 @@ const AnalyticsPage: React.FC = () => {
             </div>
 
             {/* Detailed Table */}
-            <div className="bg-white rounded-lg shadow">
+            {/* <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-semibold">Individual Video Performance Details</h2>
                 <p className="text-gray-600 text-sm mt-1">
-                  Showing {getMetricLabel()} for top {filteredData.length} videos
+                  Showing {getMetricLabel()} for top {topCount} videos
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -259,7 +326,7 @@ const AnalyticsPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div> */}
           </div>
           </div>
         </div>

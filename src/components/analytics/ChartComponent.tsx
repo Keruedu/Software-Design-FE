@@ -26,26 +26,8 @@ ChartJS.register(
   Legend
 );
 
-export interface VideoStats {
-  id: string;
-  title: string;
-  facebook: {
-    views: number;
-    likes: number;
-    comments: number;
-  };
-  youtube: {
-    views: number;
-    likes: number;
-    comments: number;
-  };
-  tiktok: {
-    views: number;
-    likes: number;
-    comments: number;
-  };
-  createdAt: string;
-}
+export type { VideoPerformanceData, VideoStats } from '../../data/mockVideoStats';
+import type { VideoStats } from '../../data/mockVideoStats';
 
 interface ChartComponentProps {
   data: VideoStats[];

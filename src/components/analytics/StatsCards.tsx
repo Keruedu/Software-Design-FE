@@ -1,5 +1,5 @@
 import React from 'react';
-import { VideoStats } from './ChartComponent';
+import { VideoStats } from '../../data/mockVideoStats';
 
 interface StatsCardsProps {
   data: VideoStats[];
@@ -85,17 +85,6 @@ export const StatsCards: React.FC<StatsCardsProps> = ({ data, metricType }) => {
             <span className="ml-3 text-sm font-medium bg-white bg-opacity-20 px-2 py-1 rounded-full">
               {((card.total / (facebookTotal + youtubeTotal + tiktokTotal)) * 100).toFixed(1)}%
             </span>
-          </div>
-          
-          {/* Trend indicator */}
-          <div className="mt-3 flex items-center justify-between text-xs">
-            <span className={card.textColor}>vs last month</span>
-            <div className="flex items-center">
-              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
-              <span className="font-medium">+{(5 + index * 2).toFixed(1)}%</span>
-            </div>
           </div>
         </div>
       ))}
