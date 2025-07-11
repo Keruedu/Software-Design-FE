@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fa';
 import { ProtectedRoute } from '../../components/common/ProtectedRoute';
 import { Header } from '@/components/layout/Header/Header';
+import { FiFacebook } from 'react-icons/fi';
 
 const AnalyticsPage: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'7days' | '30days' | 'all'>('7days');
@@ -244,9 +245,9 @@ const AnalyticsPage: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    {platformFilter === 'facebook' && '📘'}
-                    {platformFilter === 'youtube' && '📹'}
-                    {platformFilter === 'tiktok' && '🎵'}
+                    {platformFilter === 'facebook' && <FaFacebook className="w-4 h-4" />}
+                    {platformFilter === 'youtube' && <FaYoutube className="w-4 h-4" />}
+                    {platformFilter === 'tiktok' && <FaTiktok className="w-4 h-4" />}
                     <span>{platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}</span>
                   </div>
                 </div>
@@ -278,7 +279,7 @@ const AnalyticsPage: React.FC = () => {
                   data={filteredData}
                   metricType={metricType}
                   chartType="line"
-                  title={`${getMetricLabel()} trends on ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
+                  title={`${getMetricLabel().charAt(0).toUpperCase() + getMetricLabel().slice(1)} trends on ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
                 />
               </div>
             </div>

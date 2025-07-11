@@ -84,7 +84,8 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top' as const,
+        // position: 'top' as const,
+        display: false
       },
       title: {
         display: true,
