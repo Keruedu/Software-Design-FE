@@ -58,7 +58,12 @@ const getDateBefore = (days: number): string => {
 };
 
 const getDateRange = (timeFilter: '7days' | '30days' | 'all') => {
-  const now = new Date().toISOString();
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const tomorrowISOString = tomorrow.toISOString();
+  
   let startDate: string;
 
   switch (timeFilter) {
@@ -73,7 +78,7 @@ const getDateRange = (timeFilter: '7days' | '30days' | 'all') => {
       break;
   }
 
-  return { startDate, endDate: now };
+  return { startDate, endDate: tomorrowISOString };
 };
 
 const { startDate, endDate } = getDateRange('7days');

@@ -50,7 +50,7 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
     );
   }
 
-  const labels = data.map(video => video.title.length > 15 ? video.title.slice(0, 15) + '...' : video.title);
+  const labels = Array.isArray(data) ? data.map(video => video.title.length > 15 ? video.title.slice(0, 15) + '...' : video.title) : [];
   const platformColors: Record<string, { background: string; border: string }> = {
   facebook: {
     background: 'rgba(24, 119, 242, 0.8)',
@@ -76,7 +76,7 @@ const colors = platformColors[platform] || {
 const datasets = [
   {
     label: platform,
-    data: data.map(video => video.count || 0),
+    data: Array.isArray(data) ? data.map(video => video.count || 0) : [],
     backgroundColor: chartType === 'bar'
       ? colors.background
       : colors.background.replace('0.8', '0.2'),
