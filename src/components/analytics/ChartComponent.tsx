@@ -28,9 +28,9 @@ ChartJS.register(
 
 export type { VideoPerformanceData, VideoStats } from '../../data/mockVideoStats';
 import type { VideoStats } from '../../data/mockVideoStats';
-
+import { TopVideo } from '@/services/analyst.service';
 interface ChartComponentProps {
-  data: VideoStats[];
+  data: TopVideo[];
   metricType: 'views' | 'likes' | 'comments';
   chartType: 'bar' | 'line';
   title: string;
@@ -51,33 +51,41 @@ export const ChartComponent: React.FC<ChartComponentProps> = ({
   }
 
   const labels = data.map(video => video.title.length > 15 ? video.title.slice(0, 15) + '...' : video.title);
-  
-  const datasets = [
-    {
-      label: 'Facebook',
-      data: data.map(video => video.facebook[metricType] || 0),
-      backgroundColor: chartType === 'bar' ? 'rgba(24, 119, 242, 0.8)' : 'rgba(24, 119, 242, 0.2)',
-      borderColor: 'rgba(24, 119, 242, 1)',
-      borderWidth: 1,
-      ...(chartType === 'line' && { tension: 0.4 }),
-    },
-    {
-      label: 'YouTube',
-      data: data.map(video => video.youtube[metricType] || 0),
-      backgroundColor: chartType === 'bar' ? 'rgba(255, 0, 0, 0.8)' : 'rgba(255, 0, 0, 0.2)',
-      borderColor: 'rgba(255, 0, 0, 1)',
-      borderWidth: 1,
-      ...(chartType === 'line' && { tension: 0.4 }),
-    },
-    {
-      label: 'TikTok',
-      data: data.map(video => video.tiktok[metricType] || 0),
-      backgroundColor: chartType === 'bar' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.2)',
-      borderColor: 'rgba(0, 0, 0, 1)',
-      borderWidth: 1,
-      ...(chartType === 'line' && { tension: 0.4 }),
-    },
-  ];
+  const platformColors: Record<string, { background: string; border: string }> = {
+  facebook: {
+    background: 'rgba(24, 119, 242, 0.8)',
+    border: 'rgba(24, 119, 242, 1)',
+  },
+  google: {
+    background: 'rgba(255, 0, 0, 0.8)',
+    border: 'rgba(255, 0, 0, 1)',
+  },
+  tiktok: {
+    background: 'rgba(0, 0, 0, 0.8)',
+    border: 'rgba(0, 0, 0, 1)',
+  },
+};
+
+  const platform = data[0]?.platform || 'facebook'; // fallback nếu data rỗng
+
+const colors = platformColors[platform] || {
+  background: 'rgba(0, 0, 0, 0.8)',
+  border: 'rgba(0, 0, 0, 1)',
+};
+
+const datasets = [
+  {
+    label: platform,
+    data: data.map(video => video.count || 0),
+    backgroundColor: chartType === 'bar'
+      ? colors.background
+      : colors.background.replace('0.8', '0.2'),
+    borderColor: colors.border,
+    borderWidth: 1,
+    ...(chartType === 'line' && { tension: 0.4 }),
+  }
+];
+
 
   const commonOptions = {
     responsive: true,

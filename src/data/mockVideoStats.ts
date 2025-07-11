@@ -13,7 +13,7 @@ export interface VideoStats {
     likes: number;
     comments: number;
   };
-  youtube: {
+  google: {
     views: number;
     likes: number;
     comments: number;
@@ -46,22 +46,22 @@ const mockVideoData = {
       { platform: "facebook", title: "Fashion Haul", count: 25000 },
       { platform: "facebook", title: "Car Review", count: 22000 },
     ],
-    youtube: [
-      { platform: "youtube", title: "Tech Review", count: 420000 },
-      { platform: "youtube", title: "Gaming Highlights", count: 350000 },
-      { platform: "youtube", title: "Comedy Sketch", count: 320000 },
-      { platform: "youtube", title: "Travel Vlog", count: 280000 },
-      { platform: "youtube", title: "Video Trending #1", count: 250000 },
-      { platform: "youtube", title: "DIY Tutorial", count: 220000 },
-      { platform: "youtube", title: "Fitness Workout", count: 190000 },
-      { platform: "youtube", title: "Viral Dance Video", count: 180000 },
-      { platform: "youtube", title: "Music Cover", count: 180000 },
-      { platform: "youtube", title: "Food Challenge", count: 160000 },
-      { platform: "youtube", title: "Movie Review", count: 155000 },
-      { platform: "youtube", title: "Fashion Haul", count: 140000 },
-      { platform: "youtube", title: "Pet Funny Moments", count: 130000 },
-      { platform: "youtube", title: "Recipe Tutorial", count: 125000 },
-      { platform: "youtube", title: "Car Review", count: 110000 },
+    google: [
+      { platform: "google", title: "Tech Review", count: 420000 },
+      { platform: "google", title: "Gaming Highlights", count: 350000 },
+      { platform: "google", title: "Comedy Sketch", count: 320000 },
+      { platform: "google", title: "Travel Vlog", count: 280000 },
+      { platform: "google", title: "Video Trending #1", count: 250000 },
+      { platform: "google", title: "DIY Tutorial", count: 220000 },
+      { platform: "google", title: "Fitness Workout", count: 190000 },
+      { platform: "google", title: "Viral Dance Video", count: 180000 },
+      { platform: "google", title: "Music Cover", count: 180000 },
+      { platform: "google", title: "Food Challenge", count: 160000 },
+      { platform: "google", title: "Movie Review", count: 155000 },
+      { platform: "google", title: "Fashion Haul", count: 140000 },
+      { platform: "google", title: "Pet Funny Moments", count: 130000 },
+      { platform: "google", title: "Recipe Tutorial", count: 125000 },
+      { platform: "google", title: "Car Review", count: 110000 },
     ],
     tiktok: [
       { platform: "tiktok", title: "Viral Dance Video", count: 750000 },
@@ -99,22 +99,22 @@ const mockVideoData = {
       { platform: "facebook", title: "Fashion Haul", count: 2500 },
       { platform: "facebook", title: "Car Review", count: 2200 },
     ],
-    youtube: [
-      { platform: "youtube", title: "Tech Review", count: 28000 },
-      { platform: "youtube", title: "Gaming Highlights", count: 25000 },
-      { platform: "youtube", title: "Comedy Sketch", count: 22000 },
-      { platform: "youtube", title: "Travel Vlog", count: 19000 },
-      { platform: "youtube", title: "Video Trending #1", count: 18000 },
-      { platform: "youtube", title: "DIY Tutorial", count: 16000 },
-      { platform: "youtube", title: "Music Cover", count: 15000 },
-      { platform: "youtube", title: "Viral Dance Video", count: 14000 },
-      { platform: "youtube", title: "Fitness Workout", count: 13000 },
-      { platform: "youtube", title: "Food Challenge", count: 12000 },
-      { platform: "youtube", title: "Movie Review", count: 11500 },
-      { platform: "youtube", title: "Fashion Haul", count: 10400 },
-      { platform: "youtube", title: "Pet Funny Moments", count: 9300 },
-      { platform: "youtube", title: "Recipe Tutorial", count: 8250 },
-      { platform: "youtube", title: "Car Review", count: 7100 },
+    google: [
+      { platform: "google", title: "Tech Review", count: 28000 },
+      { platform: "google", title: "Gaming Highlights", count: 25000 },
+      { platform: "google", title: "Comedy Sketch", count: 22000 },
+      { platform: "google", title: "Travel Vlog", count: 19000 },
+      { platform: "google", title: "Video Trending #1", count: 18000 },
+      { platform: "google", title: "DIY Tutorial", count: 16000 },
+      { platform: "google", title: "Music Cover", count: 15000 },
+      { platform: "google", title: "Viral Dance Video", count: 14000 },
+      { platform: "google", title: "Fitness Workout", count: 13000 },
+      { platform: "google", title: "Food Challenge", count: 12000 },
+      { platform: "google", title: "Movie Review", count: 11500 },
+      { platform: "google", title: "Fashion Haul", count: 10400 },
+      { platform: "google", title: "Pet Funny Moments", count: 9300 },
+      { platform: "google", title: "Recipe Tutorial", count: 8250 },
+      { platform: "google", title: "Car Review", count: 7100 },
     ],
     tiktok: [
       { platform: "tiktok", title: "Viral Dance Video", count: 55000 },
@@ -152,22 +152,22 @@ const mockVideoData = {
       { platform: "facebook", title: "Fashion Haul", count: 155 },
       { platform: "facebook", title: "Car Review", count: 142 },
     ],
-    youtube: [
-      { platform: "youtube", title: "Tech Review", count: 2200 },
-      { platform: "youtube", title: "Gaming Highlights", count: 1900 },
-      { platform: "youtube", title: "Comedy Sketch", count: 1800 },
-      { platform: "youtube", title: "Video Trending #1", count: 1200 },
-      { platform: "youtube", title: "Travel Vlog", count: 1100 },
-      { platform: "youtube", title: "Music Cover", count: 980 },
-      { platform: "youtube", title: "Viral Dance Video", count: 900 },
-      { platform: "youtube", title: "DIY Tutorial", count: 850 },
-      { platform: "youtube", title: "Food Challenge", count: 750 },
-      { platform: "youtube", title: "Fitness Workout", count: 680 },
-      { platform: "youtube", title: "Movie Review", count: 655 },
-      { platform: "youtube", title: "Fashion Haul", count: 590 },
-      { platform: "youtube", title: "Pet Funny Moments", count: 530 },
-      { platform: "youtube", title: "Recipe Tutorial", count: 475 },
-      { platform: "youtube", title: "Car Review", count: 410 },
+    google: [
+      { platform: "google", title: "Tech Review", count: 2200 },
+      { platform: "google", title: "Gaming Highlights", count: 1900 },
+      { platform: "google", title: "Comedy Sketch", count: 1800 },
+      { platform: "google", title: "Video Trending #1", count: 1200 },
+      { platform: "google", title: "Travel Vlog", count: 1100 },
+      { platform: "google", title: "Music Cover", count: 980 },
+      { platform: "google", title: "Viral Dance Video", count: 900 },
+      { platform: "google", title: "DIY Tutorial", count: 850 },
+      { platform: "google", title: "Food Challenge", count: 750 },
+      { platform: "google", title: "Fitness Workout", count: 680 },
+      { platform: "google", title: "Movie Review", count: 655 },
+      { platform: "google", title: "Fashion Haul", count: 590 },
+      { platform: "google", title: "Pet Funny Moments", count: 530 },
+      { platform: "google", title: "Recipe Tutorial", count: 475 },
+      { platform: "google", title: "Car Review", count: 410 },
     ],
     tiktok: [
       { platform: "tiktok", title: "Viral Dance Video", count: 3200 },
@@ -191,7 +191,7 @@ const mockVideoData = {
 
 // Function để lấy dữ liệu đã lọc - giống như API call thật
 export const getFilteredVideoData = (
-  platform: 'facebook' | 'youtube' | 'tiktok', 
+  platform: 'facebook' | 'google' | 'tiktok', 
   metricType: 'views' | 'likes' | 'comments',
   timeFilter: '7days' | '30days' | 'all',
   topCount: 5 | 10 | 15
@@ -218,7 +218,7 @@ export const getFilteredVideoData = (
 export const convertToChartFormat = (
   backendData: {
     facebook: VideoPerformanceData[];
-    youtube: VideoPerformanceData[];
+    google: VideoPerformanceData[];
     tiktok: VideoPerformanceData[];
   },
   metricType: 'views' | 'likes' | 'comments'
@@ -232,7 +232,7 @@ export const convertToChartFormat = (
   // Chuyển đổi sang VideoStats format
   const videoStats: VideoStats[] = Array.from(allTitles).map((title, index) => {
     const facebookData = backendData.facebook.find(v => v.title === title);
-    const youtubeData = backendData.youtube.find(v => v.title === title);
+    const googleData = backendData.google.find(v => v.title === title);
     const tiktokData = backendData.tiktok.find(v => v.title === title);
 
     return {
@@ -243,10 +243,10 @@ export const convertToChartFormat = (
         likes: metricType === 'likes' ? (facebookData?.count || 0) : 0,
         comments: metricType === 'comments' ? (facebookData?.count || 0) : 0,
       },
-      youtube: {
-        views: metricType === 'views' ? (youtubeData?.count || 0) : 0,
-        likes: metricType === 'likes' ? (youtubeData?.count || 0) : 0,
-        comments: metricType === 'comments' ? (youtubeData?.count || 0) : 0,
+      google: {
+        views: metricType === 'views' ? (googleData?.count || 0) : 0,
+        likes: metricType === 'likes' ? (googleData?.count || 0) : 0,
+        comments: metricType === 'comments' ? (googleData?.count || 0) : 0,
       },
       tiktok: {
         views: metricType === 'views' ? (tiktokData?.count || 0) : 0,
@@ -258,8 +258,8 @@ export const convertToChartFormat = (
   });
 
   return videoStats.sort((a, b) => {
-    const aTotal = a.facebook[metricType] + a.youtube[metricType] + a.tiktok[metricType];
-    const bTotal = b.facebook[metricType] + b.youtube[metricType] + b.tiktok[metricType];
+    const aTotal = a.facebook[metricType] + a.google[metricType] + a.tiktok[metricType];
+    const bTotal = b.facebook[metricType] + b.google[metricType] + b.tiktok[metricType];
     return bTotal - aTotal;
   });
 };

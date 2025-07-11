@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChartComponent } from '../../components/analytics/ChartComponent';
 import { StatsCards } from '../../components/analytics/StatsCards';
+import { AnalystService, TopVideo } from '@/services/analyst.service';
 import { getFilteredVideoData, convertToChartFormat, VideoStats, VideoPerformanceData } from '../../data/mockVideoStats';
 import { 
   FaCalendarAlt, 
@@ -9,9 +10,9 @@ import {
   FaClock, 
   FaChevronDown,
   FaFacebook,
-  FaYoutube,
   FaTiktok,
-  FaChartLine
+  FaChartLine,
+  FaGoogle
 } from 'react-icons/fa';
 import { ProtectedRoute } from '../../components/common/ProtectedRoute';
 import { Header } from '@/components/layout/Header/Header';
@@ -21,42 +22,69 @@ const AnalyticsPage: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'7days' | '30days' | 'all'>('7days');
   const [metricType, setMetricType] = useState<'views' | 'likes' | 'comments'>('views');
   const [topCount, setTopCount] = useState<5 | 10 | 15>(10);
-  const [platformFilter, setPlatformFilter] = useState<'facebook' | 'youtube' | 'tiktok'>('facebook');
-  const [filteredData, setFilteredData] = useState<VideoStats[]>([]);
+  const [platformFilter, setPlatformFilter] = useState<'facebook' | 'google' | 'tiktok'>('facebook');
+  const [filteredData, setFilteredData] = useState<TopVideo[]>([]);
   const [backendFormatData, setBackendFormatData] = useState<{
     facebook: VideoPerformanceData[];
-    youtube: VideoPerformanceData[];
+    google: VideoPerformanceData[];
     tiktok: VideoPerformanceData[];
   }>({
     facebook: [],
-    youtube: [],
+    google: [],
     tiktok: []
   });
 
   // Cập nhật dữ liệu khi filter thay đổi
   useEffect(() => {
-    const selectedPlatformData = getFilteredVideoData(platformFilter, metricType, timeFilter, topCount);
-    
-    const backendData = {
-      facebook: platformFilter === 'facebook' ? selectedPlatformData : [],
-      youtube: platformFilter === 'youtube' ? selectedPlatformData : [],
-      tiktok: platformFilter === 'tiktok' ? selectedPlatformData : []
-    };
+   const fetchData = async () => {
+    const { startDate, endDate } = getDateRange(timeFilter);
 
-    // Lưu backend format để hiển thị demo
-    setBackendFormatData(backendData);
-
-    // Chuyển đổi sang format cho biểu đồ - chỉ hiển thị nền tảng được chọn
-    const chartData = convertToChartFormat(backendData, metricType);
-    setFilteredData(chartData);
+    try {
+      const data = await AnalystService.AnalystStatistic(
+        platformFilter, startDate, endDate, getMetricLabel(), topCount
+      );
+      console.log(data);
+      setFilteredData(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  fetchData();
   }, [timeFilter, topCount, metricType, platformFilter]);
+const getDateBefore = (days: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+};
+
+const getDateRange = (timeFilter: '7days' | '30days' | 'all') => {
+  const now = new Date().toISOString();
+  let startDate: string;
+
+  switch (timeFilter) {
+    case '7days':
+      startDate = getDateBefore(7);
+      break;
+    case '30days':
+      startDate = getDateBefore(30);
+      break;
+    case 'all':
+      startDate = new Date("2000-01-01T00:00:00Z").toISOString();
+      break;
+  }
+
+  return { startDate, endDate: now };
+};
+
+const { startDate, endDate } = getDateRange('7days');
+console.log(startDate, endDate);
 
   // Get metric label
   const getMetricLabel = () => {
     switch (metricType) {
-      case 'views': return 'views';
-      case 'likes': return 'likes';
-      case 'comments': return 'comments';
+      case 'views': return 'view';
+      case 'likes': return 'like';
+      case 'comments': return 'comment';
       default: return '';
     }
   };
@@ -127,7 +155,7 @@ const AnalyticsPage: React.FC = () => {
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white shadow-sm"
                     >
                       <option value="facebook">Facebook</option>
-                      <option value="youtube">YouTube</option>
+                      <option value="google">Google</option>
                       <option value="tiktok">TikTok</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -202,31 +230,7 @@ const AnalyticsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Backend Response Format Demo */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Backend Response Format Demo</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Based on current filters: <strong>{timeFilter}</strong>, <strong>{metricType}</strong>, <strong>top {topCount}</strong> on <strong>{platformFilter}</strong>
-              </p>
-              
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-3 capitalize flex items-center">
-                  {platformFilter === 'facebook' && '📘'}
-                  {platformFilter === 'youtube' && '📹'}
-                  {platformFilter === 'tiktok' && '🎵'}
-                  {' '}{platformFilter} Response
-                </h4>
-                <div className="bg-gray-50 p-3 rounded text-xs font-mono max-h-40 overflow-y-auto">
-                  <pre>{JSON.stringify(backendFormatData[platformFilter].slice(0, 3), null, 2)}</pre>
-                  {backendFormatData[platformFilter].length > 3 && (
-                    <div className="text-gray-500 mt-2">... và {backendFormatData[platformFilter].length - 3} video khác</div>
-                  )}
-                </div>
-                <div className="mt-2 text-xs text-gray-500">
-                  Sum: {backendFormatData[platformFilter].length} videos • Top {topCount} {metricType}
-                </div>
-              </div>
-            </div>
+           
 
             {/* Thống kê tổng quan */}
             {/* <StatsCards data={filteredData} metricType={metricType} /> */}
@@ -246,7 +250,7 @@ const AnalyticsPage: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     {platformFilter === 'facebook' && <FaFacebook className="w-4 h-4" />}
-                    {platformFilter === 'youtube' && <FaYoutube className="w-4 h-4" />}
+                    {platformFilter === 'google' && <FaGoogle className="w-4 h-4" />}
                     {platformFilter === 'tiktok' && <FaTiktok className="w-4 h-4" />}
                     <span>{platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}</span>
                   </div>
@@ -283,82 +287,6 @@ const AnalyticsPage: React.FC = () => {
                 />
               </div>
             </div>
-
-            {/* Detailed Table */}
-            {/* <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold">Individual Video Performance Details</h2>
-                <p className="text-gray-600 text-sm mt-1">
-                  Showing {getMetricLabel()} for top {topCount} videos
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Video
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <div className="flex items-center justify-center">
-                          <FaFacebook className="w-4 h-4 mr-1 text-blue-600" />
-                          Facebook
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <div className="flex items-center justify-center">
-                          <FaYoutube className="w-4 h-4 mr-1 text-red-600" />
-                          YouTube
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <div className="flex items-center justify-center">
-                          <FaTiktok className="w-4 h-4 mr-1 text-black" />
-                          TikTok
-                        </div>
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredData.map((video, index) => {
-                      const total = video.facebook[metricType] + video.youtube[metricType] + video.tiktok[metricType];
-                      return (
-                        <tr key={video.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                                  #{index + 1}
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{video.title}</div>
-                                <div className="text-sm text-gray-500">{new Date(video.createdAt).toLocaleDateString('en-US')}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-blue-600">{video.facebook[metricType].toLocaleString()}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-red-600">{video.youtube[metricType].toLocaleString()}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-semibold text-gray-900">{video.tiktok[metricType].toLocaleString()}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="text-sm font-bold text-gray-900">{total.toLocaleString()}</div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div> */}
           </div>
           </div>
         </div>
