@@ -20,6 +20,7 @@ const AnalyticsPage: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState<'7days' | '30days' | 'all'>('7days');
   const [metricType, setMetricType] = useState<'views' | 'likes' | 'comments'>('views');
   const [topCount, setTopCount] = useState<5 | 10 | 15>(10);
+  const [platformFilter, setPlatformFilter] = useState<'facebook' | 'youtube' | 'tiktok'>('facebook');
   const [filteredData, setFilteredData] = useState<VideoStats[]>([]);
   const [backendFormatData, setBackendFormatData] = useState<{
     facebook: VideoPerformanceData[];
@@ -33,24 +34,21 @@ const AnalyticsPage: React.FC = () => {
 
   // Cập nhật dữ liệu khi filter thay đổi
   useEffect(() => {
-    // Lấy dữ liệu từ backend format - giống như API call thật
-    const facebookData = getFilteredVideoData('facebook', metricType, timeFilter, topCount);
-    const youtubeData = getFilteredVideoData('youtube', metricType, timeFilter, topCount);
-    const tiktokData = getFilteredVideoData('tiktok', metricType, timeFilter, topCount);
+    const selectedPlatformData = getFilteredVideoData(platformFilter, metricType, timeFilter, topCount);
     
     const backendData = {
-      facebook: facebookData,
-      youtube: youtubeData,
-      tiktok: tiktokData
+      facebook: platformFilter === 'facebook' ? selectedPlatformData : [],
+      youtube: platformFilter === 'youtube' ? selectedPlatformData : [],
+      tiktok: platformFilter === 'tiktok' ? selectedPlatformData : []
     };
 
     // Lưu backend format để hiển thị demo
     setBackendFormatData(backendData);
 
-    // Chuyển đổi sang format cho biểu đồ
+    // Chuyển đổi sang format cho biểu đồ - chỉ hiển thị nền tảng được chọn
     const chartData = convertToChartFormat(backendData, metricType);
     setFilteredData(chartData);
-  }, [timeFilter, topCount, metricType]);
+  }, [timeFilter, topCount, metricType, platformFilter]);
 
   // Get metric label
   const getMetricLabel = () => {
@@ -73,7 +71,7 @@ const AnalyticsPage: React.FC = () => {
                   Video Performance Analytics
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Analyze top {topCount} highest performing videos across social media platforms
+                  Analyze top {topCount} highest performing videos on {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}
                 </p>
                 <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
                   <div className="flex items-center">
@@ -90,7 +88,7 @@ const AnalyticsPage: React.FC = () => {
             {/* Filters */}
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Data Filters</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     <span className="flex items-center">
@@ -107,6 +105,29 @@ const AnalyticsPage: React.FC = () => {
                       <option value="7days">Last 7 days</option>
                       <option value="30days">Last 30 days</option>
                       <option value="all">All time</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <FaChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <span className="flex items-center">
+                      <FaInfoCircle className="w-4 h-4 mr-2" />
+                      Platform
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <select 
+                      value={platformFilter} 
+                      onChange={(e) => setPlatformFilter(e.target.value as any)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 bg-white shadow-sm"
+                    >
+                      <option value="facebook">Facebook</option>
+                      <option value="youtube">YouTube</option>
+                      <option value="tiktok">TikTok</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                       <FaChevronDown className="w-4 h-4 text-gray-400" />
@@ -166,7 +187,11 @@ const AnalyticsPage: React.FC = () => {
                 <div className="flex items-center text-sm text-blue-800">
                   <FaInfoCircle className="w-4 h-4 mr-2" />
                   <span>
-                    Showing <strong>{getMetricLabel()}</strong> for <strong>top {topCount} videos</strong> from{' '}
+                    Showing <strong>{getMetricLabel()}</strong> for <strong>top {topCount} videos</strong> on{' '}
+                    <strong>
+                      {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}
+                    </strong>{' '}
+                    from{' '}
                     <strong>
                       {timeFilter === '7days' ? 'last 7 days' : 
                       timeFilter === '30days' ? 'last 30 days' : 'all time'}
@@ -180,34 +205,30 @@ const AnalyticsPage: React.FC = () => {
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Backend Response Format Demo</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Based on current filters: <strong>{timeFilter}</strong>, <strong>{metricType}</strong>, <strong>top {topCount}</strong>
+                Based on current filters: <strong>{timeFilter}</strong>, <strong>{metricType}</strong>, <strong>top {topCount}</strong> on <strong>{platformFilter}</strong>
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {Object.entries(backendFormatData).map(([platform, data]) => (
-                  <div key={platform} className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 capitalize flex items-center">
-                      {platform === 'facebook' && '📘'}
-                      {platform === 'youtube' && '📹'}
-                      {platform === 'tiktok' && '🎵'}
-                      {' '}{platform} Response
-                    </h4>
-                    <div className="bg-gray-50 p-3 rounded text-xs font-mono max-h-40 overflow-y-auto">
-                      <pre>{JSON.stringify(data.slice(0, 3), null, 2)}</pre>
-                      {data.length > 3 && (
-                        <div className="text-gray-500 mt-2">... và {data.length - 3} video khác</div>
-                      )}
-                    </div>
-                    <div className="mt-2 text-xs text-gray-500">
-                      Sum: {data.length} videos • Top {topCount} {metricType}
-                    </div>
-                  </div>
-                ))}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3 capitalize flex items-center">
+                  {platformFilter === 'facebook' && '📘'}
+                  {platformFilter === 'youtube' && '📹'}
+                  {platformFilter === 'tiktok' && '🎵'}
+                  {' '}{platformFilter} Response
+                </h4>
+                <div className="bg-gray-50 p-3 rounded text-xs font-mono max-h-40 overflow-y-auto">
+                  <pre>{JSON.stringify(backendFormatData[platformFilter].slice(0, 3), null, 2)}</pre>
+                  {backendFormatData[platformFilter].length > 3 && (
+                    <div className="text-gray-500 mt-2">... và {backendFormatData[platformFilter].length - 3} video khác</div>
+                  )}
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  Sum: {backendFormatData[platformFilter].length} videos • Top {topCount} {metricType}
+                </div>
               </div>
             </div>
 
             {/* Thống kê tổng quan */}
-            <StatsCards data={filteredData} metricType={metricType} />
+            {/* <StatsCards data={filteredData} metricType={metricType} /> */}
 
             {/* Charts */}
             <div className="space-y-8">
@@ -215,19 +236,25 @@ const AnalyticsPage: React.FC = () => {
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Bar Chart Comparison</h2>
-                    <p className="text-sm text-gray-600 mt-1">Compare performance across platforms</p>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)} Performance Chart
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Top {topCount} videos ranked by {getMetricLabel()} on {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <FaChartBar className="w-4 h-4" />
-                    <span>Bar Chart</span>
+                    {platformFilter === 'facebook' && '📘'}
+                    {platformFilter === 'youtube' && '📹'}
+                    {platformFilter === 'tiktok' && '🎵'}
+                    <span>{platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}</span>
                   </div>
                 </div>
                 <ChartComponent 
                   data={filteredData}
                   metricType={metricType}
                   chartType="bar"
-                  title={`Compare ${getMetricLabel()} by platform`}
+                  title={`Top ${topCount} videos by ${getMetricLabel()} on ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
                 />
               </div>
 
@@ -235,19 +262,23 @@ const AnalyticsPage: React.FC = () => {
               <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Line Chart Trends</h2>
-                    <p className="text-sm text-gray-600 mt-1">Track development trends over time</p>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)} Trends Chart
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Track {getMetricLabel()} trends for top videos on {platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     <FaChartLine className="w-4 h-4" />
-                    <span>Line Chart</span>
+                    <span>Trend Analysis</span>
                   </div>
                 </div>
                 <ChartComponent 
                   data={filteredData}
                   metricType={metricType}
                   chartType="line"
-                  title={`${getMetricLabel()} trends across videos`}
+                  title={`${getMetricLabel()} trends on ${platformFilter.charAt(0).toUpperCase() + platformFilter.slice(1)}`}
                 />
               </div>
             </div>
